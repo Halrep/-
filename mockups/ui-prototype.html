@@ -242,9 +242,38 @@ textarea, input[type=text]{
 .stamp-row{display:flex; gap:10px; flex-wrap:wrap}
 .stamp{
   border:2px solid var(--line); background:var(--surface); border-radius:12px;
-  font-size:26px; padding:6px 14px; transition:border-color .15s, background .15s;
+  padding:8px 14px 6px; min-width:96px;
+  display:flex; flex-direction:column; align-items:center; gap:2px;
+  transition:border-color .15s, background .15s;
 }
+.stamp .em{font-size:26px; line-height:1.2}
+.stamp .sl{font-size:11.5px; font-weight:700; color:var(--muted); line-height:1.4; text-align:center}
 .stamp[aria-pressed="true"]{border-color:var(--accent); background:var(--accent-soft)}
+.stamp[aria-pressed="true"] .sl{color:var(--accent)}
+
+/* 資料一覧 */
+.res-strip{
+  grid-column:1/-1; display:flex; flex-wrap:wrap; gap:6px; align-items:center;
+  border-top:1px dashed var(--line); padding-top:10px; font-size:12px; color:var(--muted);
+}
+.res-strip .d-chip{font-weight:700}
+.res-list{display:flex; flex-direction:column; gap:8px}
+.res-row{
+  display:flex; align-items:center; gap:12px; border:1.5px solid var(--line);
+  border-radius:var(--r); padding:9px 14px; background:var(--surface);
+}
+.res-row .ic{font-size:20px; flex:none}
+.res-row .ti{font-weight:700; font-size:13.5px}
+.res-row .sub{font-size:11.5px; color:var(--muted)}
+.rtag{
+  flex:none; font-size:10px; font-weight:800; letter-spacing:.08em; border-radius:5px;
+  padding:2px 8px; background:var(--surface2); color:var(--muted); margin-left:auto;
+}
+.rtag.link{background:var(--primary-soft); color:var(--primary)}
+.open-btn{
+  flex:none; border:1.5px solid var(--primary-line); background:var(--surface); color:var(--primary);
+  border-radius:8px; padding:5px 14px; font-size:12.5px; font-weight:800;
+}
 .timeline{display:flex; flex-direction:column; gap:0}
 .tl-item{display:flex; gap:14px; position:relative; padding:0 0 16px 2px}
 .tl-item::before{
@@ -399,6 +428,15 @@ textarea, input[type=text]{
           <b>ゴール（できるようになりたい姿）</b>
           参勤交代や武家諸法度などの幕府の政策を資料から読み取り、大名支配のしくみを<strong>自分の言葉で説明できる</strong>。
         </div>
+        <div class="res-strip">
+          つかえる資料：
+          <span class="d-chip">📖 教科書 p.96–99</span>
+          <span class="d-chip">📚 資料集 p.42–45</span>
+          <span class="d-chip">🎬 動画 1本</span>
+          <span class="d-chip">🗺 白地図</span>
+          <span class="d-chip">🔗 リンク 1件</span>
+          <span style="margin-left:auto">くわしくは「② やってみる」の資料コーナーへ</span>
+        </div>
       </div>
     </div>
 
@@ -494,6 +532,40 @@ textarea, input[type=text]{
     </div>
 
     <div class="card">
+      <div class="card-h"><span class="h-badge">📎</span><h2>きょうの資料コーナー　<span style="font-size:11.5px;color:var(--muted);font-weight:700">先生が用意した資料はここから</span></h2></div>
+      <div class="card-b res-list">
+        <div class="res-row">
+          <span class="ic">📖</span>
+          <div><div class="ti">教科書 p.96–99「幕府の政治」</div><div class="sub">机の上に用意しよう</div></div>
+          <span class="rtag">手もとの資料</span>
+        </div>
+        <div class="res-row">
+          <span class="ic">📚</span>
+          <div><div class="ti">資料集 p.42–45「参勤交代の道のり」</div><div class="sub">大名行列の絵と地図がのっています</div></div>
+          <span class="rtag">手もとの資料</span>
+        </div>
+        <div class="res-row">
+          <span class="ic">🎬</span>
+          <div><div class="ti">NHK for School「参勤交代」</div><div class="sub">動画 6:32 ・ イヤホンを使おう</div></div>
+          <span class="rtag link">動画</span>
+          <button class="open-btn" data-toast="動画をひらきます（デモ）">ひらく</button>
+        </div>
+        <div class="res-row">
+          <span class="ic">🗺</span>
+          <div><div class="ti">白地図「大名の配置（1664年）」</div><div class="sub">自分用のコピーが作られます</div></div>
+          <span class="rtag link">スライド</span>
+          <button class="open-btn" data-toast="白地図をひらきます（デモ）">ひらく</button>
+        </div>
+        <div class="res-row">
+          <span class="ic">🔗</span>
+          <div><div class="ti">「武家諸法度」現代語やく</div><div class="sub">むずかしい言葉のいいかえ付き</div></div>
+          <span class="rtag link">ドキュメント</span>
+          <button class="open-btn" data-toast="資料をひらきます（デモ）">ひらく</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
       <div class="card-h"><span class="h-badge">🃏</span><h2>えらんだ工夫カード　<span style="font-size:11.5px;color:var(--muted);font-weight:700">使ったらタップ</span></h2></div>
       <div class="card-b">
         <div class="strat-grid">
@@ -569,13 +641,13 @@ textarea, input[type=text]{
       <div class="card-h"><span class="h-badge">💬</span><h2>今日の気持ちと、次にいかすこと</h2></div>
       <div class="card-b" style="display:flex; flex-direction:column; gap:14px">
         <div>
-          <h3>今日の気持ち</h3>
+          <h3>今日の気持ち（いちばん近いものを1つ）</h3>
           <div class="stamp-row" data-single>
-            <button class="stamp" aria-pressed="false" aria-label="やりきった">😊</button>
-            <button class="stamp" aria-pressed="true" aria-label="もう少し">🙂</button>
-            <button class="stamp" aria-pressed="false" aria-label="がんばった">💪</button>
-            <button class="stamp" aria-pressed="false" aria-label="つかれた">😮‍💨</button>
-            <button class="stamp" aria-pressed="false" aria-label="こまった">😵</button>
+            <button class="stamp" aria-pressed="false"><span class="em">😊</span><span class="sl">やりきった！<br>たのしかった</span></button>
+            <button class="stamp" aria-pressed="true"><span class="em">🙂</span><span class="sl">だいたいできた<br>もう少しやりたい</span></button>
+            <button class="stamp" aria-pressed="false"><span class="em">💪</span><span class="sl">大変だったけど<br>がんばれた</span></button>
+            <button class="stamp" aria-pressed="false"><span class="em">😮‍💨</span><span class="sl">つかれた<br>もやもやする</span></button>
+            <button class="stamp" aria-pressed="false"><span class="em">😵</span><span class="sl">わからなくて<br>こまった</span></button>
           </div>
         </div>
         <div>
@@ -705,6 +777,34 @@ textarea, input[type=text]{
           <div class="sw-row"><div><div class="lb">資料・ツール</div><div class="sub">教科書／資料集／NHK for School／白地図</div></div><button class="switch" aria-pressed="true" aria-label="資料を開放"></button></div>
           <div class="sw-row"><div><div class="lb">順序</div><div class="sub">調べてから書く／構想してから調べる</div></div><button class="switch" aria-pressed="true" aria-label="順序を開放"></button></div>
           <div class="sw-row"><div><div class="lb">場所</div><div class="sub">自席／学びスペース（今回は閉じる）</div></div><button class="switch" aria-pressed="false" aria-label="場所を開放"></button></div>
+        </div>
+      </div>
+
+      <div class="card" style="grid-column:1/-1">
+        <div class="card-h"><span class="h-badge">📎</span><h2>本時の資料（児童の「資料コーナー」に表示）</h2></div>
+        <div class="card-b res-list">
+          <div class="res-row">
+            <span class="ic">📖</span>
+            <div><div class="ti">教科書 p.96–99「幕府の政治」</div><div class="sub">ページ指定のみ（リンクなし）</div></div>
+            <span class="rtag">手もと資料</span>
+            <button class="open-btn" data-toast="資料を削除しました（デモ）">削除</button>
+          </div>
+          <div class="res-row">
+            <span class="ic">🎬</span>
+            <div><div class="ti">NHK for School「参勤交代」</div><div class="sub">https://www2.nhk.or.jp/school/…</div></div>
+            <span class="rtag link">動画</span>
+            <button class="open-btn" data-toast="資料を削除しました（デモ）">削除</button>
+          </div>
+          <div class="res-row">
+            <span class="ic">🗺</span>
+            <div><div class="ti">白地図「大名の配置（1664年）」</div><div class="sub">Googleスライド ・ 児童ごとにコピーを配る</div></div>
+            <span class="rtag link">スライド</span>
+            <button class="open-btn" data-toast="資料を削除しました（デモ）">削除</button>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:4px">
+            <input type="text" placeholder="URLを貼り付け（Docs / Slides / 動画 / Webサイト）" style="flex:1; min-width:220px">
+            <button class="btn ghost" data-toast="資料を追加しました（デモ）">＋ 資料を追加</button>
+          </div>
         </div>
       </div>
 
