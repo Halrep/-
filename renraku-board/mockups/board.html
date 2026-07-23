@@ -1,0 +1,545 @@
+<title>職員連絡ボード モックアップ</title>
+<style>
+  :root {
+    --paper: #f6f7f4;
+    --card: #ffffff;
+    --ink: #232b33;
+    --ink-soft: #5a6672;
+    --ink-faint: #8a949e;
+    --line: #dde2e0;
+    --accent: #35509e;
+    --accent-soft: #e7ecf8;
+    --good: #2e7d4f;
+    --good-soft: #e3f1e8;
+    --warn: #a26a10;
+    --warn-soft: #f7ecd8;
+    --danger: #b23a2f;
+    --danger-soft: #f9e6e3;
+    --shadow: 0 1px 3px rgba(35, 43, 51, 0.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #171b20;
+      --card: #21262d;
+      --ink: #e8ebee;
+      --ink-soft: #a8b2bc;
+      --ink-faint: #74808c;
+      --line: #343c45;
+      --accent: #8aa3e8;
+      --accent-soft: #2a3450;
+      --good: #6dbd8f;
+      --good-soft: #23392c;
+      --warn: #d9a44a;
+      --warn-soft: #3d321f;
+      --danger: #e08074;
+      --danger-soft: #452622;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #171b20;
+    --card: #21262d;
+    --ink: #e8ebee;
+    --ink-soft: #a8b2bc;
+    --ink-faint: #74808c;
+    --line: #343c45;
+    --accent: #8aa3e8;
+    --accent-soft: #2a3450;
+    --good: #6dbd8f;
+    --good-soft: #23392c;
+    --warn: #d9a44a;
+    --warn-soft: #3d321f;
+    --danger: #e08074;
+    --danger-soft: #452622;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  }
+  :root[data-theme="light"] {
+    --paper: #f6f7f4;
+    --card: #ffffff;
+    --ink: #232b33;
+    --ink-soft: #5a6672;
+    --ink-faint: #8a949e;
+    --line: #dde2e0;
+    --accent: #35509e;
+    --accent-soft: #e7ecf8;
+    --good: #2e7d4f;
+    --good-soft: #e3f1e8;
+    --warn: #a26a10;
+    --warn-soft: #f7ecd8;
+    --danger: #b23a2f;
+    --danger-soft: #f9e6e3;
+    --shadow: 0 1px 3px rgba(35, 43, 51, 0.08);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic UI", "Yu Gothic", "Noto Sans JP", sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* PC画面向け: 横幅を広く使う */
+  .app { max-width: 1180px; margin: 0 auto; padding: 0 28px 64px; }
+
+  /* ---- header ---- */
+  header.appbar {
+    padding: 20px 4px 0;
+  }
+  .appbar-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .app-title { font-size: 1.25rem; font-weight: 700; letter-spacing: 0.01em; margin: 0; }
+  .app-title small { font-weight: 500; color: var(--ink-soft); font-size: 0.78rem; margin-left: 8px; }
+  .today-date { color: var(--ink-soft); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+  .appbar-right { display: flex; align-items: center; gap: 14px; }
+
+  /* ---- theme switcher ---- */
+  .theme-switch {
+    display: inline-flex; gap: 2px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px;
+  }
+  .theme-switch button {
+    appearance: none; border: none; background: none; cursor: pointer;
+    font: inherit; font-size: 0.75rem; font-weight: 600; color: var(--ink-soft);
+    border-radius: 999px; padding: 3px 12px; white-space: nowrap;
+  }
+  .theme-switch button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .theme-switch button[aria-pressed="true"] {
+    background: var(--accent); color: #fff;
+  }
+  .mock-note {
+    margin: 10px 4px 0;
+    font-size: 0.75rem;
+    color: var(--ink-faint);
+  }
+
+  /* ---- tabs ---- */
+  nav.tabs {
+    display: flex; gap: 4px;
+    margin: 16px 0 0;
+    border-bottom: 1px solid var(--line);
+    overflow-x: auto;
+  }
+  .tab {
+    appearance: none; background: none; border: none;
+    font: inherit; color: var(--ink-soft);
+    padding: 10px 14px 8px;
+    border-bottom: 2.5px solid transparent;
+    cursor: pointer; white-space: nowrap;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 0.95rem;
+  }
+  .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px; }
+  .tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
+  .tab .badge {
+    background: var(--danger); color: #fff;
+    font-size: 0.7rem; font-weight: 700;
+    border-radius: 999px; padding: 0 7px; line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---- summary strip ---- */
+  .summary {
+    display: flex; gap: 10px; flex-wrap: wrap;
+    margin: 16px 0 4px;
+  }
+  .stat {
+    flex: 1 1 140px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 14px; box-shadow: var(--shadow);
+    display: flex; align-items: baseline; gap: 10px;
+  }
+  .stat .n { font-size: 1.4rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat .l { font-size: 0.75rem; color: var(--ink-soft); }
+  .stat.alert .n { color: var(--danger); }
+  .stat.warn .n { color: var(--warn); }
+
+  section.view { display: none; }
+  section.view.active { display: block; }
+  h2.section-label {
+    font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em;
+    color: var(--ink-faint);
+    margin: 24px 4px 10px;
+  }
+
+  /* ---- cards ---- */
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 14px 20px;
+    margin-bottom: 12px;
+    transition: opacity 0.25s;
+  }
+  .card.done { opacity: 0.62; }
+  .card-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .chip {
+    font-size: 0.7rem; font-weight: 700; border-radius: 6px; padding: 2px 8px;
+    letter-spacing: 0.03em; white-space: nowrap;
+  }
+  .chip.kind { background: var(--accent-soft); color: var(--accent); }
+  .chip.action { background: var(--warn-soft); color: var(--warn); }
+  .chip.readonly { background: var(--line); color: var(--ink-soft); }
+  .chip.due { font-variant-numeric: tabular-nums; }
+  .chip.due.far { background: var(--good-soft); color: var(--good); }
+  .chip.due.near { background: var(--warn-soft); color: var(--warn); }
+  .chip.due.today { background: var(--danger-soft); color: var(--danger); }
+  .chip.target { background: none; border: 1px solid var(--line); color: var(--ink-soft); font-weight: 500; }
+
+  .card h3 { margin: 2px 0 4px; font-size: 1.02rem; line-height: 1.45; text-wrap: balance; }
+  .card .body { font-size: 0.88rem; color: var(--ink-soft); margin: 0 0 10px; white-space: pre-line; max-width: 76ch; }
+  .card .meta { font-size: 0.75rem; color: var(--ink-faint); display: flex; gap: 12px; flex-wrap: wrap; }
+  .card a.doc { color: var(--accent); font-size: 0.82rem; text-decoration: none; }
+  .card a.doc:hover { text-decoration: underline; }
+
+  .card-foot {
+    display: flex; align-items: center; gap: 20px;
+    margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line);
+  }
+  /* 横長画面では進捗バーを一定幅に抑え、ボタンは右端に揃える */
+  .progress { flex: 1; min-width: 0; max-width: 420px; }
+  .progress .bar {
+    height: 6px; border-radius: 999px; background: var(--line); overflow: hidden;
+  }
+  .progress .fill { height: 100%; border-radius: 999px; background: var(--good); transition: width 0.3s; }
+  .progress .txt { font-size: 0.72rem; color: var(--ink-soft); margin-top: 3px; font-variant-numeric: tabular-nums; }
+
+  button.check {
+    appearance: none; font: inherit; cursor: pointer;
+    border-radius: 999px; padding: 8px 18px;
+    border: 1.5px solid var(--accent);
+    background: var(--accent); color: #fff;
+    font-weight: 700; font-size: 0.88rem;
+    white-space: nowrap;
+    margin-left: auto;
+    transition: background 0.2s, color 0.2s;
+  }
+  button.check:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  button.check.checked {
+    background: var(--good-soft); border-color: var(--good-soft); color: var(--good);
+  }
+
+  /* ---- meeting view ---- */
+  .meet-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    flex-wrap: wrap; margin: 16px 0 4px;
+  }
+  select.meet-picker {
+    font: inherit; font-size: 0.9rem;
+    background: var(--card); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px;
+  }
+  .time-chip {
+    background: var(--accent-soft); color: var(--accent);
+    font-weight: 700; font-size: 0.85rem;
+    border-radius: 8px; padding: 5px 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .tablewrap { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+  table.agenda { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 0.87rem; }
+  table.agenda th {
+    text-align: left; font-size: 0.72rem; letter-spacing: 0.05em; color: var(--ink-faint);
+    padding: 10px 14px; border-bottom: 1px solid var(--line); white-space: nowrap;
+  }
+  table.agenda td { padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.agenda tr:last-child td { border-bottom: none; }
+  table.agenda td.no { color: var(--ink-faint); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  table.agenda td.min { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.agenda td .sub { color: var(--ink-soft); font-size: 0.8rem; display: block; margin-top: 2px; }
+
+  /* ---- admin view ---- */
+  .staff-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+  .staff-chips .s {
+    background: var(--danger-soft); color: var(--danger);
+    border-radius: 999px; padding: 3px 12px; font-size: 0.8rem; font-weight: 600;
+  }
+  button.remind {
+    appearance: none; font: inherit; cursor: pointer;
+    border: 1.5px solid var(--accent); background: none; color: var(--accent);
+    border-radius: 8px; padding: 7px 16px; font-weight: 700; font-size: 0.85rem;
+  }
+  button.remind:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
+    background: var(--ink); color: var(--paper);
+    border-radius: 999px; padding: 9px 20px; font-size: 0.85rem; font-weight: 600;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s;
+    z-index: 10;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ---- fab ---- */
+  .fab {
+    position: fixed; right: max(20px, calc(50% - 574px)); bottom: 24px;
+    appearance: none; border: none; cursor: pointer;
+    background: var(--accent); color: #fff;
+    font: inherit; font-weight: 700; font-size: 0.9rem;
+    border-radius: 999px; padding: 13px 22px;
+    box-shadow: 0 4px 14px rgba(35, 43, 51, 0.25);
+  }
+  .fab:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+
+<div class="app">
+  <header class="appbar">
+    <div class="appbar-row">
+      <h1 class="app-title">職員連絡ボード<small>令和8年度</small></h1>
+      <div class="appbar-right">
+        <div class="theme-switch" role="group" aria-label="カラーテーマ">
+          <button type="button" data-mode="auto" aria-pressed="true">自動</button>
+          <button type="button" data-mode="light" aria-pressed="false">ライト</button>
+          <button type="button" data-mode="dark" aria-pressed="false">ダーク</button>
+        </div>
+        <span class="today-date">7月23日（木）</span>
+      </div>
+    </div>
+    <p class="mock-note">※画面イメージのモックアップです。ボタンやタブは触って動きを確認できます（データは保存されません）。</p>
+    <nav class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true" data-view="today">今日のボード</button>
+      <button class="tab" role="tab" aria-selected="false" data-view="meeting">会議</button>
+      <button class="tab" role="tab" aria-selected="false" data-view="mine">自分の未対応 <span class="badge" id="mine-badge">2</span></button>
+      <button class="tab" role="tab" aria-selected="false" data-view="admin">確認状況（発信者用）</button>
+    </nav>
+  </header>
+
+  <!-- ============ 今日のボード ============ -->
+  <section class="view active" id="view-today">
+    <div class="summary">
+      <div class="stat alert"><span class="n">1</span><span class="l">期限が今日の連絡</span></div>
+      <div class="stat warn"><span class="n" id="stat-mine">2</span><span class="l">あなたの未対応</span></div>
+      <div class="stat"><span class="n">4</span><span class="l">掲載中の連絡</span></div>
+    </div>
+
+    <h2 class="section-label">要対応 — 期限が近い順</h2>
+
+    <div class="card" data-checked="false" data-count="12" data-total="24">
+      <div class="card-top">
+        <span class="chip kind">職員会議 7/17</span>
+        <span class="chip action">要対応</span>
+        <span class="chip due today">期限 7/23 今日</span>
+        <span class="chip target">対象: 学級担任</span>
+      </div>
+      <h3>１学期の特別活動のふり返りについて</h3>
+      <p class="body">１学期の特別活動の振り返りをまとめます。７月２３日（木）までにご記入をお願いします。</p>
+      <div class="meta"><span>発信: 藤原</span><a class="doc" href="#" onclick="return false">📄 記入シートを開く</a></div>
+      <div class="card-foot">
+        <div class="progress">
+          <div class="bar"><div class="fill" style="width: 50%"></div></div>
+          <div class="txt">12/24名 対応済み（50%）</div>
+        </div>
+        <button class="check">対応済みにする</button>
+      </div>
+    </div>
+
+    <div class="card" data-checked="false" data-count="18" data-total="31">
+      <div class="card-top">
+        <span class="chip kind">職員会議 7/17</span>
+        <span class="chip action">要対応</span>
+        <span class="chip due near">期限 7/24 あと1日</span>
+        <span class="chip target">対象: 全員</span>
+      </div>
+      <h3>端末の管理番号について</h3>
+      <p class="body">端末の管理番号は、スズキ校務の詳細名簿に入力をお願いします。</p>
+      <div class="meta"><span>発信: 横田</span><a class="doc" href="#" onclick="return false">📄 資料</a></div>
+      <div class="card-foot">
+        <div class="progress">
+          <div class="bar"><div class="fill" style="width: 58%"></div></div>
+          <div class="txt">18/31名 対応済み（58%）</div>
+        </div>
+        <button class="check">対応済みにする</button>
+      </div>
+    </div>
+
+    <div class="card" data-checked="false" data-count="26" data-total="31">
+      <div class="card-top">
+        <span class="chip kind">職員会議 7/17</span>
+        <span class="chip action">要対応</span>
+        <span class="chip due far">期限 8/26</span>
+        <span class="chip target">対象: 全員</span>
+      </div>
+      <h3>夏休み宿題　習字・作文の集め方</h3>
+      <p class="body">JAの習字は8月26日まで、作文は9月1日まで。</p>
+      <div class="meta"><span>発信: 清水</span><a class="doc" href="#" onclick="return false">📄 資料</a></div>
+      <div class="card-foot">
+        <div class="progress">
+          <div class="bar"><div class="fill" style="width: 84%"></div></div>
+          <div class="txt">26/31名 対応済み（84%）</div>
+        </div>
+        <button class="check">対応済みにする</button>
+      </div>
+    </div>
+
+    <h2 class="section-label">閲覧のみ</h2>
+
+    <div class="card done" data-checked="true" data-count="29" data-total="31">
+      <div class="card-top">
+        <span class="chip kind">職員会議 7/17</span>
+        <span class="chip readonly">閲覧のみ</span>
+        <span class="chip target">対象: 全員</span>
+      </div>
+      <h3>ご紹介：令和8年度「人権啓発セミナー」受講者募集</h3>
+      <p class="body">受講希望の方は相座までご連絡ください。</p>
+      <div class="meta"><span>発信: 相座</span><a class="doc" href="#" onclick="return false">📄 案内</a></div>
+      <div class="card-foot">
+        <div class="progress">
+          <div class="bar"><div class="fill" style="width: 94%"></div></div>
+          <div class="txt">29/31名 確認済み（94%）</div>
+        </div>
+        <button class="check checked">✓ 確認済み</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 会議ビュー ============ -->
+  <section class="view" id="view-meeting">
+    <div class="meet-head">
+      <select class="meet-picker" aria-label="会議を選択">
+        <option>7/17（木）職員会議</option>
+        <option>7/9（水）打合せ</option>
+        <option>7/6（月）打合せ</option>
+      </select>
+      <span class="time-chip">合計 17分</span>
+    </div>
+
+    <h2 class="section-label">協議事項</h2>
+    <div class="tablewrap">
+      <table class="agenda">
+        <thead><tr><th>No.</th><th>議題</th><th>発言者</th><th>分</th><th>資料</th></tr></thead>
+        <tbody>
+          <tr><td class="no">①</td><td>音楽会実施計画案（略案）<span class="sub">プログラム順など変更。体育館練習を2時間削減。</span></td><td>西村</td><td class="min">5</td><td><a class="doc" href="#" onclick="return false">📄</a></td></tr>
+          <tr><td class="no">②</td><td>人権参観について<span class="sub">10/8は新しい「ほほえみ」から資料を選んで授業。</span></td><td>相座</td><td class="min">2</td><td>—</td></tr>
+          <tr><td class="no">③</td><td>教育相談の報告<span class="sub">報告用紙をご確認ください。</span></td><td>松原</td><td class="min">3</td><td><a class="doc" href="#" onclick="return false">📄</a></td></tr>
+          <tr><td class="no">④</td><td>１学期の特別活動のふり返りについて<span class="sub">7/23（木）までにご記入をお願いします。</span></td><td>藤原</td><td class="min">1</td><td><a class="doc" href="#" onclick="return false">📄</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 class="section-label">連絡事項 — 会議後、自動でボードに掲載されチェック受付が始まります</h2>
+    <div class="tablewrap">
+      <table class="agenda">
+        <thead><tr><th>No.</th><th>議題</th><th>発言者</th><th>分</th><th>期限</th></tr></thead>
+        <tbody>
+          <tr><td class="no">①</td><td>夏休み宿題　習字・作文の集め方</td><td>清水</td><td class="min">—</td><td>8/26</td></tr>
+          <tr><td class="no">②</td><td>端末の管理番号について</td><td>横田</td><td class="min">1</td><td>7/24</td></tr>
+          <tr><td class="no">③</td><td>【最後に】気になる児童</td><td>西村</td><td class="min">5</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ 自分の未対応 ============ -->
+  <section class="view" id="view-mine">
+    <h2 class="section-label">あなた宛てで、まだチェックしていない連絡</h2>
+    <p style="font-size:0.85rem; color: var(--ink-soft); margin: 0 4px 12px;">「今日のボード」でチェックすると、ここから消えます。期限を過ぎたものは毎朝メールでもお知らせします（設定でオフ可）。</p>
+    <div class="card">
+      <div class="card-top">
+        <span class="chip due today">期限 7/23 今日</span>
+      </div>
+      <h3>１学期の特別活動のふり返りについて</h3>
+      <div class="meta"><span>発信: 藤原</span></div>
+    </div>
+    <div class="card">
+      <div class="card-top">
+        <span class="chip due near">期限 7/24 あと1日</span>
+      </div>
+      <h3>端末の管理番号について</h3>
+      <div class="meta"><span>発信: 横田</span></div>
+    </div>
+  </section>
+
+  <!-- ============ 管理ビュー ============ -->
+  <section class="view" id="view-admin">
+    <h2 class="section-label">あなたが発信した連絡の確認状況</h2>
+    <div class="card">
+      <div class="card-top">
+        <span class="chip action">要対応</span>
+        <span class="chip due near">期限 7/24</span>
+      </div>
+      <h3>端末の管理番号について</h3>
+      <div class="progress" style="margin-top:8px;">
+        <div class="bar"><div class="fill" style="width: 58%"></div></div>
+        <div class="txt">18/31名 対応済み（58%）</div>
+      </div>
+      <h2 class="section-label" style="margin: 16px 0 0;">未対応の職員（13名）</h2>
+      <div class="staff-chips">
+        <span class="s">相座</span><span class="s">井上</span><span class="s">岡田</span><span class="s">進藤</span><span class="s">清水</span><span class="s">濱口</span><span class="s">松尾</span><span class="s">松原</span><span class="s">藤原</span><span class="s">＋4名</span>
+      </div>
+      <button class="remind" id="remind-btn">未対応の13名にリマインドを送る</button>
+    </div>
+  </section>
+</div>
+
+<button class="fab" id="fab">＋ 連絡を追加</button>
+<div class="toast" id="toast"></div>
+
+<script>
+  /* ---- theme switcher: 自動=OS設定に従う / ライト / ダーク。選択は保存される ---- */
+  const themeButtons = document.querySelectorAll(".theme-switch button");
+  function applyTheme(mode) {
+    if (mode === "auto") {
+      delete document.documentElement.dataset.theme;
+    } else {
+      document.documentElement.dataset.theme = mode;
+    }
+    themeButtons.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === mode)));
+    try { localStorage.setItem("renraku-theme", mode); } catch (e) { /* 保存不可でも動作は継続 */ }
+  }
+  themeButtons.forEach((b) => b.addEventListener("click", () => applyTheme(b.dataset.mode)));
+  let savedTheme = "auto";
+  try { savedTheme = localStorage.getItem("renraku-theme") || "auto"; } catch (e) {}
+  applyTheme(savedTheme);
+
+  const views = document.querySelectorAll(".view");
+  const tabs = document.querySelectorAll(".tab");
+  tabs.forEach((t) => {
+    t.addEventListener("click", () => {
+      tabs.forEach((x) => x.setAttribute("aria-selected", String(x === t)));
+      views.forEach((v) => v.classList.toggle("active", v.id === "view-" + t.dataset.view));
+    });
+  });
+
+  const toast = document.getElementById("toast");
+  let toastTimer;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), 2200);
+  }
+
+  const badge = document.getElementById("mine-badge");
+  const statMine = document.getElementById("stat-mine");
+  document.querySelectorAll("#view-today .card").forEach((card) => {
+    const btn = card.querySelector("button.check");
+    btn.addEventListener("click", () => {
+      const checked = card.dataset.checked === "true";
+      const total = +card.dataset.total;
+      const count = +card.dataset.count + (checked ? -1 : 1);
+      card.dataset.count = count;
+      card.dataset.checked = String(!checked);
+      card.classList.toggle("done", !checked);
+      btn.classList.toggle("checked", !checked);
+      const isAction = !!card.querySelector(".chip.action");
+      btn.textContent = !checked ? (isAction ? "✓ 対応済み" : "✓ 確認済み") : (isAction ? "対応済みにする" : "確認する");
+      const pct = Math.round((count / total) * 100);
+      card.querySelector(".fill").style.width = pct + "%";
+      card.querySelector(".progress .txt").textContent =
+        count + "/" + total + "名 " + (isAction ? "対応済み" : "確認済み") + "（" + pct + "%）";
+      if (isAction) {
+        const n = Math.max(0, +badge.textContent + (checked ? 1 : -1));
+        badge.textContent = n;
+        statMine.textContent = n;
+      }
+      showToast(!checked ? "記録しました" : "取り消しました");
+    });
+  });
+
+  document.getElementById("remind-btn").addEventListener("click", () =>
+    showToast("（モック）未対応の職員にメールでリマインドします"));
+  document.getElementById("fab").addEventListener("click", () =>
+    showToast("（モック）起票フォームが開きます：議題・内容・期限・対象者を入力"));
+</script>
