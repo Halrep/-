@@ -1,0 +1,356 @@
+<!-- 児童用SPA。doGet から HtmlService.createTemplateFromFile('student') で描画される -->
+<?!= include('css'); ?>
+<?!= include('js_common'); ?>
+
+<div class="app" id="app">
+  <div class="lesson-head" id="head">
+    <span class="subj" id="h-subj">読み込み中…</span>
+    <span class="t" id="h-title"></span>
+    <span class="n" id="h-name"></span>
+  </div>
+
+  <div id="nolesson" class="card hidden"><div class="card-b center empty">
+    いま公開されている授業はありません。先生が授業を始めると、ここに表示されます。
+  </div></div>
+
+  <div id="content" class="hidden">
+    <div class="big-tabs" role="tablist" aria-label="学習のながれ">
+      <button class="big-tab" role="tab" data-tab="0" aria-selected="true"><span class="no num">1</span><span class="lb">みとおす</span><span class="sb">課題をつかみ、目標を立てる</span></button>
+      <button class="big-tab" role="tab" data-tab="1" aria-selected="false"><span class="no num">2</span><span class="lb">やってみる</span><span class="sb">方法をえらんで取り組む</span></button>
+      <button class="big-tab" role="tab" data-tab="2" aria-selected="false"><span class="no num">3</span><span class="lb">ふりかえる</span><span class="sb">達成度とわけを考える</span></button>
+    </div>
+
+    <!-- ① みとおす -->
+    <div class="panel on" id="pn0" role="tabpanel">
+      <div class="card">
+        <div class="card-h"><span class="h-badge">❓</span><h2>今日の学習課題</h2></div>
+        <div class="card-b task-goal">
+          <p class="task-q" id="s-task"></p>
+          <div class="goal-box"><b>ゴール（できるようになりたい姿）</b><span id="s-goal"></span></div>
+          <div class="res-strip" id="s-resstrip"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="h-badge">🎯</span><h2>今日の目標を立てよう</h2></div>
+        <div class="card-b stack">
+          <div><h3>Be ─ どんな姿で取り組む？（タップでえらぶ）</h3><div class="chips" id="be-chips"></div></div>
+          <div><h3>Do ─ 何をどこまでやる？（成果物・量）</h3><input type="text" id="do-input" placeholder="例：白地図に大名の配置をまとめて、説明文を3文以上書く"></div>
+          <div><h3>Regulate ─ どんな工夫（方略）を使う？　<span class="star-rec">★</span>は先生のおすすめ</h3><div class="strat-grid" id="reg-grid"></div></div>
+          <div class="row-end"><button class="btn" id="goal-save">この目標で始める</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ② やってみる -->
+    <div class="panel" id="pn1" role="tabpanel">
+      <div class="card">
+        <div class="card-h"><span class="h-badge">🧭</span><h2>学び方をえらぼう　<span class="sub-h">とちゅうで変えてもOK（変えた記録も残ります）</span></h2></div>
+        <div class="card-b stack" id="choice-wrap"></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="h-badge">📎</span><h2>きょうの資料コーナー</h2></div>
+        <div class="card-b res-list" id="res-list"></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="h-badge">🃏</span><h2>えらんだ工夫カード　<span class="sub-h">使ったらタップ</span></h2></div>
+        <div class="card-b"><div class="strat-grid" id="use-grid"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="h-badge">✅</span><h2>進みぐあいチェック　<span class="sub-h">タップで 未着手 → 取組中 → 完了</span></h2></div>
+        <div class="card-b steps" id="steps"></div>
+      </div>
+      <button class="help-btn" id="help-btn" aria-pressed="false">🆘 こまっています（先生に知らせる）</button>
+    </div>
+
+    <!-- ③ ふりかえる -->
+    <div class="panel" id="pn2" role="tabpanel">
+      <div class="card">
+        <div class="card-h"><span class="h-badge">📏</span><h2>目標はどこまで達成できた？</h2></div>
+        <div class="card-b">
+          <div class="muted" id="r-goalref" style="font-size:12.5px; margin-bottom:6px"></div>
+          <div class="slider-wrap">
+            <input type="range" min="0" max="100" value="70" id="ach" aria-label="達成度">
+            <div class="slider-val"><span id="ach-v" class="num">70</span><small> /100</small></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="h-badge">🔍</span><h2>そのわけを考えよう（原因のふりかえり）</h2></div>
+        <div class="card-b attr-cols">
+          <div class="attr-box good"><h4>◎ うまくいったのは、なぜ？</h4><div class="chips" id="attr-good"></div></div>
+          <div class="attr-box hard"><h4>△ むずかしかったのは、なぜ？</h4><div class="chips" id="attr-hard"></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="h-badge">💬</span><h2>今日の気持ちと、次にいかすこと</h2></div>
+        <div class="card-b stack">
+          <div><h3>今日の気持ち（いちばん近いものを1つ）</h3><div class="stamp-row" id="mood-row"></div></div>
+          <div><h3>ひとことふりかえり</h3><textarea rows="2" id="selfeval" placeholder="できたこと・むずかしかったことを書こう"></textarea></div>
+          <div><h3>次はどうする？（次の授業・ほかの教科で）</h3><textarea rows="2" id="nextplan" placeholder="使えた工夫、次にためすことを書こう"></textarea></div>
+          <div class="row-end"><button class="btn" id="refl-save">ふりかえりを記録する</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="h-badge">📚</span><h2>これまでのわたし（単元のきろく）</h2></div>
+        <div class="card-b timeline" id="portfolio"><div class="empty">まだ記録がありません。</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var BE_CHIPS = ['集中して','ねばり強く','協力して','資料をじっくり読んで','自分の考えをもって'];
+var ATTR_GOOD = ['やり方（工夫）がよかった','集中できた','友だちと協力できた','時間の使い方がよかった'];
+var ATTR_HARD = ['やり方が合わなかった','集中が切れた','時間が足りなかった','資料がむずかしかった'];
+var MOODS = [
+  {em:'😊', label:'やりきった！<br>たのしかった'},
+  {em:'🙂', label:'だいたいできた<br>もう少しやりたい'},
+  {em:'💪', label:'大変だったけど<br>がんばれた'},
+  {em:'😮‍💨', label:'つかれた<br>もやもやする'},
+  {em:'😵', label:'わからなくて<br>こまった'}
+];
+
+var S = null;                 // サーバーからの状態
+var reg = [];                 // 選択中の Regulate 方略ID
+
+function saveGoal(){
+  var be = $$('#be-chips .chip[aria-pressed="true"]').map(function(b){ return b.dataset.v; }).join('・');
+  var doText = $('#do-input').value;
+  save('student_saveGoal', be, doText, reg);
+}
+var saveGoalDebounced = debounce(saveGoal, 700);
+
+function saveReflection(silent){
+  var payload = {
+    achievement: Number($('#ach').value),
+    selfEval: $('#selfeval').value,
+    attrGood: $$('#attr-good .chip[aria-pressed="true"]').map(function(b){ return b.dataset.v; }),
+    attrHard: $$('#attr-hard .chip[aria-pressed="true"]').map(function(b){ return b.dataset.v; }),
+    mood: ($('#mood-row .stamp[aria-pressed="true"]')||{}).dataset ? $('#mood-row .stamp[aria-pressed="true"]').dataset.v : '',
+    nextPlan: $('#nextplan').value
+  };
+  return save('student_saveReflection', payload);
+}
+var saveReflDebounced = debounce(function(){ saveReflection(true); }, 700);
+
+/* ---- 描画 ---- */
+function render(){
+  if(!S.hasLesson){
+    $('#h-subj').textContent = '授業まち';
+    $('#h-title').textContent = '';
+    $('#h-name').textContent = S.me ? S.me.displayName + ' さん' : '';
+    $('#nolesson').classList.remove('hidden');
+    return;
+  }
+  var L = S.lesson;
+  $('#h-subj').textContent = L.grade + ' ' + L.subject;
+  $('#h-title').textContent = L.unitName;
+  $('#h-name').textContent = L.period + ' / ' + L.total + ' 時間目 ・ ' + S.me.displayName + ' さん';
+  $('#content').classList.remove('hidden');
+
+  // ① 課題・ゴール・資料サマリ
+  $('#s-task').textContent = L.task;
+  $('#s-goal').textContent = L.goal;
+  renderResStrip();
+
+  // Be チップ
+  var beSel = S.my.goal ? String(S.my.goal.be||'').split('・') : [];
+  $('#be-chips').innerHTML = BE_CHIPS.map(function(t){
+    var on = beSel.indexOf(t) >= 0;
+    return '<button class="chip" data-v="'+esc(t)+'" aria-pressed="'+on+'"><span class="cx">✓</span>'+esc(t)+'</button>';
+  }).join('');
+
+  // Do
+  $('#do-input').value = S.my.goal ? (S.my.goal.doText||'') : '';
+
+  // Regulate カード（おすすめを先頭に）
+  reg = S.my.goal ? (S.my.goal.regulate||[]).slice() : [];
+  var recIds = {};
+  S.recommendedStrategies.forEach(function(r){ recIds[r.strategyId] = r.teacherNote; });
+  var ordered = S.allStrategies.slice().sort(function(a,b){
+    return (recIds[b.strategyId]!==undefined) - (recIds[a.strategyId]!==undefined);
+  });
+  $('#reg-grid').innerHTML = ordered.map(function(s){
+    var on = reg.indexOf(s.strategyId) >= 0;
+    var star = recIds[s.strategyId]!==undefined ? '<span class="star-rec">★ </span>' : '';
+    return '<button class="strat" data-id="'+esc(s.strategyId)+'" aria-pressed="'+on+'">'+
+      '<span class="ic">'+esc(s.icon)+'</span><span class="nm">'+star+esc(s.name)+'</span>'+
+      '<span class="ds">'+esc(s.desc)+'</span><span class="cat">'+esc(s.category)+'</span></button>';
+  }).join('');
+
+  // ② 選択
+  renderChoices();
+  renderResList();
+  renderUseCards();
+  renderSteps();
+  var help = S.my.help;
+  setHelp(help, true);
+
+  // ③ ふりかえり
+  $('#r-goalref').textContent = S.my.goal ? ('きみの目標：' + (S.my.goal.doText||'')) : '';
+  var r = S.my.reflection;
+  $('#ach').value = r ? r.achievement : 70; $('#ach-v').textContent = r ? r.achievement : 70;
+  $('#attr-good').innerHTML = ATTR_GOOD.map(function(t){ return chipHtml(t, r && r.attrGood.indexOf(t)>=0); }).join('');
+  $('#attr-hard').innerHTML = ATTR_HARD.map(function(t){ return chipHtml(t, r && r.attrHard.indexOf(t)>=0); }).join('');
+  $('#mood-row').innerHTML = MOODS.map(function(m){
+    var on = r && r.mood === m.em;
+    return '<button class="stamp" data-v="'+m.em+'" aria-pressed="'+(on?'true':'false')+'"><span class="em">'+m.em+'</span><span class="sl">'+m.label+'</span></button>';
+  }).join('');
+  $('#selfeval').value = r ? (r.selfEval||'') : '';
+  $('#nextplan').value = r ? (r.nextPlan||'') : '';
+
+  loadPortfolio();
+}
+
+function chipHtml(t, on){ return '<button class="chip" data-v="'+esc(t)+'" aria-pressed="'+(on?'true':'false')+'"><span class="cx">✓</span>'+esc(t)+'</button>'; }
+
+function renderResStrip(){
+  var kinds = {};
+  S.resources.forEach(function(r){ kinds[r.icon] = (kinds[r.icon]||0)+1; });
+  var html = 'つかえる資料：' + S.resources.map(function(r){
+    return '<span class="d-chip">'+esc(r.icon)+' '+esc(r.title.length>18?r.title.slice(0,18)+'…':r.title)+'</span>';
+  }).join('') + '<span style="margin-left:auto">くわしくは「② やってみる」の資料コーナーへ</span>';
+  $('#s-resstrip').innerHTML = S.resources.length ? html : '<span class="muted">資料は登録されていません</span>';
+}
+
+function renderChoices(){
+  var my = S.my.selections || {};
+  $('#choice-wrap').innerHTML = S.choices.map(function(c){
+    var cur = my[c.category];
+    var curArr = Array.isArray(cur) ? cur : (cur!=null && cur!=='' ? [cur] : []);
+    var cards = c.options.map(function(o){
+      var on = curArr.indexOf(o.label) >= 0;
+      return '<button class="ccard" data-cat="'+esc(c.category)+'" data-v="'+esc(o.label)+'" aria-pressed="'+on+'">'+
+        '<span class="ic">'+esc(o.icon)+'</span><span class="lb">'+esc(o.label)+'</span></button>';
+    }).join('');
+    var hint = c.multi ? '（いくつでも）' : '';
+    return '<div class="choice-row" data-multi="'+c.multi+'"><h3>'+esc(catTitle(c.category))+' '+hint+'</h3><div class="choice-cards">'+cards+'</div></div>';
+  }).join('');
+}
+function catTitle(cat){ return ({'学習形態':'だれと','ツール':'何を使って','順序':'どの順番で','場所':'どこで'})[cat] || cat; }
+
+function renderResList(){
+  if(!S.resources.length){ $('#res-list').innerHTML = '<div class="empty">資料は登録されていません</div>'; return; }
+  $('#res-list').innerHTML = S.resources.map(function(r){
+    var isLink = r.url && /^https?:/.test(r.url);
+    var tagCls = (r.kind && r.kind !== '手もと資料') ? 'rtag link' : 'rtag';
+    var open = isLink ? '<a class="open-btn" href="'+esc(r.url)+'" target="_blank" rel="noopener">ひらく</a>' : '';
+    return '<div class="res-row"><span class="ic">'+esc(r.icon)+'</span>'+
+      '<div><div class="ti">'+esc(r.title)+'</div><div class="sub">'+esc(r.sub||'')+'</div></div>'+
+      '<span class="'+tagCls+'">'+esc(r.kind||'')+'</span>'+open+'</div>';
+  }).join('');
+}
+
+function renderUseCards(){
+  var stratById = {};
+  S.allStrategies.forEach(function(s){ stratById[s.strategyId] = s; });
+  if(!reg.length){ $('#use-grid').innerHTML = '<div class="empty">「① みとおす」で工夫カードをえらぶと、ここに出ます。</div>'; return; }
+  $('#use-grid').innerHTML = reg.map(function(id){
+    var s = stratById[id]; if(!s) return '';
+    var on = !!(S.my.strategyUse && S.my.strategyUse[id]);
+    return '<button class="strat exec" data-id="'+esc(id)+'" aria-pressed="'+on+'">'+
+      '<span class="ic">'+esc(s.icon)+'</span><span class="nm">'+esc(s.name)+'</span>'+
+      '<span class="used">✔ つかった！</span></button>';
+  }).join('');
+}
+
+function renderSteps(){
+  var lbl = ['未着手','取組中','完了'];
+  $('#steps').innerHTML = S.checklist.map(function(it){
+    return '<button class="step" data-idx="'+it.index+'" data-name="'+esc(it.name)+'" data-s="'+it.status+'">'+
+      '<span class="st">'+lbl[it.status]+'</span><span class="tx">'+esc(it.name)+'</span></button>';
+  }).join('') || '<div class="empty">チェック項目は設定されていません</div>';
+}
+
+function setHelp(on, silent){
+  var b = $('#help-btn');
+  b.setAttribute('aria-pressed', String(on));
+  b.textContent = on ? '🆘 先生に知らせました（とどくまで待っていてね）' : '🆘 こまっています（先生に知らせる）';
+  if(!silent){ save('student_raiseHelp', on); toast(on ? '先生の画面に表示されました' : '取り消しました'); }
+}
+
+function loadPortfolio(){
+  callServer('student_getPortfolio').then(function(res){
+    if(!res.items.length){ $('#portfolio').innerHTML = '<div class="empty">まだ記録がありません。</div>'; return; }
+    $('#portfolio').innerHTML = res.items.map(function(it){
+      var fb = it.feedback.map(function(c){ return '<div class="fb-note"><b>先生から：</b>'+esc(c)+'</div>'; }).join('');
+      return '<div class="tl-item"><span class="tl-dot">'+esc(it.period)+'</span><div class="tl-body">'+
+        '<span class="d">達成度 <span class="num">'+esc(it.achievement)+'</span> ・ '+esc(it.mood||'')+'</span>'+
+        '<div class="m">'+esc(it.selfEval||'')+(it.nextPlan?('／次：'+esc(it.nextPlan)):'')+'</div>'+ fb +'</div></div>';
+    }).join('');
+  });
+}
+
+/* ---- イベント ---- */
+document.addEventListener('click', function(e){
+  var tab = e.target.closest('.big-tab');
+  if(tab){
+    var i = tab.dataset.tab;
+    $$('.big-tab').forEach(function(t){ t.setAttribute('aria-selected', t===tab); });
+    $$('.panel').forEach(function(p,j){ p.classList.toggle('on', String(j)===i); });
+    if(i==='1') renderUseCards();
+    return;
+  }
+
+  var beChip = e.target.closest('#be-chips .chip');
+  if(beChip){ toggle(beChip); saveGoalDebounced(); return; }
+
+  var regCard = e.target.closest('#reg-grid .strat');
+  if(regCard){
+    var id = regCard.dataset.id, on = regCard.getAttribute('aria-pressed')==='true';
+    regCard.setAttribute('aria-pressed', String(!on));
+    if(!on){ if(reg.indexOf(id)<0) reg.push(id); } else { reg = reg.filter(function(x){ return x!==id; }); }
+    saveGoalDebounced();
+    return;
+  }
+
+  var choice = e.target.closest('.ccard');
+  if(choice){
+    var row = choice.closest('.choice-row'), multi = row.dataset.multi==='true', cat = choice.dataset.cat;
+    if(multi){ toggle(choice); }
+    else { $$('.ccard', row).forEach(function(x){ x.setAttribute('aria-pressed','false'); }); choice.setAttribute('aria-pressed','true'); }
+    var vals = $$('.ccard[aria-pressed="true"]', row).map(function(x){ return x.dataset.v; });
+    save('student_saveSelection', cat, vals.join(','));
+    return;
+  }
+
+  var useCard = e.target.closest('#use-grid .strat');
+  if(useCard){
+    var uid = useCard.dataset.id, uon = useCard.getAttribute('aria-pressed')==='true';
+    useCard.setAttribute('aria-pressed', String(!uon));
+    save('student_useStrategy', uid, !uon).then(function(){ if(!uon) toast('「つかった！」を記録しました'); });
+    return;
+  }
+
+  var step = e.target.closest('.step');
+  if(step){
+    var v = (Number(step.dataset.s)+1)%3, lbl=['未着手','取組中','完了'];
+    step.dataset.s = v; $('.st', step).textContent = lbl[v];
+    save('student_setProgress', Number(step.dataset.idx), v, step.dataset.name);
+    return;
+  }
+
+  if(e.target.closest('#help-btn')){ setHelp($('#help-btn').getAttribute('aria-pressed')!=='true'); return; }
+
+  var moodBtn = e.target.closest('#mood-row .stamp');
+  if(moodBtn){ $$('#mood-row .stamp').forEach(function(x){ x.setAttribute('aria-pressed','false'); }); moodBtn.setAttribute('aria-pressed','true'); saveReflDebounced(); return; }
+
+  var attrChip = e.target.closest('#attr-good .chip, #attr-hard .chip');
+  if(attrChip){ toggle(attrChip); saveReflDebounced(); return; }
+
+  if(e.target.closest('#goal-save')){ saveGoal(); toast('目標を先生に送りました'); return; }
+  if(e.target.closest('#refl-save')){ saveReflection().then(function(){ toast('ふりかえりを記録しました'); loadPortfolio(); }); return; }
+});
+
+function toggle(el){ el.setAttribute('aria-pressed', el.getAttribute('aria-pressed')==='true' ? 'false' : 'true'); }
+
+$('#do-input') && $('#do-input').addEventListener('input', saveGoalDebounced);
+document.addEventListener('input', function(e){
+  if(e.target.id==='ach'){ $('#ach-v').textContent = e.target.value; saveReflDebounced(); }
+  if(e.target.id==='selfeval' || e.target.id==='nextplan'){ saveReflDebounced(); }
+});
+
+/* 起動 */
+callServer('student_getState').then(function(res){ S = res; render(); })
+  .catch(function(e){ $('#h-subj').textContent='エラー'; toast('読み込みに失敗しました: '+(e&&e.message||e)); });
+</script>

@@ -1,0 +1,18 @@
+<!-- 名簿に無いアカウントでアクセスしたとき -->
+<?!= include('css'); ?>
+<div class="app" style="max-width:560px">
+  <div class="card" style="margin-top:40px">
+    <div class="card-b center stack" style="gap:14px; padding:40px 24px">
+      <div style="font-size:44px">🔒</div>
+      <h2>ログインできませんでした</h2>
+      <p class="muted" style="font-size:14px; line-height:1.8">
+        このアカウントは名簿に登録されていません。<br>
+        学校のアカウントでログインしているか、担任の先生にかくにんしてください。
+      </p>
+      <p class="muted" style="font-size:12px">アクセス中: <span id="who"></span></p>
+    </div>
+  </div>
+</div>
+<script>
+  document.getElementById('who').textContent = '<?= bootstrap.email || "（メール不明）" ?>';
+</script>
