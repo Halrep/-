@@ -27,16 +27,45 @@ Google スプレッドシートに紐づくコンテナバインド型の Apps S
 9. エディタで `installTriggers` を1回 **実行** → 毎朝7:30の督促メールが有効化。
 10. 発行URLを職員に共有（ブックマーク推奨）。
 
-### B. clasp を使う場合
+### B. clasp で既存プロジェクトへ push する場合（スクリプトIDを使う）
+
+> **認証はお手元のPCで行う必要があります。** clasp はあなたのGoogleアカウントでの
+> `clasp login`（ブラウザ認証）が前提です。スクリプトIDは「送り先」を指すだけで、
+> 認証の代わりにはなりません。
+
+**スクリプトIDの調べ方**：対象スプレッドシート → 拡張機能 → Apps Script →
+プロジェクトの設定（⚙️）→「スクリプト ID」をコピー。
+（URL `https://script.google.com/…/projects/★★★/edit` の `★★★` 部分でも可）
 
 ```bash
+# 1. clasp を用意（初回のみ）
 npm i -g @google/clasp
-clasp login
-# 対象スプレッドシートのスクリプトIDを控えて .clasp.json を作成
-#   { "scriptId": "＜スクリプトID＞", "rootDir": "src" }
+clasp login                      # ブラウザで自分のアカウントを承認
+
+# 2. このリポジトリの src/ に移動し、送り先を設定
+cd renraku-board/src
+cp .clasp.json.example .clasp.json
+#   .clasp.json を開き "scriptId" に控えたスクリプトIDを貼る
+
+# 3. Apps Script API を有効化（未設定なら）
+#   https://script.google.com/home/usersettings で「Google Apps Script API」をON
+
+# 4. 送信（Code.gs / Index.html / appsscript.json のみ push される）
 clasp push
 ```
-その後、上記 A の 6〜10 と同様に `setup` / デプロイ / `installTriggers` を実行。
+
+その後、Apps Scriptエディタで `setup` を実行 →『職員マスタ』入力 → デプロイ →
+`installTriggers` 実行、という **A の 6〜10 と同じ流れ**で運用開始できます。
+
+#### 既存のスプレッドシート（旧・日付シートが入ったファイル）へ送るときの注意
+
+- `setup()` は **不足しているシートを追加するだけ**で、既存の25枚の会議シートは
+  消しません（`ensureSheet_` は既存シートに触れず、空のときだけヘッダーを入れる）。
+- `clasp push` は **同名のスクリプトファイルを上書き**します。その既存プロジェクトに
+  別のコードがある場合は、push 前に控えを取ってください（このプロジェクトは
+  `Code.gs` / `Index.html` / `appsscript.json` の3つだけを送ります）。
+- 旧・日付シートの中身を新しい `連絡事項` シートへ自動で取り込みたい場合は、
+  移行スクリプト（会議ごとに1レコード化）を別途用意できます。
 
 ## 関数一覧
 

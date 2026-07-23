@@ -1,0 +1,5 @@
+# clasp push で送らないファイル（コードとマニフェストだけを送る）
+**/**
+!Code.gs
+!Index.html
+!appsscript.json
