@@ -131,8 +131,10 @@ var Repo = (function () {
 
 /** Date を ms(number) に。空や不正値は 0 を返す（クライアントでの時刻計算用） */
 function toMs_(v) {
-  if (v instanceof Date) return v.getTime();
-  if (v && typeof v === 'string') { var d = new Date(v); return isNaN(d) ? 0 : d.getTime(); }
+  if (!v) return 0;
+  if (typeof v.getTime === 'function') { var t = v.getTime(); return isNaN(t) ? 0 : t; } // Date（realm非依存）
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') { var d = new Date(v); return isNaN(d.getTime()) ? 0 : d.getTime(); }
   return 0;
 }
 
