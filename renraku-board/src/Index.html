@@ -42,6 +42,15 @@
   .today-date{color:var(--ink-soft);font-size:.85rem;font-variant-numeric:tabular-nums}
   .me{color:var(--ink-soft);font-size:.8rem}
 
+  .refresh-btn{appearance:none;cursor:pointer;font:inherit;font-size:.8rem;font-weight:600;color:var(--ink-soft);
+    background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 14px}
+  .refresh-btn:hover{color:var(--accent);border-color:var(--accent)}
+  .refresh-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .refresh-btn .spin-icon{display:inline-block}
+  .refresh-btn.spinning{color:var(--accent)}
+  .refresh-btn.spinning .spin-icon{animation:spin .7s linear infinite}
+  @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion: reduce){.refresh-btn.spinning .spin-icon{animation:none}}
   .theme-switch{display:inline-flex;gap:2px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:3px}
   .theme-switch button{appearance:none;border:none;background:none;cursor:pointer;font:inherit;font-size:.75rem;
     font-weight:600;color:var(--ink-soft);border-radius:999px;padding:3px 12px;white-space:nowrap}
@@ -166,6 +175,7 @@
     <div class="appbar-row">
       <h1 class="app-title">職員連絡ボード<small>令和8年度</small></h1>
       <div class="appbar-right">
+        <button type="button" class="refresh-btn" id="refresh-btn" title="他の職員の更新を確認"><span class="spin-icon">⟳</span> 更新</button>
         <div class="theme-switch" role="group" aria-label="カラーテーマ">
           <button type="button" data-mode="auto" aria-pressed="true">自動</button>
           <button type="button" data-mode="light" aria-pressed="false">ライト</button>
@@ -343,9 +353,74 @@ function load(){
     populateMeetingSelect();
     renderToday();
     switchView('today');
+    startPolling();
   }).withFailureHandler(function(err){
     document.getElementById('view-today').innerHTML='<div class="empty">読み込みに失敗しました：'+esc(err.message)+'</div>';
   }).getInitialData();
+}
+
+/* ====== 他の職員による更新の反映（自動ポーリング＋手動更新） ====== */
+var POLL_INTERVAL_MS=60000;   // 60秒ごとに新着を確認
+var pendingSaves=0;           // 自分の保存が進行中の間は上書きしない
+var pollTimer=null;
+
+function startPolling(){
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer=setInterval(pollForUpdates, POLL_INTERVAL_MS);
+}
+
+/** フォームや登録画面が開いている間はポーリングで邪魔しない */
+function formsAreOpen(){
+  return overlay.classList.contains('show') || regOverlay.classList.contains('show');
+}
+
+var refreshBtn=document.getElementById('refresh-btn');
+function pollForUpdates(manual){
+  if(!DATA || pendingSaves>0){
+    if(manual) showToast('保存が完了してからもう一度お試しください');
+    return;
+  }
+  if(!manual && document.hidden) return; // タブが背面の間は自動ポーリングを休止（クォータ節約）
+  if(!manual && formsAreOpen()) return; // 自動ポーリングのみ入力中は遠慮する
+  if(manual) refreshBtn.classList.add('spinning');
+  google.script.run.withSuccessHandler(function(d){
+    if(manual) refreshBtn.classList.remove('spinning');
+    if(!DATA || !d.me.email || !d.me.registered) return; // 想定外の状態は無視
+    var added=mergeFreshData(d);
+    if(manual) showToast(added>0?added+'件の新しい連絡が届きました':'最新の状態です');
+    else if(added>0) showToast(added+'件の新しい連絡が届きました');
+  }).withFailureHandler(function(){
+    if(manual){ refreshBtn.classList.remove('spinning'); showToast('更新に失敗しました。もう一度お試しください'); }
+    // 自動ポーリングの失敗は静かに無視し、次回の周期で再試行する
+  }).getInitialData();
+}
+refreshBtn.addEventListener('click', function(){ pollForUpdates(true); });
+// タブを離れて戻ってきたときは、次の周期を待たずにすぐ確認する
+document.addEventListener('visibilitychange', function(){ if(!document.hidden) pollForUpdates(false); });
+
+/** サーバーの最新状態をDATAへ反映し、今表示している画面だけを再描画する */
+function mergeFreshData(d){
+  var oldIds={};
+  DATA.items.forEach(function(it){ oldIds[it.id]=true; });
+  var added=0;
+  d.items.forEach(function(it){ if(!oldIds[it.id]) added++; });
+
+  var keepMeeting=null;
+  var pick=document.getElementById('m-pick');
+  if(pick) keepMeeting=pick.value;
+
+  DATA.items=d.items;
+  DATA.meetings=d.meetings;
+  DATA.staffList=d.staffList;
+  DATA.today=d.today;
+  document.getElementById('today').textContent=d.today;
+
+  if(currentView==='today') renderToday();
+  else if(currentView==='mine') renderMine();
+  else if(currentView==='admin') renderAdmin();
+  else if(currentView==='meeting') renderMeeting(keepMeeting);
+  refreshMineCounters();
+  return added;
 }
 
 /* ====== 初回の名前登録 ====== */
@@ -496,7 +571,11 @@ function doCheck(it, card, btn, type){
   updateCardUI(it, card);
   refreshMineCounters();
   showToast(next?'記録しました':'取り消しました');
-  google.script.run.withFailureHandler(function(err){
+  pendingSaves++; // 保存が終わるまで自動ポーリングでの上書きを止める
+  google.script.run.withSuccessHandler(function(){
+    pendingSaves--;
+  }).withFailureHandler(function(err){
+    pendingSaves--;
     setCheckState(it, isAckBtn, !next);              // 失敗したら巻き戻す
     updateCardUI(it, card);
     refreshMineCounters();
@@ -524,7 +603,8 @@ function populateMeetingSelect(){
   opts+='<option value="__new__">＋ 新しい会議を追加…</option>';
   var fsel=document.getElementById('f-meeting'); fsel.innerHTML=opts;
 }
-function renderMeeting(){
+/** @param {string} [keepId] 指定があれば、その会議がまだ存在する限り選択を維持する */
+function renderMeeting(keepId){
   var v=document.getElementById('view-meeting');
   if(!DATA.meetings.length){ v.innerHTML='<div class="empty">会議がまだ登録されていません。</div>'; return; }
   v.innerHTML='<div class="meet-head">'
@@ -532,6 +612,7 @@ function renderMeeting(){
     +'<span class="time-chip" id="m-total">合計 …分</span></div>'
     +'<div id="m-body"><div class="loading">読み込み中…</div></div>';
   var pick=v.querySelector('#m-pick');
+  if(keepId && DATA.meetings.some(function(m){return m.id===keepId;})) pick.value=keepId;
   pick.addEventListener('change', function(){ loadAgenda(pick.value); });
   loadAgenda(pick.value);
 }
@@ -582,7 +663,11 @@ function renderMine(){
       setCheckState(it, false, true);
       renderMine(); renderToday(); refreshMineCounters();
       showToast('記録しました');
-      google.script.run.withFailureHandler(function(e){
+      pendingSaves++; // 保存が終わるまで自動ポーリングでの上書きを止める
+      google.script.run.withSuccessHandler(function(){
+        pendingSaves--;
+      }).withFailureHandler(function(e){
+        pendingSaves--;
         setCheckState(it, false, false);
         renderMine(); renderToday(); refreshMineCounters();
         showToast('保存できませんでした。もう一度お試しください（'+e.message+'）');
