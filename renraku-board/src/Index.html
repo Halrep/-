@@ -93,10 +93,10 @@
   /* 本文（左）と資料（右）の2カラム */
   .card-mid{display:flex;gap:18px;align-items:flex-start}
   .card-text{flex:1;min-width:0}
-  /* 資料は1件でも3件でも同じ180x72の固定サイズ。左詰めで積み上げる（伸縮させない） */
-  .card-media{width:180px;flex-shrink:0;align-self:flex-start;
-    display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:8px}
-  .card-media a.thumb{display:block;width:180px;flex-shrink:0;border:1px solid var(--line);
+  /* 資料は1件でも3件でも同じ150x72の固定サイズ。右カラム内で水平に横並び（収まらなければ折り返し） */
+  .card-media{flex:0 0 auto;align-self:flex-start;max-width:466px;
+    display:flex;flex-direction:row;flex-wrap:wrap;align-items:flex-start;justify-content:flex-start;gap:8px}
+  .card-media a.thumb{display:block;width:150px;flex:0 0 auto;border:1px solid var(--line);
     border-radius:10px;overflow:hidden;background:var(--paper);text-decoration:none}
   .card-media a.thumb img{display:block;width:100%;height:72px;object-fit:cover}
   .thumb-label{display:block;text-align:left;font-size:.72rem;font-weight:600;color:var(--ink-soft);
@@ -105,7 +105,7 @@
   .card-media a.doc:hover{text-decoration:underline}
   @media (max-width:700px){
     .card-mid{flex-direction:column}
-    .card-media{width:100%;flex-direction:row;flex-wrap:wrap}
+    .card-media{max-width:100%}
     .card-media a.thumb{width:140px}
   }
 
