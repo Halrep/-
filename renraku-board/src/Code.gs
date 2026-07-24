@@ -537,45 +537,65 @@ function sendReminders() {
 
 /**
  * 時間トリガーを登録（重複登録を防ぐ）。
- *  - sendReminders            … 毎朝7:30、期限超過の未対応者へ督促メール
- *  - resetStaffMasterYearly   … 毎朝3:00に日付を確認し、4/1のみ職員マスタをリセット
+ *  - sendReminders   … 毎朝7:30、期限超過の未対応者へ督促メール
+ *  - yearEndReset    … 毎朝3:30に日付を確認し、4/1のみ年度末アーカイブを実行
  */
 function installTriggers() {
   ScriptApp.getProjectTriggers().forEach(function (tr) {
     var h = tr.getHandlerFunction();
-    if (h === 'sendReminders' || h === 'resetStaffMasterYearly') ScriptApp.deleteTrigger(tr);
+    // 'resetStaffMasterYearly' は旧バージョンのハンドラ名（掃除対象）
+    if (h === 'sendReminders' || h === 'yearEndReset' || h === 'resetStaffMasterYearly') {
+      ScriptApp.deleteTrigger(tr);
+    }
   });
   ScriptApp.newTrigger('sendReminders').timeBased().atHour(7).nearMinute(30).everyDays(1).create();
-  ScriptApp.newTrigger('resetStaffMasterYearly').timeBased().atHour(3).nearMinute(30).everyDays(1).create();
+  ScriptApp.newTrigger('yearEndReset').timeBased().atHour(3).nearMinute(30).everyDays(1).create();
 }
 
 // ============================================================
-// 年度リセット（毎朝チェックし、4/1のみ実行）
+// 年度末アーカイブ（毎朝チェックし、4/1のみ実行）
 // ============================================================
-/** 実行日が RESET_MONTH/RESET_DAY のときだけ職員マスタをリセットする */
-function resetStaffMasterYearly() {
+/**
+ * 実行日が RESET_MONTH/RESET_DAY のときだけ、年度のデータを丸ごとアーカイブして
+ * 稼働シートを空にする。対象は 職員マスタ・連絡事項・確認ログ・会議 の4シート。
+ * 稼働データを常に1年度分に保つことで、何年運用しても読み込みが重くならない。
+ */
+function yearEndReset() {
   var d = new Date();
   if (d.getMonth() + 1 !== RESET_MONTH || d.getDate() !== RESET_DAY) return;
-  archiveAndClearStaff_();
+  archiveYearEnd_();
 }
 
-/** 職員マスタを別シートにアーカイブしてから中身を空にする（ヘッダーは残す） */
-function archiveAndClearStaff_() {
+/** 旧バージョンのトリガーが残っていても動くようにするための別名 */
+function resetStaffMasterYearly() {
+  yearEndReset();
+}
+
+/** 4シートを「シート名_YYYY年度」に退避してから中身を空にする（ヘッダーは残す） */
+function archiveYearEnd_() {
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
-    var ss = ss_();
-    var sh = sheet_(SHEET_STAFF);
     var endedYear = new Date().getFullYear() - 1; // 4/1実行時点で「終わった年度」
-    var archiveName = SHEET_STAFF + '_' + endedYear + '年度';
-    if (!ss.getSheetByName(archiveName)) {
-      sh.copyTo(ss).setName(archiveName); // 丸ごと退避（履歴を残す）
-    }
-    if (sh.getLastRow() > 1) {
-      sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).clearContent();
-    }
+    var suffix = '_' + endedYear + '年度';
+    [SHEET_STAFF, SHEET_ITEMS, SHEET_LOG, SHEET_MEETINGS].forEach(function (name) {
+      archiveAndClearSheet_(name, name + suffix);
+    });
   } finally {
     lock.releaseLock();
+  }
+}
+
+/** 1シートをアーカイブ名でコピーしてから、本体のデータ行を消す（既にアーカイブ済みなら退避はスキップ） */
+function archiveAndClearSheet_(name, archiveName) {
+  var ss = ss_();
+  var sh = ss.getSheetByName(name);
+  if (!sh) return; // シートが無ければ何もしない
+  if (!ss.getSheetByName(archiveName)) {
+    sh.copyTo(ss).setName(archiveName); // 丸ごと退避（履歴を残す）
+  }
+  if (sh.getLastRow() > 1) {
+    sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).clearContent();
   }
 }
 
