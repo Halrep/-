@@ -465,52 +465,91 @@ function recount_(itemId) {
 
 /**
  * 起票フォームからの新規追加（協議事項／連絡事項）。
- * @param {Object} p { meetingId, kind, title, body, speaker, minutes, material, link,
- *                      due, action, targetType, targetEmails, posted }
+ * 画面側が一覧を再読込せずその場に挿入できるよう、追加した連絡（掲載中の
+ * 連絡事項のときのみ）と、新規作成した会議（あれば）を整形して返す。
+ * @param {Object} p { meetingId, newMeeting, kind, title, body, speaker, minutes, material,
+ *                      due, action, targetType, targetEmails, links, posted }
+ * @return {Object} { item: 表示用オブジェクト|null, meeting: 新規会議情報|null }
  */
 function submitItem(p) {
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
     if (!p.title) throw new Error('議題を入力してください。');
-    var me = currentStaff_();
+    var st = readTable_(SHEET_STAFF);
+    var me = staffFromTable_(st, currentEmail_());
     // 新しい会議が指定されていれば作成し、そのIDを使う
     var meetingId = p.meetingId || '';
+    var meetingLabel = '';
+    var newMeetingInfo = null;
     if (p.newMeeting && p.newMeeting.date) {
       meetingId = ensureMeeting_(p.newMeeting.date, p.newMeeting.kind);
     }
+    if (meetingId) {
+      var mt = readMeetings_();
+      for (var mi = 0; mi < mt.length; mi++) {
+        if (mt[mi].id === meetingId) {
+          meetingLabel = mt[mi].label;
+          if (p.newMeeting) newMeetingInfo = mt[mi]; // 新規作成時のみ画面へ返す
+          break;
+        }
+      }
+    }
+
     var t = readTable_(SHEET_ITEMS);
     // 同じ会議・同じ種別内での通し番号
     var no = 0;
     t.rows.forEach(function (r) {
       if (r[t.col['会議ID']] === meetingId && r[t.col['種別']] === p.kind) no++;
     });
+    var links = (p.links || (p.link ? [p.link] : []))
+      .map(function (s) { return String(s || '').trim(); }).filter(String).slice(0, 3);
+    var kind = p.kind || '連絡';
+    var action = !!p.action;
+    var posted = p.posted !== false; // 既定は掲載ON
+    var newId = uuid_();
+
     var row = [];
-    row[t.col['ID']] = uuid_();
+    row[t.col['ID']] = newId;
     row[t.col['会議ID']] = meetingId;
-    row[t.col['種別']] = p.kind || '連絡';
+    row[t.col['種別']] = kind;
     row[t.col['No']] = no + 1;
     row[t.col['議題']] = p.title;
     row[t.col['内容']] = p.body || '';
     row[t.col['発言者']] = p.speaker || me.name;
     row[t.col['時間']] = p.minutes || '';
     row[t.col['資料']] = p.material || 'なし';
-    // 資料リンクは最大3件。改行区切りで1セルに格納する
-    var links = (p.links || (p.link ? [p.link] : []))
-      .map(function (s) { return String(s || '').trim(); }).filter(String).slice(0, 3);
-    row[t.col['資料リンク']] = links.join('\n');
+    row[t.col['資料リンク']] = links.join('\n'); // 最大3件・改行区切りで1セルに格納
     row[t.col['期限']] = p.due || '';
-    row[t.col['要対応']] = !!p.action;
+    row[t.col['要対応']] = action;
     row[t.col['対象区分']] = p.targetType || '全員';
     row[t.col['対象メール']] = p.targetEmails || '';
-    row[t.col['掲載']] = p.posted !== false; // 既定は掲載ON
+    row[t.col['掲載']] = posted;
     row[t.col['作成日時']] = nowStr_();
     t.sheet.appendRow(row);
-    return { ok: true };
+
+    var decorated = null;
+    if (posted && kind === '連絡') {
+      var staff = activeStaffFrom_(st);
+      // p.due は 'yyyy-MM-dd' の文字列。シート保存後は日付型として読まれ formatDate_ が
+      // 'M/d' に整形するので、その場挿入でも同じ見た目になるよう Date化してから整形する。
+      var dueDate = p.due ? new Date(p.due) : '';
+      var it = {
+        id: newId, meetingId: meetingId, kind: kind, no: no + 1,
+        title: p.title, body: p.body || '', speaker: p.speaker || me.name,
+        links: links, due: formatDate_(dueDate), dueRaw: dueDate,
+        action: action, targetType: p.targetType || '全員', targetEmails: p.targetEmails || '',
+        posted: posted
+      };
+      decorated = decorateItem_(it, staff, {}, me, meetingId ? mapOf_(meetingId, meetingLabel) : {});
+    }
+    return { item: decorated, meeting: newMeetingInfo };
   } finally {
     lock.releaseLock();
   }
 }
+
+function mapOf_(key, value) { var o = {}; o[key] = value; return o; }
 
 /**
  * 指定会議の協議事項・連絡事項（アジェンダ表示用）。

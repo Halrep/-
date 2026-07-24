@@ -77,7 +77,7 @@ clasp push
 | `getInitialData()` | UI | ボード初期表示＋本人の最終ログイン更新 |
 | `registerMe(name, homeroom)` | UI | 初回アクセス時の自己登録 |
 | `recordCheck(id, done, checkType)` | UI | 確認／対応の記録・取消（要対応は「確認した」「対応済み」の2段階） |
-| `submitItem(payload)` | UI | 連絡の起票 |
+| `submitItem(payload)` | UI | 連絡の起票。追加した連絡（と新規会議）を返し、一覧を再読込せずその場に反映 |
 | `getMeetingAgenda(id)` | UI | 会議アジェンダ取得 |
 | `getUncheckedNames(id)` | UI | 未対応者名の取得 |
 | `sendReminders()` | トリガー | 期限超過の未対応者へメール |

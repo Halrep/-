@@ -307,7 +307,9 @@ function showToast(m){ toast.textContent=m; toast.classList.add('show');
 
 /* ====== タブ ====== */
 var tabs=document.querySelectorAll('.tab'), views=document.querySelectorAll('.view');
+var currentView='today';
 function switchView(name){
+  currentView=name;
   tabs.forEach(function(t){ t.setAttribute('aria-selected', String(t.dataset.view===name)); });
   views.forEach(function(v){ v.classList.toggle('active', v.id==='view-'+name); });
   if(name==='meeting') renderMeeting();
@@ -315,6 +317,16 @@ function switchView(name){
   if(name==='admin') renderAdmin();
 }
 tabs.forEach(function(t){ t.addEventListener('click', function(){ switchView(t.dataset.view); }); });
+
+// サーバー側の並び順（要対応が先、期限が近い順・期限なしは最後）と同じロジック
+function itemSortComparator(a,b){
+  if(a.action!==b.action) return a.action?-1:1;
+  var da=a.dueSort, db=b.dueSort;
+  if(da===db) return 0;
+  if(da===null) return 1;
+  if(db===null) return -1;
+  return da-db;
+}
 
 /* ====== 初期ロード ====== */
 function load(){
@@ -701,11 +713,37 @@ form.addEventListener('submit', function(e){
     links:links,
     posted:true
   };
-  google.script.run.withSuccessHandler(function(){
+  google.script.run.withSuccessHandler(function(res){
     btn.disabled=false; overlay.classList.remove('show');
-    showToast('追加しました'); load();
+    refreshAfterSubmit(res||{});
+    showToast('追加しました');
   }).withFailureHandler(function(err){ btn.disabled=false; showToast('エラー: '+err.message); }).submitItem(payload);
 });
+
+/*
+ * 起票の結果を、サーバーへ再読込せずその場に反映する。
+ * submitItem は追加した連絡（掲載中の連絡事項のときのみ）と、
+ * 新規作成した会議（あれば）を返すので、それをDATAへ差し込んで
+ * 今表示している画面だけを再描画する。
+ */
+function refreshAfterSubmit(res){
+  if(res.meeting && !DATA.meetings.some(function(m){return m.id===res.meeting.id;})){
+    DATA.meetings.push(res.meeting);
+    DATA.meetings.sort(function(a,b){return b.sortKey-a.sortKey;});
+  }
+  if(res.item){
+    DATA.items.push(res.item);
+    DATA.items.sort(itemSortComparator);
+  }
+  if(currentView==='today') renderToday();
+  else if(currentView==='mine') renderMine();
+  else if(currentView==='admin') renderAdmin();
+  else if(currentView==='meeting'){
+    if(res.meeting) renderMeeting(); // 会議一覧に新規会議を反映しつつ選び直す
+    else{ var pick=document.getElementById('m-pick'); if(pick) loadAgenda(pick.value); }
+  }
+  refreshMineCounters();
+}
 
 /* ====== 起動 ====== */
 load();
