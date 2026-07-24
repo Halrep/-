@@ -512,7 +512,11 @@ function submitItem(p) {
   }
 }
 
-/** 指定会議の協議事項・連絡事項（アジェンダ表示用） */
+/**
+ * 指定会議の協議事項・連絡事項（アジェンダ表示用）。
+ * 注意: google.script.run は Date 型を含む戻り値を返せない（無反応で止まる）ため、
+ * シートの生値（dueRaw 等）は渡さず、表示用の文字列だけに詰め替えて返す。
+ */
 function getMeetingAgenda(meetingId) {
   var t = readTable_(SHEET_ITEMS);
   var giron = [], renraku = [], total = 0;
@@ -521,9 +525,18 @@ function getMeetingAgenda(meetingId) {
     if (it.meetingId !== meetingId) return;
     var m = Number(it.minutes) || 0;
     total += m;
-    (it.kind === '協議' ? giron : renraku).push(it);
+    var plain = {
+      no: String(it.no || ''),
+      title: String(it.title || ''),
+      body: String(it.body || ''),
+      speaker: String(it.speaker || ''),
+      minutes: String(it.minutes || ''),
+      links: it.links,
+      due: it.due // formatDate_ 済みの文字列
+    };
+    (it.kind === '協議' ? giron : renraku).push(plain);
   });
-  var byNo = function (a, b) { return (Number(a.no) || 0) - (Number(b.no) || 0); };
+  var byNo = function (a, b) { return (Number(a.no.replace(/[^0-9]/g, '')) || 0) - (Number(b.no.replace(/[^0-9]/g, '')) || 0); };
   giron.sort(byNo); renraku.sort(byNo);
   return { giron: giron, renraku: renraku, totalMinutes: total };
 }
@@ -667,24 +680,26 @@ function archiveAndClearSheet_(name, archiveName) {
 // ============================================================
 // 会議一覧
 // ============================================================
+/**
+ * 会議一覧。日付セルは Date 型のことがあるが、google.script.run は
+ * Date を含む戻り値を返せない（無反応で止まる）ため、数値のソートキーと
+ * 表示用文字列に変換して返す。
+ */
 function readMeetings_() {
   var t = readTable_(SHEET_MEETINGS);
   var list = t.rows.map(function (r) {
     var date = r[t.col['日付']];
+    var d = (Object.prototype.toString.call(date) === '[object Date]') ? date : new Date(date);
     return {
-      id: r[t.col['会議ID']],
-      date: date,
+      id: String(r[t.col['会議ID']] || ''),
+      sortKey: isNaN(d.getTime()) ? 0 : d.getTime(),
       dateLabel: formatDate_(date),
-      kind: r[t.col['種別']],
-      label: r[t.col['名称']] || (formatDate_(date) + ' ' + r[t.col['種別']])
+      kind: String(r[t.col['種別']] || ''),
+      label: String(r[t.col['名称']] || (formatDate_(date) + ' ' + r[t.col['種別']]))
     };
-  });
+  }).filter(function (m) { return m.id; });
   // 新しい会議を上に
-  list.sort(function (a, b) {
-    var da = a.date ? new Date(a.date).getTime() : 0;
-    var db = b.date ? new Date(b.date).getTime() : 0;
-    return db - da;
-  });
+  list.sort(function (a, b) { return b.sortKey - a.sortKey; });
   return list;
 }
 
