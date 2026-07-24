@@ -18,14 +18,16 @@ var SHEET_ITEMS    = '連絡事項';
 var SHEET_STAFF    = '職員マスタ';
 var SHEET_LOG      = '確認ログ';
 var SHEET_MEETINGS = '会議';
+var SHEET_COMMENTS = 'コメント';
 
 // 各シートのヘッダー（列順の唯一の定義。以降はここを参照）
 var HEADERS = {
   items: ['ID', '会議ID', '種別', 'No', '議題', '内容', '発言者', '時間', '資料', '資料リンク',
-          '期限', '要対応', '対象区分', '対象メール', '掲載', '作成日時'],
+          '期限', '要対応', '対象区分', '対象メール', '掲載', '作成日時', '作成者メール'],
   staff: ['氏名', 'メール', '分掌', '表示順', '在職', '最終ログイン'],
   log:   ['連絡ID', 'メール', '氏名', '状態', '更新日時', 'チェック種別'],
-  meetings: ['会議ID', '日付', '種別', '名称']
+  meetings: ['会議ID', '日付', '種別', '名称'],
+  comments: ['連絡ID', 'メール', '氏名', '本文', '投稿日時']
 };
 
 var TZ = Session.getScriptTimeZone() || 'Asia/Tokyo';
@@ -253,7 +255,9 @@ function toItem_(row, col) {
     action: row[col['要対応']] === true || String(row[col['要対応']]).toUpperCase() === 'TRUE',
     targetType: row[col['対象区分']] || '全員',
     targetEmails: row[col['対象メール']] || '',
-    posted: row[col['掲載']] === true || String(row[col['掲載']]).toUpperCase() === 'TRUE'
+    posted: row[col['掲載']] === true || String(row[col['掲載']]).toUpperCase() === 'TRUE',
+    // 作成者メール列が無い旧データは ''（＝誰でも編集可として扱う）
+    creatorEmail: col['作成者メール'] !== undefined ? String(row[col['作成者メール']] || '').toLowerCase() : ''
   };
 }
 
@@ -263,6 +267,28 @@ function formatDate_(v) {
     return Utilities.formatDate(v, TZ, 'M/d');
   }
   return String(v);
+}
+
+function formatDateTime_(v) {
+  if (!v) return '';
+  if (Object.prototype.toString.call(v) === '[object Date]') {
+    return Utilities.formatDate(v, TZ, 'M/d HH:mm');
+  }
+  return String(v);
+}
+
+/**
+ * 編集に関するメタ情報。canEdit は「作成者メールが記録されておらず誰でも編集可能」
+ * または「自分が作成者本人」のときに true。dueISO は編集フォームの日付欄用（yyyy-MM-dd）。
+ */
+function editMeta_(it, me) {
+  var canEdit = !it.creatorEmail || it.creatorEmail === String(me.email || '').toLowerCase();
+  var dueISO = '';
+  if (it.dueRaw) {
+    var d = (Object.prototype.toString.call(it.dueRaw) === '[object Date]') ? it.dueRaw : new Date(it.dueRaw);
+    if (!isNaN(d.getTime())) dueISO = Utilities.formatDate(d, TZ, 'yyyy-MM-dd');
+  }
+  return { canEdit: canEdit, dueISO: dueISO };
 }
 
 // ============================================================
@@ -283,12 +309,13 @@ function getInitialData() {
   var meetings = readMeetings_();
   var meetingName = {};
   meetings.forEach(function (m) { meetingName[m.id] = m.label; });
+  var commentCounts = commentCountMap_();
 
   var t = readTable_(SHEET_ITEMS);
   var items = t.rows
     .map(function (r) { return toItem_(r, t.col); })
     .filter(function (it) { return it.posted; }) // ボードは掲載中のみ
-    .map(function (it) { return decorateItem_(it, staff, logs, me, meetingName); });
+    .map(function (it) { return decorateItem_(it, staff, logs, me, meetingName, commentCounts); });
 
   // 期限が近い順（期限なしは後ろ）→ 未対応を上に
   items.sort(function (a, b) {
@@ -340,8 +367,8 @@ function enrolledFrom_(t) {
   return list;
 }
 
-/** 1件の連絡に集計（確認・対応の進捗、自分のチェック、未対応者名）を付与 */
-function decorateItem_(it, staff, logs, me, meetingName) {
+/** 1件の連絡に集計（確認・対応の進捗、自分のチェック、未対応者名、編集可否）を付与 */
+function decorateItem_(it, staff, logs, me, meetingName, commentCounts) {
   var targets = targetsFor_(it, staff);
   var itemLog = logs[it.id] || {};
 
@@ -377,16 +404,19 @@ function decorateItem_(it, staff, logs, me, meetingName) {
   }
 
   var myState = stateOf(me.email.toLowerCase());
+  var meta = editMeta_(it, me);
   return {
-    id: it.id, kind: it.kind, meetingLabel: meetingName[it.meetingId] || it.meetingId,
-    title: it.title, body: it.body, speaker: it.speaker, links: it.links,
-    action: it.action, targetType: it.targetType,
-    due: it.due, dueLabel: it.dueLabel || '', dueClass: dueClass, dueSort: dueSort,
+    id: it.id, kind: it.kind, meetingId: it.meetingId, meetingLabel: meetingName[it.meetingId] || it.meetingId,
+    title: it.title, body: it.body, speaker: it.speaker, minutes: it.minutes, links: it.links,
+    action: it.action, targetType: it.targetType, targetEmails: it.targetEmails,
+    due: it.due, dueISO: meta.dueISO, dueLabel: it.dueLabel || '', dueClass: dueClass, dueSort: dueSort,
     doneCount: doneCount, ackCount: ackCount, targetCount: targets.length,
     myDone: myState.done,
     myAck: myState.ack,
     myTarget: targets.some(function (s) { return s.email === me.email.toLowerCase(); }),
-    uncheckedNames: unchecked
+    uncheckedNames: unchecked,
+    canEdit: meta.canEdit,
+    commentCount: (commentCounts || {})[it.id] || 0
   };
 }
 
@@ -526,6 +556,7 @@ function submitItem(p) {
     row[t.col['対象メール']] = p.targetEmails || '';
     row[t.col['掲載']] = posted;
     row[t.col['作成日時']] = nowStr_();
+    if (t.col['作成者メール'] !== undefined) row[t.col['作成者メール']] = me.email;
     t.sheet.appendRow(row);
 
     var decorated = null;
@@ -536,10 +567,10 @@ function submitItem(p) {
       var dueDate = p.due ? new Date(p.due) : '';
       var it = {
         id: newId, meetingId: meetingId, kind: kind, no: no + 1,
-        title: p.title, body: p.body || '', speaker: p.speaker || me.name,
+        title: p.title, body: p.body || '', speaker: p.speaker || me.name, minutes: p.minutes || '',
         links: links, due: formatDate_(dueDate), dueRaw: dueDate,
         action: action, targetType: p.targetType || '全員', targetEmails: p.targetEmails || '',
-        posted: posted
+        posted: posted, creatorEmail: String(me.email || '').toLowerCase()
       };
       decorated = decorateItem_(it, staff, {}, me, meetingId ? mapOf_(meetingId, meetingLabel) : {});
     }
@@ -552,11 +583,85 @@ function submitItem(p) {
 function mapOf_(key, value) { var o = {}; o[key] = value; return o; }
 
 /**
+ * 起票済みの連絡・議題（協議事項／連絡事項どちらも）を編集する。
+ * 編集できるのは「発信者本人」のみ。作成者メールが記録されていない旧データは
+ * 誰でも編集でき、その最初の編集で作成者として記録される。
+ * 会議への紐づけ・種別（協議／連絡）は編集の対象外（起票し直しで対応する）。
+ * @param {string} itemId
+ * @param {Object} p { title, body, speaker, minutes, due, action, targetType, targetEmails, links }
+ * @return {Object} { item: 表示用オブジェクト|null }  ※協議事項や非掲載の場合は null
+ */
+function editItem(itemId, p) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    if (!p.title) throw new Error('議題を入力してください。');
+    var st = readTable_(SHEET_STAFF);
+    var me = staffFromTable_(st, currentEmail_());
+    if (!me.email) throw new Error('ログイン情報を取得できませんでした。');
+
+    var t = readTable_(SHEET_ITEMS);
+    var rowIdx = -1;
+    for (var i = 0; i < t.rows.length; i++) {
+      if (t.rows[i][t.col['ID']] === itemId) { rowIdx = i; break; }
+    }
+    if (rowIdx < 0) throw new Error('連絡が見つかりませんでした。');
+    var existing = toItem_(t.rows[rowIdx], t.col);
+    var meta = editMeta_(existing, me);
+    if (!meta.canEdit) throw new Error('この連絡は発信者のみ編集できます。');
+
+    var links = (p.links || []).map(function (s) { return String(s || '').trim(); }).filter(String).slice(0, 3);
+    var dueDate = p.due ? new Date(p.due) : '';
+    var rowNum = rowIdx + 2; // ヘッダー分＋1
+    function setCell(header, value) {
+      if (t.col[header] === undefined) return;
+      t.sheet.getRange(rowNum, t.col[header] + 1).setValue(value);
+    }
+    setCell('議題', p.title);
+    setCell('内容', p.body || '');
+    setCell('発言者', p.speaker || me.name);
+    setCell('時間', p.minutes || '');
+    setCell('資料リンク', links.join('\n'));
+    setCell('期限', p.due || '');
+    setCell('要対応', !!p.action);
+    setCell('対象区分', p.targetType || '全員');
+    setCell('対象メール', p.targetEmails || '');
+    // 作成者が未記録の旧データは、この編集をきっかけに記録する
+    if (!existing.creatorEmail) setCell('作成者メール', me.email);
+
+    var updated = {
+      id: existing.id, meetingId: existing.meetingId, kind: existing.kind, no: existing.no,
+      title: p.title, body: p.body || '', speaker: p.speaker || me.name, minutes: p.minutes || '',
+      links: links, due: formatDate_(dueDate), dueRaw: dueDate,
+      action: !!p.action, targetType: p.targetType || '全員', targetEmails: p.targetEmails || '',
+      posted: existing.posted, creatorEmail: existing.creatorEmail || String(me.email).toLowerCase()
+    };
+
+    var decorated = null;
+    if (updated.posted && updated.kind === '連絡') {
+      var staff = activeStaffFrom_(st);
+      var logs = logMap_();
+      var meetings = readMeetings_();
+      var meetingName = {};
+      meetings.forEach(function (m) { meetingName[m.id] = m.label; });
+      var commentCounts = commentCountMap_();
+      decorated = decorateItem_(updated, staff, logs, me, meetingName, commentCounts);
+    }
+    return { item: decorated };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
  * 指定会議の協議事項・連絡事項（アジェンダ表示用）。
  * 注意: google.script.run は Date 型を含む戻り値を返せない（無反応で止まる）ため、
  * シートの生値（dueRaw 等）は渡さず、表示用の文字列だけに詰め替えて返す。
  */
 function getMeetingAgenda(meetingId) {
+  var st = readTable_(SHEET_STAFF);
+  var me = staffFromTable_(st, currentEmail_());
+  var commentCounts = commentCountMap_();
   var t = readTable_(SHEET_ITEMS);
   var giron = [], renraku = [], total = 0;
   t.rows.forEach(function (r) {
@@ -564,14 +669,22 @@ function getMeetingAgenda(meetingId) {
     if (it.meetingId !== meetingId) return;
     var m = Number(it.minutes) || 0;
     total += m;
+    var meta = editMeta_(it, me);
     var plain = {
+      id: it.id,
       no: String(it.no || ''),
       title: String(it.title || ''),
       body: String(it.body || ''),
       speaker: String(it.speaker || ''),
       minutes: String(it.minutes || ''),
       links: it.links,
-      due: it.due // formatDate_ 済みの文字列
+      due: it.due, // formatDate_ 済みの文字列
+      dueISO: meta.dueISO,
+      action: it.action,
+      targetType: it.targetType,
+      targetEmails: it.targetEmails,
+      canEdit: meta.canEdit,
+      commentCount: commentCounts[it.id] || 0
     };
     (it.kind === '協議' ? giron : renraku).push(plain);
   });
@@ -583,6 +696,56 @@ function getMeetingAgenda(meetingId) {
 /** 未対応者の氏名一覧（全職員が閲覧可） */
 function getUncheckedNames(itemId) {
   return recount_(itemId).uncheckedNames;
+}
+
+// ============================================================
+// コメント（議題・連絡ごとの意見交換。全職員が投稿・閲覧できる）
+// ============================================================
+/** 全連絡のコメント数を {連絡ID: 件数} で返す（一覧のバッジ表示用の軽量版） */
+function commentCountMap_() {
+  var t = readTable_(SHEET_COMMENTS);
+  var map = {};
+  t.rows.forEach(function (r) {
+    var id = r[t.col['連絡ID']];
+    map[id] = (map[id] || 0) + 1;
+  });
+  return map;
+}
+
+/** 指定の連絡に付いたコメント一覧（投稿順）と件数を返す */
+function getComments(itemId) {
+  var t = readTable_(SHEET_COMMENTS);
+  var list = t.rows
+    .filter(function (r) { return r[t.col['連絡ID']] === itemId; })
+    .map(function (r) {
+      return {
+        name: String(r[t.col['氏名']] || ''),
+        text: String(r[t.col['本文']] || ''),
+        time: formatDateTime_(r[t.col['投稿日時']])
+      };
+    });
+  return { comments: list, commentCount: list.length };
+}
+
+/**
+ * 連絡・議題にコメントを追加する。編集・削除はできない、投稿のみのシンプルな仕組み。
+ * @return {Object} getComments と同じ形（追加後の一覧・件数）
+ */
+function addComment(itemId, text) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    text = String(text || '').trim();
+    if (!text) throw new Error('コメントを入力してください。');
+    if (text.length > 500) throw new Error('コメントは500文字以内でお願いします。');
+    var me = currentStaff_();
+    if (!me.email) throw new Error('ログイン情報を取得できませんでした。');
+    if (!findItem_(itemId)) throw new Error('連絡が見つかりませんでした。');
+    sheet_(SHEET_COMMENTS).appendRow([itemId, me.email, me.name, text, nowStr_()]);
+    return getComments(itemId);
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /**
@@ -695,7 +858,7 @@ function archiveYearEnd_() {
   try {
     var endedYear = new Date().getFullYear() - 1; // 4/1実行時点で「終わった年度」
     var suffix = '_' + endedYear + '年度';
-    [SHEET_STAFF, SHEET_ITEMS, SHEET_LOG, SHEET_MEETINGS].forEach(function (name) {
+    [SHEET_STAFF, SHEET_ITEMS, SHEET_LOG, SHEET_MEETINGS, SHEET_COMMENTS].forEach(function (name) {
       archiveAndClearSheet_(name, name + suffix);
     });
   } finally {
@@ -751,8 +914,10 @@ function setup() {
   ensureSheet_(ss, SHEET_STAFF, HEADERS.staff);
   ensureSheet_(ss, SHEET_LOG, HEADERS.log);
   ensureSheet_(ss, SHEET_MEETINGS, HEADERS.meetings);
+  ensureSheet_(ss, SHEET_COMMENTS, HEADERS.comments);
   ensureStaffColumns_(); // 旧シートに「最終ログイン」列が無ければ追加（再セットアップ時の移行）
   ensureLogColumns_();   // 旧シートに「チェック種別」列が無ければ追加（同上）
+  ensureItemColumns_();  // 旧シートに「作成者メール」列が無ければ追加（同上）
   seedSample_();
   SpreadsheetApp.getActiveSpreadsheet().toast('セットアップ完了。職員は初回アクセス時に自動登録されます。', '連絡ボード', 8);
 }
@@ -787,6 +952,16 @@ function ensureLogColumns_() {
   }
 }
 
+/** 連絡事項に「作成者メール」列が無ければ末尾に追加する（旧バージョンからの移行用） */
+function ensureItemColumns_() {
+  var sh = sheet_(SHEET_ITEMS);
+  var width = Math.max(sh.getLastColumn(), 1);
+  var header = sh.getRange(1, 1, 1, width).getValues()[0];
+  if (header.indexOf('作成者メール') < 0) {
+    sh.getRange(1, header.length + 1).setValue('作成者メール').setFontWeight('bold');
+  }
+}
+
 /**
  * 動作確認用のサンプルデータ（既にデータがあれば何もしない）。
  * 職員マスタには初期データを入れない（初回アクセス時の自己登録で埋まる）。
@@ -800,19 +975,20 @@ function seedSample_() {
   }
   var itemSh = sheet_(SHEET_ITEMS);
   if (itemSh.getLastRow() <= 1) {
+    // 末尾の '' は「作成者メール」列（未記録＝誰でも編集可のサンプルとして残す）
     var rows = [
       [uuid_(), 'M20260717', '連絡', 1, '端末の管理番号について',
        'スズキ校務の詳細名簿に入力をお願いします。', '横田', 1, 'あり（データ）', '',
-       '2026-07-24', true, '全員', '', true, nowStr_()],
+       '2026-07-24', true, '全員', '', true, nowStr_(), ''],
       [uuid_(), 'M20260717', '連絡', 2, '夏休み宿題　習字・作文の集め方',
        'JAの習字は8月26日まで、作文は9月1日まで。', '清水', '', 'あり（データ）', '',
-       '2026-08-26', true, '全員', '', true, nowStr_()],
+       '2026-08-26', true, '全員', '', true, nowStr_(), ''],
       [uuid_(), 'M20260717', '連絡', 3, 'ご紹介：人権啓発セミナー受講者募集',
        '受講希望の方は相座までご連絡ください。', '相座', '', 'あり（データ）', '',
-       '', false, '全員', '', true, nowStr_()],
+       '', false, '全員', '', true, nowStr_(), ''],
       [uuid_(), 'M20260717', '協議', 1, '音楽会実施計画案（略案）',
        'プログラム順など変更。体育館練習を2時間削減。', '西村', 5, 'あり（データ）', '',
-       '', false, '全員', '', false, nowStr_()]
+       '', false, '全員', '', false, nowStr_(), '']
     ];
     itemSh.getRange(2, 1, rows.length, HEADERS.items.length).setValues(rows);
   }

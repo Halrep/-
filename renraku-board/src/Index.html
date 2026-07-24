@@ -93,10 +93,13 @@
   /* 本文（左）と資料（右）の2カラム */
   .card-mid{display:flex;gap:18px;align-items:flex-start}
   .card-text{flex:1;min-width:0}
-  .card-media{width:180px;flex-shrink:0;display:flex;flex-direction:column;gap:8px}
-  .card-media a.thumb{display:block;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--paper);text-decoration:none}
+  /* 資料は1件でも3件でも同じ180x72の固定サイズ。左詰めで積み上げる（伸縮させない） */
+  .card-media{width:180px;flex-shrink:0;align-self:flex-start;
+    display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:8px}
+  .card-media a.thumb{display:block;width:180px;flex-shrink:0;border:1px solid var(--line);
+    border-radius:10px;overflow:hidden;background:var(--paper);text-decoration:none}
   .card-media a.thumb img{display:block;width:100%;height:72px;object-fit:cover}
-  .thumb-label{display:block;text-align:center;font-size:.72rem;font-weight:600;color:var(--ink-soft);
+  .thumb-label{display:block;text-align:left;font-size:.72rem;font-weight:600;color:var(--ink-soft);
     padding:2px 6px;background:var(--paper);border-top:1px solid var(--line)}
   .card-media a.doc{font-size:.82rem;color:var(--accent);text-decoration:none}
   .card-media a.doc:hover{text-decoration:underline}
@@ -109,6 +112,28 @@
   /* 下線リンク風ボタン（未対応者を見る など） */
   .linklike{appearance:none;border:none;background:none;font:inherit;color:var(--accent);cursor:pointer;
     padding:0;font-size:.78rem;text-decoration:underline;white-space:nowrap}
+  .linklike.muted{color:var(--ink-soft)}
+
+  /* カード上部の小さな丸ボタン（編集） */
+  .icon-btn{appearance:none;cursor:pointer;font:inherit;font-size:.78rem;color:var(--ink-soft);
+    background:var(--card);border:1px solid var(--line);border-radius:999px;padding:2px 10px;
+    margin-left:auto}
+  .icon-btn:hover{color:var(--accent);border-color:var(--accent)}
+  .icon-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* コメント */
+  .comment-list{max-height:44vh;overflow-y:auto;border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;margin-bottom:12px;display:flex;flex-direction:column;gap:10px}
+  .comment-item{font-size:.86rem}
+  .comment-item .cmeta{font-size:.72rem;color:var(--ink-faint);margin-bottom:2px}
+  .comment-item .ctext{white-space:pre-line;overflow-wrap:anywhere}
+  .comment-empty{color:var(--ink-faint);font-size:.85rem}
+  #comment-text{min-height:64px}
+
+  /* アジェンダ表内の編集・コメントミニツールバー */
+  .row-tools{display:flex;gap:10px;margin-top:4px}
+  .row-tools button{font-size:.74rem}
+  .row-tools .icon-btn{margin-left:0}
   .card h3{margin:2px 0 4px;font-size:1.02rem;line-height:1.45;overflow-wrap:anywhere}
   .card .body{font-size:.88rem;color:var(--ink-soft);margin:0 0 10px;white-space:pre-line;max-width:76ch;overflow-wrap:anywhere}
   .card .meta{font-size:.75rem;color:var(--ink-faint);display:flex;gap:12px;flex-wrap:wrap;align-items:center}
@@ -245,8 +270,8 @@
 <!-- 起票フォーム -->
 <div class="overlay" id="overlay">
   <form class="modal" id="item-form">
-    <h2>連絡を追加</h2>
-    <div class="field">
+    <h2 id="form-title">連絡を追加</h2>
+    <div class="field" id="f-meeting-field">
       <label>会議（任意）</label>
       <select id="f-meeting"></select>
       <p class="form-hint" id="f-meeting-hint">会議を選ばないと、この連絡は「今日のボード」にすぐ表示されます。</p>
@@ -259,7 +284,7 @@
         </div>
       </div>
     </div>
-    <div class="field">
+    <div class="field" id="f-kind-field">
       <label>種別</label>
       <div class="row">
         <label class="checkline"><input type="radio" name="kind" value="連絡" checked> 連絡事項</label>
@@ -310,6 +335,23 @@
       <button type="submit" class="btn primary" id="f-submit">追加する</button>
     </div>
   </form>
+</div>
+
+<!-- コメント -->
+<div class="overlay" id="comment-overlay">
+  <div class="modal">
+    <h2 id="comment-title">コメント</h2>
+    <div id="comment-list" class="comment-list"></div>
+    <form id="comment-form">
+      <div class="field">
+        <textarea id="comment-text" maxlength="500" placeholder="コメントを入力（500文字まで）"></textarea>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" id="comment-close">閉じる</button>
+        <button type="submit" class="btn primary" id="comment-submit">投稿する</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <script>
@@ -527,12 +569,15 @@ function attachThumbFallback(root){
   });
 }
 
+function commentLabel(n){ return n>0 ? '💬 コメント（'+n+'）' : '💬 コメントする'; }
+
 function cardEl(it){
   var chips=it.meetingLabel ? '<span class="chip kind">'+esc(it.meetingLabel)+'</span>' : '<span class="chip kind">連絡</span>';
   chips+= it.action ? '<span class="chip action">要対応</span>' : '<span class="chip readonly">閲覧のみ</span>';
   if(it.dueLabel) chips+='<span class="chip due '+it.dueClass+'">期限 '+esc(it.dueLabel)+'</span>';
   chips+='<span class="chip target">対象: '+esc(it.targetType)+'</span>';
   chips+='<span class="chip speaker">発信: '+esc(it.speaker)+'</span>';
+  if(it.canEdit) chips+='<button type="button" class="icon-btn" data-edit>✏️ 編集</button>';
 
   // ボタン: 要対応は「確認した」＋「対応済みにする」の2段階、閲覧のみは「確認」のみ
   var buttons='';
@@ -559,6 +604,7 @@ function cardEl(it){
       +'<div class="progress"><div class="bar"><div class="fill" style="width:'+pctOf(it)+'%"></div></div>'
         +'<div class="txt">'+progressText(it)+'</div></div>'
       +'<button class="linklike" data-names>'+(it.action?'未対応者を見る':'未確認者を見る')+'</button>'
+      +'<button class="linklike muted" data-comment-btn="'+esc(it.id)+'">'+commentLabel(it.commentCount||0)+'</button>'
       +'<div class="check-btns">'+buttons+'</div>'
     +'</div></div>');
 
@@ -568,6 +614,9 @@ function cardEl(it){
     btn.addEventListener('click', function(){ doCheck(it, card, btn, btn.dataset.type); });
   });
   card.querySelector('[data-names]').addEventListener('click', function(){ showNames(it); });
+  card.querySelector('[data-comment-btn]').addEventListener('click', function(){ openComments(it.id, it.title); });
+  var editBtn=card.querySelector('[data-edit]');
+  if(editBtn) editBtn.addEventListener('click', function(){ openEditForm(it); });
   return card;
 }
 
@@ -682,6 +731,7 @@ function loadAgenda(id){
     document.getElementById('m-total').textContent='合計 '+a.totalMinutes+'分';
     var mb=document.getElementById('m-body');
     mb.innerHTML=agendaTable('協議事項', a.giron, true)+agendaTable('連絡事項', a.renraku, false);
+    wireAgendaRows(mb, a.giron.concat(a.renraku));
   }).withFailureHandler(function(err){
     document.getElementById('m-body').innerHTML='<div class="empty">'+esc(err.message)+'</div>';
   }).getMeetingAgenda(id);
@@ -695,12 +745,28 @@ function agendaTable(label, rows, showMaterial){
     var last=showMaterial
       ? (links.length?links.map(function(u,i){return '<a href="'+esc(u)+'" target="_blank" rel="noopener">📄'+(links.length>1?(CIRCLED[i]||(i+1)):'')+'</a>';}).join(' '):'—')
       : (it.due||'—');
+    var tools='<div class="row-tools">';
+    if(it.canEdit) tools+='<button type="button" class="icon-btn" data-edit-id="'+esc(it.id)+'">✏️ 編集</button>';
+    tools+='<button type="button" class="linklike muted" data-comment-btn="'+esc(it.id)+'">'+commentLabel(it.commentCount||0)+'</button>';
+    tools+='</div>';
     return '<tr><td class="no">'+esc(it.no)+'</td>'
-      +'<td>'+esc(it.title)+(it.body?'<span class="sub">'+esc(it.body)+'</span>':'')+'</td>'
+      +'<td>'+esc(it.title)+(it.body?'<span class="sub">'+esc(it.body)+'</span>':'')+tools+'</td>'
       +'<td>'+esc(it.speaker)+'</td><td class="min">'+esc(it.minutes||'—')+'</td><td>'+last+'</td></tr>';
   }).join('');
   return head+'<div class="tablewrap"><table class="agenda"><thead><tr><th>No.</th><th>議題</th>'
     +'<th>発言者</th><th>分</th><th>'+lastCol+'</th></tr></thead><tbody>'+body+'</tbody></table></div>';
+}
+/** アジェンダ表は文字列組み立てなので、挿入後にIDでイベントを配線する */
+function wireAgendaRows(root, items){
+  var byId={}; items.forEach(function(it){ byId[it.id]=it; });
+  root.querySelectorAll('[data-edit-id]').forEach(function(btn){
+    var it=byId[btn.dataset.editId];
+    if(it) btn.addEventListener('click', function(){ openEditForm(it); });
+  });
+  root.querySelectorAll('[data-comment-btn]').forEach(function(btn){
+    var it=byId[btn.dataset.commentBtn];
+    if(it) btn.addEventListener('click', function(){ openComments(it.id, it.title); });
+  });
 }
 
 /* ====== 自分の未対応 ====== */
@@ -716,10 +782,16 @@ function renderMine(){
     var c=el('<div class="card"><div class="card-top">'
       +(it.dueLabel?'<span class="chip due '+it.dueClass+'">期限 '+esc(it.dueLabel)+'</span>':'')
       +'<span class="chip kind">'+esc(it.meetingLabel||'連絡')+'</span>'
-      +'<span class="chip speaker">発信: '+esc(it.speaker)+'</span></div>'
+      +'<span class="chip speaker">発信: '+esc(it.speaker)+'</span>'
+      +(it.canEdit?'<button type="button" class="icon-btn" data-edit>✏️ 編集</button>':'')
+      +'</div>'
       +'<h3>'+esc(it.title)+'</h3>'
       +'<div class="card-foot"><div class="progress"></div>'
+      +'<button class="linklike muted" data-comment-btn="'+esc(it.id)+'">'+commentLabel(it.commentCount||0)+'</button>'
       +'<button class="check">対応済みにする</button></div></div>');
+    c.querySelector('[data-comment-btn]').addEventListener('click', function(){ openComments(it.id, it.title); });
+    var mineEditBtn=c.querySelector('[data-edit]');
+    if(mineEditBtn) mineEditBtn.addEventListener('click', function(){ openEditForm(it); });
     c.querySelector('button.check').addEventListener('click', function(){
       // 即時反映してバックグラウンドで保存（失敗時のみ巻き戻し）
       setCheckState(it, false, true);
@@ -762,29 +834,35 @@ function renderAdmin(){
   });
 }
 
-/* ====== 起票フォーム ====== */
+/* ====== 起票フォーム（新規追加／編集の共通モーダル） ====== */
 var overlay=document.getElementById('overlay'), form=document.getElementById('item-form');
 var linksBox=document.getElementById('f-links');
+var editingId=null; // null=新規追加モード／連絡IDが入っていれば編集モード
 
-// 資料リンク欄を1つ追加（最大3件）
-function addLinkField(){
+// 資料リンク欄を1つ追加（最大3件）。value を渡すと初期値を入れる（編集時の再現用）
+function addLinkField(value){
   if(linksBox.querySelectorAll('input').length>=3) return;
   var inp=document.createElement('input');
-  inp.type='text'; inp.placeholder='https://…';
+  inp.type='text'; inp.placeholder='https://…'; inp.value=value||'';
   linksBox.appendChild(inp);
   document.getElementById('f-link-add').style.display=
     linksBox.querySelectorAll('input').length>=3?'none':'';
 }
-function resetLinks(){ linksBox.innerHTML=''; document.getElementById('f-link-add').style.display=''; addLinkField(); }
-document.getElementById('f-link-add').addEventListener('click', addLinkField);
+function resetLinks(values){
+  linksBox.innerHTML=''; document.getElementById('f-link-add').style.display='';
+  if(values&&values.length) values.forEach(function(v){ addLinkField(v); });
+  else addLinkField();
+}
+document.getElementById('f-link-add').addEventListener('click', function(){ addLinkField(); });
 
-// 個別対象の職員チェックボックスを職員マスタから作る
-function fillStaffPicker(){
+// 個別対象の職員チェックボックスを職員マスタから作る。selected があればチェック済みにする
+function fillStaffPicker(selected){
   var box=document.getElementById('f-staff');
   var list=(DATA&&DATA.staffList)||[];
+  var sel={}; (selected||[]).forEach(function(e){ sel[e.toLowerCase()]=true; });
   if(!list.length){ box.innerHTML='<span class="none">登録済みの職員がいません（各自がログインすると増えます）</span>'; return; }
   box.innerHTML=list.map(function(s){
-    return '<label><input type="checkbox" value="'+esc(s.email)+'"> '+esc(s.name)+'</label>';
+    return '<label><input type="checkbox" value="'+esc(s.email)+'"'+(sel[s.email]?' checked':'')+'> '+esc(s.name)+'</label>';
   }).join('');
 }
 
@@ -801,9 +879,15 @@ document.getElementById('f-target').addEventListener('change', function(){
   if(indiv) fillStaffPicker();
 });
 
+/** 新規追加モードでモーダルを開く */
 function openForm(){
   if(!DATA) return;
+  editingId=null;
   form.reset();
+  document.getElementById('form-title').textContent='連絡を追加';
+  document.getElementById('f-submit').textContent='追加する';
+  document.getElementById('f-meeting-field').style.display='';
+  document.getElementById('f-kind-field').style.display='';
   populateMeetingSelect();
   document.getElementById('f-meeting').value=''; // 既定：会議に紐づけない
   document.getElementById('f-newmeeting').style.display='none';
@@ -813,6 +897,44 @@ function openForm(){
   resetLinks();
   overlay.classList.add('show');
 }
+
+/**
+ * 編集モードでモーダルを開く。it は board カードの連絡（canEdit 付き）、
+ * または会議アジェンダの行データ（同じく canEdit 付き）のどちらでも可。
+ * 会議への紐づけと種別（協議／連絡）は編集不可のため、該当欄は隠す。
+ */
+function openEditForm(it){
+  if(!it.canEdit){ showToast('この連絡は発信者のみ編集できます'); return; }
+  editingId=it.id;
+  form.reset();
+  document.getElementById('form-title').textContent='編集';
+  document.getElementById('f-submit').textContent='保存する';
+  document.getElementById('f-meeting-field').style.display='none';
+  document.getElementById('f-newmeeting').style.display='none';
+  document.getElementById('f-kind-field').style.display='none';
+
+  document.getElementById('f-title').value=it.title||'';
+  document.getElementById('f-body').value=it.body||'';
+  document.getElementById('f-speaker').value=it.speaker||'';
+  document.getElementById('f-min').value=it.minutes||'';
+
+  var action=!!it.action;
+  document.getElementById('f-action').checked=action;
+  document.getElementById('f-action-fields').style.display=action?'':'none';
+  document.getElementById('f-due').value=it.dueISO||'';
+  var targetType=it.targetType||'全員';
+  document.getElementById('f-target').value=targetType;
+  var indiv=targetType==='個別';
+  document.getElementById('f-staff-wrap').style.display=indiv?'':'none';
+  if(indiv){
+    var pre=String(it.targetEmails||'').split(/[,\s]+/).filter(Boolean);
+    fillStaffPicker(pre);
+  }
+
+  resetLinks(it.links||[]);
+  overlay.classList.add('show');
+}
+
 document.getElementById('fab').addEventListener('click', openForm);
 document.getElementById('f-cancel').addEventListener('click', function(){ overlay.classList.remove('show'); });
 overlay.addEventListener('click', function(e){ if(e.target===overlay) overlay.classList.remove('show'); });
@@ -823,7 +945,6 @@ document.getElementById('f-action').addEventListener('change', function(){
 form.addEventListener('submit', function(e){
   e.preventDefault();
   var btn=document.getElementById('f-submit');
-  var mSel=document.getElementById('f-meeting').value;
   var action=document.getElementById('f-action').checked;
   var targetType=document.getElementById('f-target').value;
 
@@ -834,21 +955,10 @@ form.addEventListener('submit', function(e){
     if(!checked.length){ showToast('対象の職員を1名以上選んでください'); return; }
     targetEmails=checked.join(',');
   }
-  // 新しい会議の検証
-  var newMeeting=null;
-  if(mSel==='__new__'){
-    var d=document.getElementById('f-nm-date').value;
-    if(!d){ showToast('新しい会議の日付を入力してください'); return; }
-    newMeeting={date:d, kind:document.getElementById('f-nm-kind').value};
-  }
   var links=[].slice.call(linksBox.querySelectorAll('input'))
     .map(function(i){return i.value.trim();}).filter(String).slice(0,3);
 
-  btn.disabled=true;
-  var payload={
-    meetingId: mSel==='__new__'?'':mSel,
-    newMeeting: newMeeting,
-    kind:document.querySelector('input[name=kind]:checked').value,
+  var basePayload={
     title:document.getElementById('f-title').value.trim(),
     body:document.getElementById('f-body').value.trim(),
     speaker:document.getElementById('f-speaker').value.trim(),
@@ -857,15 +967,62 @@ form.addEventListener('submit', function(e){
     due:document.getElementById('f-due').value,
     targetType:targetType,
     targetEmails:targetEmails,
-    links:links,
-    posted:true
+    links:links
   };
+
+  if(editingId){
+    btn.disabled=true;
+    google.script.run.withSuccessHandler(function(res){
+      btn.disabled=false; overlay.classList.remove('show');
+      refreshAfterEdit(res||{});
+      showToast('保存しました');
+    }).withFailureHandler(function(err){ btn.disabled=false; showToast('エラー: '+err.message); }).editItem(editingId, basePayload);
+    return;
+  }
+
+  var mSel=document.getElementById('f-meeting').value;
+  // 新しい会議の検証
+  var newMeeting=null;
+  if(mSel==='__new__'){
+    var d=document.getElementById('f-nm-date').value;
+    if(!d){ showToast('新しい会議の日付を入力してください'); return; }
+    newMeeting={date:d, kind:document.getElementById('f-nm-kind').value};
+  }
+  btn.disabled=true;
+  var payload=Object.assign({
+    meetingId: mSel==='__new__'?'':mSel,
+    newMeeting: newMeeting,
+    kind:document.querySelector('input[name=kind]:checked').value,
+    posted:true
+  }, basePayload);
   google.script.run.withSuccessHandler(function(res){
     btn.disabled=false; overlay.classList.remove('show');
     refreshAfterSubmit(res||{});
     showToast('追加しました');
   }).withFailureHandler(function(err){ btn.disabled=false; showToast('エラー: '+err.message); }).submitItem(payload);
 });
+
+/**
+ * 編集の結果を、サーバーへ再読込せずその場に反映する。
+ * editItem は更新後の連絡（掲載中の連絡事項のときのみ）を返すので、
+ * DATA.items 内の該当IDを差し替えて再描画する。会議アジェンダ表示中は
+ * そのアジェンダだけを取り直す（協議事項はボード側に写しを持たないため）。
+ */
+function refreshAfterEdit(res){
+  if(res.item){
+    var idx=DATA.items.findIndex(function(x){ return x.id===res.item.id; });
+    if(idx>=0) DATA.items[idx]=res.item; else DATA.items.push(res.item);
+    DATA.items.sort(itemSortComparator);
+  }
+  if(currentView==='today') renderToday();
+  else if(currentView==='mine') renderMine();
+  else if(currentView==='admin') renderAdmin();
+  else if(currentView==='meeting'){
+    var pick=document.getElementById('m-pick');
+    if(pick) loadAgenda(pick.value);
+  }
+  refreshMineCounters();
+}
 
 /*
  * 起票の結果を、サーバーへ再読込せずその場に反映する。
@@ -891,6 +1048,66 @@ function refreshAfterSubmit(res){
   }
   refreshMineCounters();
 }
+
+/* ====== コメント ====== */
+var commentOverlay=document.getElementById('comment-overlay');
+var commentForm=document.getElementById('comment-form');
+var commentListEl=document.getElementById('comment-list');
+var commentTextEl=document.getElementById('comment-text');
+var currentCommentItemId=null;
+
+function openComments(itemId, title){
+  currentCommentItemId=itemId;
+  document.getElementById('comment-title').textContent='コメント：'+title;
+  commentTextEl.value='';
+  commentListEl.innerHTML='<div class="comment-empty">読み込み中…</div>';
+  commentOverlay.classList.add('show');
+  commentTextEl.focus();
+  google.script.run.withSuccessHandler(function(res){
+    if(currentCommentItemId!==itemId) return; // その間に別の連絡のコメントを開いていたら無視
+    renderCommentList(res.comments);
+    updateCommentBadge(itemId, res.commentCount);
+  }).withFailureHandler(function(err){
+    commentListEl.innerHTML='<div class="comment-empty">読み込みに失敗しました：'+esc(err.message)+'</div>';
+  }).getComments(itemId);
+}
+
+function renderCommentList(list){
+  if(!list.length){ commentListEl.innerHTML='<div class="comment-empty">まだコメントはありません。最初のコメントを書いてみましょう。</div>'; return; }
+  commentListEl.innerHTML=list.map(function(c){
+    return '<div class="comment-item"><div class="cmeta">'+esc(c.name)+' ・ '+esc(c.time)+'</div>'
+      +'<div class="ctext">'+esc(c.text)+'</div></div>';
+  }).join('');
+  commentListEl.scrollTop=commentListEl.scrollHeight;
+}
+
+/** 件数バッジ（カード・アジェンダ表の両方にある同一連絡のボタン）を更新し、DATAにも反映する */
+function updateCommentBadge(itemId, count){
+  var it=DATA.items.find(function(x){ return x.id===itemId; });
+  if(it) it.commentCount=count;
+  document.querySelectorAll('[data-comment-btn="'+itemId+'"]').forEach(function(btn){
+    btn.textContent=commentLabel(count);
+  });
+}
+
+document.getElementById('comment-close').addEventListener('click', function(){ commentOverlay.classList.remove('show'); });
+commentOverlay.addEventListener('click', function(e){ if(e.target===commentOverlay) commentOverlay.classList.remove('show'); });
+commentForm.addEventListener('submit', function(e){
+  e.preventDefault();
+  var text=commentTextEl.value.trim();
+  if(!text) return;
+  var btn=document.getElementById('comment-submit');
+  btn.disabled=true;
+  google.script.run.withSuccessHandler(function(res){
+    btn.disabled=false;
+    commentTextEl.value='';
+    renderCommentList(res.comments);
+    updateCommentBadge(currentCommentItemId, res.commentCount);
+  }).withFailureHandler(function(err){
+    btn.disabled=false;
+    showToast('エラー: '+err.message);
+  }).addComment(currentCommentItemId, text);
+});
 
 /* ====== 起動 ====== */
 load();
