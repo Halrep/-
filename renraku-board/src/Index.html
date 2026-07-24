@@ -509,21 +509,26 @@ regForm.addEventListener('submit', function(e){
 function myOpenItems(){
   return DATA.items.filter(function(it){ return it.action && it.myTarget && !it.myDone; });
 }
+/** 済み（自分が対応/確認済み）の連絡を末尾に回す。元の並び順（期限順）は保つ安定ソート */
+function undoneFirst(list){
+  return list.slice().sort(function(a,b){ return (a.myDone?1:0)-(b.myDone?1:0); });
+}
+
 function renderToday(){
   var v=document.getElementById('view-today');
-  var actionItems=DATA.items.filter(function(it){ return it.action; });
-  var readItems=DATA.items.filter(function(it){ return !it.action; });
+  var actionItems=undoneFirst(DATA.items.filter(function(it){ return it.action; }));
+  var readItems=undoneFirst(DATA.items.filter(function(it){ return !it.action; }));
   var dueToday=actionItems.filter(function(it){ return it.dueClass==='today'; }).length;
   var mine=myOpenItems().length;
   updateBadge(mine);
 
   var html='<div class="summary">'
+    +'<div class="stat"><span class="n">'+DATA.items.length+'</span><span class="l">掲載中の連絡</span></div>'
     +'<div class="stat alert"><span class="n">'+dueToday+'</span><span class="l">期限が今日／超過</span></div>'
     +'<div class="stat warn"><span class="n" id="stat-mine">'+mine+'</span><span class="l">あなたの未対応</span></div>'
-    +'<div class="stat"><span class="n">'+DATA.items.length+'</span><span class="l">掲載中の連絡</span></div>'
     +'</div>';
-  html+='<h2 class="section-label">要対応 — 期限が近い順</h2><div id="action-list"></div>';
-  html+='<h2 class="section-label">閲覧のみ</h2><div id="read-list"></div>';
+  html+='<h2 class="section-label">要対応 — 未対応が上／対応済みは下</h2><div id="action-list"></div>';
+  html+='<h2 class="section-label">閲覧のみ — 未読が上／確認済みは下</h2><div id="read-list"></div>';
   v.innerHTML=html;
 
   var al=v.querySelector('#action-list');
