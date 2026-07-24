@@ -76,6 +76,19 @@
   section.view{display:none} section.view.active{display:block}
   h2.section-label{font-size:.78rem;font-weight:700;letter-spacing:.08em;color:var(--ink-faint);margin:24px 4px 10px}
 
+  /* 絞り込みバー */
+  .filterbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0 0}
+  .filterbar input[type=search]{flex:1;min-width:220px;font:inherit;background:var(--card);color:var(--ink);
+    border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+  .filterbar select{font:inherit;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+  .filterbar .btn{padding:8px 14px;font-size:.82rem}
+
+  /* 自分の済みを折りたたむトグル */
+  .fold-toggle{appearance:none;cursor:pointer;font:inherit;font-size:.82rem;font-weight:600;color:var(--ink-soft);
+    background:var(--card);border:1px dashed var(--line);border-radius:10px;padding:9px 14px;width:100%;text-align:left;margin-bottom:12px}
+  .fold-toggle:hover{border-color:var(--accent);color:var(--accent)}
+  .fold-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);
     padding:14px 20px;margin-bottom:12px;transition:opacity .25s}
   .card.done{opacity:.62}
@@ -234,13 +247,20 @@
     <div class="me" id="me"></div>
     <nav class="tabs" role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="today">今日のボード</button>
+      <button class="tab" role="tab" aria-selected="false" data-view="done">完了した連絡</button>
       <button class="tab" role="tab" aria-selected="false" data-view="meeting">会議</button>
       <button class="tab" role="tab" aria-selected="false" data-view="mine">自分の未対応 <span class="badge" id="mine-badge"></span></button>
       <button class="tab" role="tab" aria-selected="false" data-view="admin">確認状況（発信者用）</button>
     </nav>
+    <div class="filterbar" id="filterbar" style="display:none">
+      <input type="search" id="filter-kw" placeholder="🔍 キーワードで絞り込み（議題・内容・発信者）">
+      <select id="filter-ym" aria-label="月で絞り込み"><option value="">すべての月</option></select>
+      <button type="button" class="btn" id="filter-clear">クリア</button>
+    </div>
   </header>
 
   <section class="view active" id="view-today"><div class="loading">読み込み中…</div></section>
+  <section class="view" id="view-done"></section>
   <section class="view" id="view-meeting"></section>
   <section class="view" id="view-mine"></section>
   <section class="view" id="view-admin"></section>
@@ -386,11 +406,56 @@ function switchView(name){
   currentView=name;
   tabs.forEach(function(t){ t.setAttribute('aria-selected', String(t.dataset.view===name)); });
   views.forEach(function(v){ v.classList.toggle('active', v.id==='view-'+name); });
+  // 絞り込みバーは「今日のボード」「完了した連絡」でのみ表示
+  document.getElementById('filterbar').style.display=(name==='today'||name==='done')?'':'none';
+  if(name==='today') renderToday();
+  if(name==='done') renderDone();
   if(name==='meeting') renderMeeting();
   if(name==='mine') renderMine();
   if(name==='admin') renderAdmin();
 }
 tabs.forEach(function(t){ t.addEventListener('click', function(){ switchView(t.dataset.view); }); });
+
+/* ====== 絞り込み（月・キーワード） ====== */
+var filterYM='', filterKW='';
+function fullyDone(it){ return it.targetCount>0 && it.doneCount>=it.targetCount; } // 対象全員が済み
+function matchesFilter(it){
+  if(filterYM && it.ym!==filterYM) return false;
+  if(filterKW){
+    var hay=((it.title||'')+' '+(it.body||'')+' '+(it.speaker||'')).toLowerCase();
+    if(hay.indexOf(filterKW)<0) return false;
+  }
+  return true;
+}
+/** DATA.items から年月の選択肢を作る（新しい月が上） */
+function populateMonthFilter(){
+  var sel=document.getElementById('filter-ym');
+  var set={};
+  DATA.items.forEach(function(it){ if(it.ym) set[it.ym]=true; });
+  var yms=Object.keys(set).sort().reverse();
+  var cur=sel.value;
+  sel.innerHTML='<option value="">すべての月</option>'+yms.map(function(ym){
+    var parts=ym.split('-');
+    return '<option value="'+ym+'">'+parts[0]+'年'+Number(parts[1])+'月</option>';
+  }).join('');
+  if(cur && yms.indexOf(cur)>=0) sel.value=cur; // 選択中の月は保持
+}
+function onFilterChange(){
+  filterYM=document.getElementById('filter-ym').value;
+  filterKW=document.getElementById('filter-kw').value.trim().toLowerCase();
+  if(currentView==='today') renderToday();
+  else if(currentView==='done') renderDone();
+}
+document.getElementById('filter-ym').addEventListener('change', onFilterChange);
+var kwTimer;
+document.getElementById('filter-kw').addEventListener('input', function(){
+  clearTimeout(kwTimer); kwTimer=setTimeout(onFilterChange, 200); // 入力が落ち着いてから絞り込む
+});
+document.getElementById('filter-clear').addEventListener('click', function(){
+  document.getElementById('filter-kw').value=''; document.getElementById('filter-ym').value='';
+  filterYM=''; filterKW='';
+  if(currentView==='today') renderToday(); else if(currentView==='done') renderDone();
+});
 
 // サーバー側の並び順（要対応が先、期限が近い順・期限なしは最後）と同じロジック
 function itemSortComparator(a,b){
@@ -415,8 +480,7 @@ function load(){
     if(!d.me.registered){ showRegistration(d.me); return; } // 初回は名前登録
     document.getElementById('me').textContent='ログイン: '+d.me.name;
     populateMeetingSelect();
-    renderToday();
-    switchView('today');
+    switchView('today'); // ここで renderToday() も実行される
     startPolling();
   }).withFailureHandler(function(err){
     document.getElementById('view-today').innerHTML='<div class="empty">読み込みに失敗しました：'+esc(err.message)+'</div>';
@@ -480,6 +544,7 @@ function mergeFreshData(d){
   document.getElementById('today').textContent=d.today;
 
   if(currentView==='today') renderToday();
+  else if(currentView==='done') renderDone();
   else if(currentView==='mine') renderMine();
   else if(currentView==='admin') renderAdmin();
   else if(currentView==='meeting') renderMeeting(keepMeeting);
@@ -509,16 +574,36 @@ regForm.addEventListener('submit', function(e){
 function myOpenItems(){
   return DATA.items.filter(function(it){ return it.action && it.myTarget && !it.myDone; });
 }
-/** 済み（自分が対応/確認済み）の連絡を末尾に回す。元の並び順（期限順）は保つ安定ソート */
-function undoneFirst(list){
-  return list.slice().sort(function(a,b){ return (a.myDone?1:0)-(b.myDone?1:0); });
+/**
+ * 1セクション分をコンテナに描画する。未対応（自分がまだ）を上に、
+ * 自分が済ませたもの（myDone だが全員は未完了）は下に折りたたむ。
+ */
+function renderSection(container, items, emptyText, foldKey){
+  if(!items.length){ container.innerHTML='<div class="empty">'+emptyText+'</div>'; return; }
+  var open=items.filter(function(it){ return !it.myDone; });
+  var mineDone=items.filter(function(it){ return it.myDone; });
+  open.forEach(function(it){ container.appendChild(cardEl(it)); });
+  if(mineDone.length){
+    var expanded=foldState[foldKey];
+    var toggle=el('<button type="button" class="fold-toggle">'
+      +(expanded?'▼ 自分が済ませた連絡（'+mineDone.length+'件）を隠す':'▶ 自分が済ませた連絡（'+mineDone.length+'件）を表示')
+      +'</button>');
+    toggle.addEventListener('click', function(){ foldState[foldKey]=!expanded; renderToday(); });
+    container.appendChild(toggle);
+    if(expanded) mineDone.forEach(function(it){ container.appendChild(cardEl(it)); });
+  }
 }
+
+var foldState={action:false, read:false}; // 折りたたみの開閉を記憶
 
 function renderToday(){
   var v=document.getElementById('view-today');
-  var actionItems=undoneFirst(DATA.items.filter(function(it){ return it.action; }));
-  var readItems=undoneFirst(DATA.items.filter(function(it){ return !it.action; }));
-  var dueToday=actionItems.filter(function(it){ return it.dueClass==='today'; }).length;
+  populateMonthFilter();
+  // 全員完了は「完了した連絡」タブへ回す。ここには未完了だけを出す
+  var board=DATA.items.filter(function(it){ return !fullyDone(it) && matchesFilter(it); });
+  var actionItems=board.filter(function(it){ return it.action; });
+  var readItems=board.filter(function(it){ return !it.action; });
+  var dueToday=actionItems.filter(function(it){ return it.dueClass==='today' && !it.myDone; }).length;
   var mine=myOpenItems().length;
   updateBadge(mine);
 
@@ -527,16 +612,30 @@ function renderToday(){
     +'<div class="stat alert"><span class="n">'+dueToday+'</span><span class="l">期限が今日／超過</span></div>'
     +'<div class="stat warn"><span class="n" id="stat-mine">'+mine+'</span><span class="l">あなたの未対応</span></div>'
     +'</div>';
-  html+='<h2 class="section-label">要対応 — 未対応が上／対応済みは下</h2><div id="action-list"></div>';
-  html+='<h2 class="section-label">閲覧のみ — 未読が上／確認済みは下</h2><div id="read-list"></div>';
+  html+='<h2 class="section-label">要対応 — 未対応が上／自分の済みは折りたたみ</h2><div id="action-list"></div>';
+  html+='<h2 class="section-label">閲覧のみ — 未読が上／自分の済みは折りたたみ</h2><div id="read-list"></div>';
   v.innerHTML=html;
 
-  var al=v.querySelector('#action-list');
-  if(actionItems.length) actionItems.forEach(function(it){ al.appendChild(cardEl(it)); });
-  else al.innerHTML='<div class="empty">要対応の連絡はありません。</div>';
-  var rl=v.querySelector('#read-list');
-  if(readItems.length) readItems.forEach(function(it){ rl.appendChild(cardEl(it)); });
-  else rl.innerHTML='<div class="empty">閲覧のみの連絡はありません。</div>';
+  renderSection(v.querySelector('#action-list'), actionItems, filtering()?'条件に合う要対応の連絡はありません。':'要対応の連絡はありません。', 'action');
+  renderSection(v.querySelector('#read-list'), readItems, filtering()?'条件に合う閲覧のみの連絡はありません。':'閲覧のみの連絡はありません。', 'read');
+}
+
+function filtering(){ return !!(filterYM||filterKW); }
+
+/** 「完了した連絡」タブ：対象者全員が済ませた連絡を新しい順に一覧（絞り込み対応） */
+function renderDone(){
+  var v=document.getElementById('view-done');
+  populateMonthFilter();
+  var items=DATA.items.filter(function(it){ return fullyDone(it) && matchesFilter(it); });
+  items.sort(function(a,b){ return (b.dateISO||'').localeCompare(a.dateISO||''); }); // 新しい順
+  var html='<h2 class="section-label">対象者全員が対応・確認を終えた連絡（'+items.length+'件）</h2>'
+    +'<p style="font-size:.85rem;color:var(--ink-soft);margin:0 4px 12px">'
+    +'全員が済ませた連絡はこちらに移動します。上の絞り込みで月やキーワードから探せます。</p>'
+    +'<div id="done-list"></div>';
+  v.innerHTML=html;
+  var dl=v.querySelector('#done-list');
+  if(items.length) items.forEach(function(it){ dl.appendChild(cardEl(it)); });
+  else dl.innerHTML='<div class="empty">'+(filtering()?'条件に合う完了済みの連絡はありません。':'まだ完了した連絡はありません。')+'</div>';
 }
 
 /** DriveのURLからファイルIDを取り出す（Drive以外は null） */
@@ -802,7 +901,7 @@ function renderMine(){
     c.querySelector('button.check').addEventListener('click', function(){
       // 即時反映してバックグラウンドで保存（失敗時のみ巻き戻し）
       setCheckState(it, false, true);
-      renderMine(); renderToday(); refreshMineCounters();
+      renderMine(); renderToday(); renderDone(); refreshMineCounters();
       showToast('記録しました');
       pendingSaves++; // 保存が終わるまで自動ポーリングでの上書きを止める
       google.script.run.withSuccessHandler(function(){
@@ -810,7 +909,7 @@ function renderMine(){
       }).withFailureHandler(function(e){
         pendingSaves--;
         setCheckState(it, false, false);
-        renderMine(); renderToday(); refreshMineCounters();
+        renderMine(); renderToday(); renderDone(); refreshMineCounters();
         showToast('保存できませんでした。もう一度お試しください（'+e.message+'）');
       }).recordCheck(it.id, true, '対応');
     });
@@ -1022,6 +1121,7 @@ function refreshAfterEdit(res){
     DATA.items.sort(itemSortComparator);
   }
   if(currentView==='today') renderToday();
+  else if(currentView==='done') renderDone();
   else if(currentView==='mine') renderMine();
   else if(currentView==='admin') renderAdmin();
   else if(currentView==='meeting'){
@@ -1047,6 +1147,7 @@ function refreshAfterSubmit(res){
     DATA.items.sort(itemSortComparator);
   }
   if(currentView==='today') renderToday();
+  else if(currentView==='done') renderDone();
   else if(currentView==='mine') renderMine();
   else if(currentView==='admin') renderAdmin();
   else if(currentView==='meeting'){

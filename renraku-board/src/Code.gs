@@ -256,9 +256,17 @@ function toItem_(row, col) {
     targetType: row[col['対象区分']] || '全員',
     targetEmails: row[col['対象メール']] || '',
     posted: row[col['掲載']] === true || String(row[col['掲載']]).toUpperCase() === 'TRUE',
+    created: row[col['作成日時']],
     // 作成者メール列が無い旧データは ''（＝誰でも編集可として扱う）
     creatorEmail: col['作成者メール'] !== undefined ? String(row[col['作成者メール']] || '').toLowerCase() : ''
   };
+}
+
+/** 値を Date に変換（不正なら null） */
+function toDate_(v) {
+  if (!v) return null;
+  var d = (Object.prototype.toString.call(v) === '[object Date]') ? v : new Date(v);
+  return isNaN(d.getTime()) ? null : d;
 }
 
 function formatDate_(v) {
@@ -307,15 +315,18 @@ function getInitialData() {
   var staff = activeStaffFrom_(st);
   var logs = logMap_();
   var meetings = readMeetings_();
-  var meetingName = {};
-  meetings.forEach(function (m) { meetingName[m.id] = m.label; });
+  var meetingName = {}, meetingDates = {};
+  meetings.forEach(function (m) {
+    meetingName[m.id] = m.label;
+    meetingDates[m.id] = m.sortKey ? new Date(m.sortKey) : null; // 絞り込みの日付に使う
+  });
   var commentCounts = commentCountMap_();
 
   var t = readTable_(SHEET_ITEMS);
   var items = t.rows
     .map(function (r) { return toItem_(r, t.col); })
     .filter(function (it) { return it.posted; }) // ボードは掲載中のみ
-    .map(function (it) { return decorateItem_(it, staff, logs, me, meetingName, commentCounts); });
+    .map(function (it) { return decorateItem_(it, staff, logs, me, meetingName, commentCounts, meetingDates); });
 
   // 期限が近い順（期限なしは後ろ）→ 未対応を上に
   items.sort(function (a, b) {
@@ -368,7 +379,7 @@ function enrolledFrom_(t) {
 }
 
 /** 1件の連絡に集計（確認・対応の進捗、自分のチェック、未対応者名、編集可否）を付与 */
-function decorateItem_(it, staff, logs, me, meetingName, commentCounts) {
+function decorateItem_(it, staff, logs, me, meetingName, commentCounts, meetingDates) {
   var targets = targetsFor_(it, staff);
   var itemLog = logs[it.id] || {};
 
@@ -405,11 +416,16 @@ function decorateItem_(it, staff, logs, me, meetingName, commentCounts) {
 
   var myState = stateOf(me.email.toLowerCase());
   var meta = editMeta_(it, me);
+  // 絞り込み用の日付。会議に紐づくならその会議日、なければ作成日を使う
+  var dateSrc = (it.meetingId && meetingDates && meetingDates[it.meetingId]) || it.created;
+  var dObj = toDate_(dateSrc);
   return {
     id: it.id, kind: it.kind, meetingId: it.meetingId, meetingLabel: meetingName[it.meetingId] || it.meetingId,
     title: it.title, body: it.body, speaker: it.speaker, minutes: it.minutes, links: it.links,
     action: it.action, targetType: it.targetType, targetEmails: it.targetEmails,
     due: it.due, dueISO: meta.dueISO, dueLabel: it.dueLabel || '', dueClass: dueClass, dueSort: dueSort,
+    dateISO: dObj ? Utilities.formatDate(dObj, TZ, 'yyyy-MM-dd') : '',
+    ym: dObj ? Utilities.formatDate(dObj, TZ, 'yyyy-MM') : '',
     doneCount: doneCount, ackCount: ackCount, targetCount: targets.length,
     myDone: myState.done,
     myAck: myState.ack,
@@ -570,7 +586,7 @@ function submitItem(p) {
         title: p.title, body: p.body || '', speaker: p.speaker || me.name, minutes: p.minutes || '',
         links: links, due: formatDate_(dueDate), dueRaw: dueDate,
         action: action, targetType: p.targetType || '全員', targetEmails: p.targetEmails || '',
-        posted: posted, creatorEmail: String(me.email || '').toLowerCase()
+        posted: posted, created: nowStr_(), creatorEmail: String(me.email || '').toLowerCase()
       };
       decorated = decorateItem_(it, staff, {}, me, meetingId ? mapOf_(meetingId, meetingLabel) : {});
     }
@@ -634,7 +650,7 @@ function editItem(itemId, p) {
       title: p.title, body: p.body || '', speaker: p.speaker || me.name, minutes: p.minutes || '',
       links: links, due: formatDate_(dueDate), dueRaw: dueDate,
       action: !!p.action, targetType: p.targetType || '全員', targetEmails: p.targetEmails || '',
-      posted: existing.posted, creatorEmail: existing.creatorEmail || String(me.email).toLowerCase()
+      posted: existing.posted, created: existing.created, creatorEmail: existing.creatorEmail || String(me.email).toLowerCase()
     };
 
     var decorated = null;
@@ -642,10 +658,10 @@ function editItem(itemId, p) {
       var staff = activeStaffFrom_(st);
       var logs = logMap_();
       var meetings = readMeetings_();
-      var meetingName = {};
-      meetings.forEach(function (m) { meetingName[m.id] = m.label; });
+      var meetingName = {}, meetingDates = {};
+      meetings.forEach(function (m) { meetingName[m.id] = m.label; meetingDates[m.id] = m.sortKey ? new Date(m.sortKey) : null; });
       var commentCounts = commentCountMap_();
-      decorated = decorateItem_(updated, staff, logs, me, meetingName, commentCounts);
+      decorated = decorateItem_(updated, staff, logs, me, meetingName, commentCounts, meetingDates);
     }
     return { item: decorated };
   } finally {
