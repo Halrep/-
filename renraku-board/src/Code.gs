@@ -235,7 +235,7 @@ function toItem_(row, col) {
     speaker: row[col['発言者']],
     minutes: row[col['時間']],
     material: row[col['資料']],
-    link: row[col['資料リンク']],
+    links: String(row[col['資料リンク']] || '').split(/[\n]+/).map(function (s) { return s.trim(); }).filter(String),
     due: formatDate_(row[col['期限']]),
     dueRaw: row[col['期限']],
     action: row[col['要対応']] === true || String(row[col['要対応']]).toUpperCase() === 'TRUE',
@@ -290,8 +290,25 @@ function getInitialData() {
     today: Utilities.formatDate(new Date(), TZ, 'M月d日'),
     staffCount: staff.length,
     meetings: meetings,
-    items: items
+    items: items,
+    staffList: enrolledStaff_() // 起票フォームの「個別」対象選択用（在職の全職員）
   };
+}
+
+/** 在職＝TRUE の全職員（名前・メール）。対象の個別選択用。ログイン日では絞らない */
+function enrolledStaff_() {
+  var t = readTable_(SHEET_STAFF);
+  var list = t.rows
+    .filter(function (r) { return r[t.col['在職']] === true || String(r[t.col['在職']]).toUpperCase() === 'TRUE'; })
+    .map(function (r) {
+      return {
+        name: r[t.col['氏名']],
+        email: String(r[t.col['メール']]).toLowerCase(),
+        order: Number(r[t.col['表示順']]) || 999
+      };
+    });
+  list.sort(function (a, b) { return a.order - b.order; });
+  return list;
 }
 
 /** 1件の連絡に集計（進捗・自分のチェック・未対応者名）を付与 */
@@ -323,7 +340,7 @@ function decorateItem_(it, staff, logs, me, meetingName) {
 
   return {
     id: it.id, kind: it.kind, meetingLabel: meetingName[it.meetingId] || it.meetingId,
-    title: it.title, body: it.body, speaker: it.speaker, link: it.link,
+    title: it.title, body: it.body, speaker: it.speaker, links: it.links,
     action: it.action, targetType: it.targetType,
     due: it.due, dueLabel: it.dueLabel || '', dueClass: dueClass, dueSort: dueSort,
     doneCount: doneCount, targetCount: targets.length,
@@ -392,15 +409,20 @@ function submitItem(p) {
   try {
     if (!p.title) throw new Error('議題を入力してください。');
     var me = currentStaff_();
+    // 新しい会議が指定されていれば作成し、そのIDを使う
+    var meetingId = p.meetingId || '';
+    if (p.newMeeting && p.newMeeting.date) {
+      meetingId = ensureMeeting_(p.newMeeting.date, p.newMeeting.kind);
+    }
     var t = readTable_(SHEET_ITEMS);
     // 同じ会議・同じ種別内での通し番号
     var no = 0;
     t.rows.forEach(function (r) {
-      if (r[t.col['会議ID']] === p.meetingId && r[t.col['種別']] === p.kind) no++;
+      if (r[t.col['会議ID']] === meetingId && r[t.col['種別']] === p.kind) no++;
     });
     var row = [];
     row[t.col['ID']] = uuid_();
-    row[t.col['会議ID']] = p.meetingId || '';
+    row[t.col['会議ID']] = meetingId;
     row[t.col['種別']] = p.kind || '連絡';
     row[t.col['No']] = no + 1;
     row[t.col['議題']] = p.title;
@@ -408,7 +430,10 @@ function submitItem(p) {
     row[t.col['発言者']] = p.speaker || me.name;
     row[t.col['時間']] = p.minutes || '';
     row[t.col['資料']] = p.material || 'なし';
-    row[t.col['資料リンク']] = p.link || '';
+    // 資料リンクは最大3件。改行区切りで1セルに格納する
+    var links = (p.links || (p.link ? [p.link] : []))
+      .map(function (s) { return String(s || '').trim(); }).filter(String).slice(0, 3);
+    row[t.col['資料リンク']] = links.join('\n');
     row[t.col['期限']] = p.due || '';
     row[t.col['要対応']] = !!p.action;
     row[t.col['対象区分']] = p.targetType || '全員';
@@ -441,6 +466,24 @@ function getMeetingAgenda(meetingId) {
 /** 未対応者の氏名一覧（全職員が閲覧可） */
 function getUncheckedNames(itemId) {
   return recount_(itemId).uncheckedNames;
+}
+
+/**
+ * 指定日の会議を用意してIDを返す。同じ日付の会議が既にあれば再利用する。
+ * @param {string} dateStr 'yyyy-MM-dd'
+ * @param {string} kind 職員会議 / 打合せ
+ * @return {string} 会議ID（例 M20260717）
+ */
+function ensureMeeting_(dateStr, kind) {
+  var d = new Date(dateStr);
+  var id = 'M' + Utilities.formatDate(d, TZ, 'yyyyMMdd');
+  var t = readTable_(SHEET_MEETINGS);
+  for (var i = 0; i < t.rows.length; i++) {
+    if (t.rows[i][t.col['会議ID']] === id) return id; // 既存の会議を再利用
+  }
+  var label = Utilities.formatDate(d, TZ, 'M/d') + ' ' + (kind || '打合せ');
+  t.sheet.appendRow([id, dateStr, kind || '打合せ', label]);
+  return id;
 }
 
 // ============================================================
