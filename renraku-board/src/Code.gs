@@ -23,12 +23,20 @@ var SHEET_MEETINGS = '会議';
 var HEADERS = {
   items: ['ID', '会議ID', '種別', 'No', '議題', '内容', '発言者', '時間', '資料', '資料リンク',
           '期限', '要対応', '対象区分', '対象メール', '掲載', '作成日時'],
-  staff: ['氏名', 'メール', '分掌', '表示順', '在職'],
+  staff: ['氏名', 'メール', '分掌', '表示順', '在職', '最終ログイン'],
   log:   ['連絡ID', 'メール', '氏名', '状態', '更新日時'],
   meetings: ['会議ID', '日付', '種別', '名称']
 };
 
 var TZ = Session.getScriptTimeZone() || 'Asia/Tokyo';
+
+// 年度リセットの実行日。3/31の勤務が終わった直後の 4/1 早朝に職員マスタを
+// アーカイブして空にする（新年度は全員が開いて再登録）。
+var RESET_MONTH = 4;
+var RESET_DAY = 1;
+
+// これ以上ログインが無い職員は集計の対象外にする（自動で名簿から実質除外）。
+var INACTIVE_DAYS = 30;
 
 // ============================================================
 // ウェブアプリのエントリポイント
@@ -103,14 +111,80 @@ function currentStaff_() {
   return { email: email, name: email ? email.split('@')[0] : 'ゲスト', role: '', registered: false };
 }
 
+/**
+ * 初回アクセス時の自己登録。フロントの名前登録画面から呼ばれる。
+ * 既に同じメールがあれば氏名・分掌・最終ログインを更新する。
+ * @param {string} name 氏名
+ * @param {boolean} isHomeroom 学級担任かどうか（対象「担任」の判定に使う）
+ */
+function registerMe(name, isHomeroom) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var email = currentEmail_();
+    if (!email) throw new Error('ログイン情報を取得できませんでした。学校のアカウントでアクセスしてください。');
+    name = String(name || '').trim();
+    if (!name) throw new Error('お名前を入力してください。');
+    var t = readTable_(SHEET_STAFF);
+    for (var i = 0; i < t.rows.length; i++) {
+      if (String(t.rows[i][t.col['メール']]).toLowerCase() === email.toLowerCase()) {
+        var rn = i + 2;
+        t.sheet.getRange(rn, t.col['氏名'] + 1).setValue(name);
+        t.sheet.getRange(rn, t.col['分掌'] + 1).setValue(isHomeroom ? '担任' : '');
+        t.sheet.getRange(rn, t.col['在職'] + 1).setValue(true);
+        t.sheet.getRange(rn, t.col['最終ログイン'] + 1).setValue(nowStr_());
+        return { ok: true };
+      }
+    }
+    var row = [];
+    row[t.col['氏名']] = name;
+    row[t.col['メール']] = email;
+    row[t.col['分掌']] = isHomeroom ? '担任' : '';
+    row[t.col['表示順']] = t.rows.length + 1;
+    row[t.col['在職']] = true;
+    row[t.col['最終ログイン']] = nowStr_();
+    t.sheet.appendRow(row);
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** 指定メールの職員の「最終ログイン」を現在時刻に更新（未登録なら何もしない） */
+function touchLastLogin_(email) {
+  if (!email) return;
+  var t = readTable_(SHEET_STAFF);
+  if (t.col['最終ログイン'] === undefined) return; // 旧シートで列が無い場合は setup() で追加
+  for (var i = 0; i < t.rows.length; i++) {
+    if (String(t.rows[i][t.col['メール']]).toLowerCase() === email.toLowerCase()) {
+      t.sheet.getRange(i + 2, t.col['最終ログイン'] + 1).setValue(nowStr_());
+      return;
+    }
+  }
+}
+
 // ============================================================
 // マスタ・集計の取得
 // ============================================================
-/** 在職中の職員一覧（表示順ソート） */
+/**
+ * 集計対象の職員一覧（表示順ソート）。
+ * 条件: 在職=TRUE かつ「最終ログインが INACTIVE_DAYS 日以内」。
+ * 最終ログインが空欄（手動追加でまだ未ログイン等）の職員は除外しない。
+ */
 function activeStaff_() {
   var t = readTable_(SHEET_STAFF);
+  var cutoff = new Date().getTime() - INACTIVE_DAYS * 86400000;
   var list = t.rows
-    .filter(function (r) { return r[t.col['在職']] === true || String(r[t.col['在職']]).toUpperCase() === 'TRUE'; })
+    .filter(function (r) {
+      var zaiseki = r[t.col['在職']] === true || String(r[t.col['在職']]).toUpperCase() === 'TRUE';
+      if (!zaiseki) return false;
+      var ll = r[t.col['最終ログイン']];
+      if (ll) {
+        var d = (Object.prototype.toString.call(ll) === '[object Date]') ? ll : new Date(ll);
+        if (!isNaN(d.getTime()) && d.getTime() < cutoff) return false; // 1ヶ月以上ログインなし → 対象外
+      }
+      return true;
+    })
     .map(function (r) {
       return {
         name: r[t.col['氏名']],
@@ -188,6 +262,7 @@ function formatDate_(v) {
  */
 function getInitialData() {
   var me = currentStaff_();
+  if (me.registered) touchLastLogin_(me.email); // 開いた時刻を記録（無ログイン判定に使う）
   var staff = activeStaff_();
   var logs = logMap_();
   var meetings = readMeetings_();
@@ -417,12 +492,48 @@ function sendReminders() {
   });
 }
 
-/** 毎朝7:30に督促メールを送るトリガーを登録（重複登録を防ぐ） */
+/**
+ * 時間トリガーを登録（重複登録を防ぐ）。
+ *  - sendReminders            … 毎朝7:30、期限超過の未対応者へ督促メール
+ *  - resetStaffMasterYearly   … 毎朝3:00に日付を確認し、4/1のみ職員マスタをリセット
+ */
 function installTriggers() {
   ScriptApp.getProjectTriggers().forEach(function (tr) {
-    if (tr.getHandlerFunction() === 'sendReminders') ScriptApp.deleteTrigger(tr);
+    var h = tr.getHandlerFunction();
+    if (h === 'sendReminders' || h === 'resetStaffMasterYearly') ScriptApp.deleteTrigger(tr);
   });
   ScriptApp.newTrigger('sendReminders').timeBased().atHour(7).nearMinute(30).everyDays(1).create();
+  ScriptApp.newTrigger('resetStaffMasterYearly').timeBased().atHour(3).nearMinute(30).everyDays(1).create();
+}
+
+// ============================================================
+// 年度リセット（毎朝チェックし、4/1のみ実行）
+// ============================================================
+/** 実行日が RESET_MONTH/RESET_DAY のときだけ職員マスタをリセットする */
+function resetStaffMasterYearly() {
+  var d = new Date();
+  if (d.getMonth() + 1 !== RESET_MONTH || d.getDate() !== RESET_DAY) return;
+  archiveAndClearStaff_();
+}
+
+/** 職員マスタを別シートにアーカイブしてから中身を空にする（ヘッダーは残す） */
+function archiveAndClearStaff_() {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var ss = ss_();
+    var sh = sheet_(SHEET_STAFF);
+    var endedYear = new Date().getFullYear() - 1; // 4/1実行時点で「終わった年度」
+    var archiveName = SHEET_STAFF + '_' + endedYear + '年度';
+    if (!ss.getSheetByName(archiveName)) {
+      sh.copyTo(ss).setName(archiveName); // 丸ごと退避（履歴を残す）
+    }
+    if (sh.getLastRow() > 1) {
+      sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).clearContent();
+    }
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // ============================================================
@@ -458,8 +569,9 @@ function setup() {
   ensureSheet_(ss, SHEET_STAFF, HEADERS.staff);
   ensureSheet_(ss, SHEET_LOG, HEADERS.log);
   ensureSheet_(ss, SHEET_MEETINGS, HEADERS.meetings);
+  ensureStaffColumns_(); // 旧シートに「最終ログイン」列が無ければ追加（再セットアップ時の移行）
   seedSample_();
-  SpreadsheetApp.getActiveSpreadsheet().toast('セットアップ完了。職員マスタに実際の職員を入力してください。', '連絡ボード', 8);
+  SpreadsheetApp.getActiveSpreadsheet().toast('セットアップ完了。職員は初回アクセス時に自動登録されます。', '連絡ボード', 8);
 }
 
 function ensureSheet_(ss, name, header) {
@@ -472,17 +584,21 @@ function ensureSheet_(ss, name, header) {
   return sh;
 }
 
-/** 動作確認用のサンプルデータ（既にデータがあれば何もしない） */
-function seedSample_() {
-  var staffSh = sheet_(SHEET_STAFF);
-  if (staffSh.getLastRow() <= 1) {
-    var me = currentEmail_() || 'you@example.com';
-    staffSh.getRange(2, 1, 3, HEADERS.staff.length).setValues([
-      ['西村', me, '担任・教務', 1, true],
-      ['横田', 'yokota@example.com', '情報', 2, true],
-      ['清水', 'shimizu@example.com', '担任', 3, true]
-    ]);
+/** 職員マスタに「最終ログイン」列が無ければ末尾に追加する（旧バージョンからの移行用） */
+function ensureStaffColumns_() {
+  var sh = sheet_(SHEET_STAFF);
+  var width = Math.max(sh.getLastColumn(), 1);
+  var header = sh.getRange(1, 1, 1, width).getValues()[0];
+  if (header.indexOf('最終ログイン') < 0) {
+    sh.getRange(1, header.length + 1).setValue('最終ログイン').setFontWeight('bold');
   }
+}
+
+/**
+ * 動作確認用のサンプルデータ（既にデータがあれば何もしない）。
+ * 職員マスタには初期データを入れない（初回アクセス時の自己登録で埋まる）。
+ */
+function seedSample_() {
   var meetSh = sheet_(SHEET_MEETINGS);
   if (meetSh.getLastRow() <= 1) {
     meetSh.getRange(2, 1, 1, HEADERS.meetings.length).setValues([
