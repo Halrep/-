@@ -98,6 +98,10 @@
   button.check:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
   button.check.checked{background:var(--good-soft);border-color:var(--good-soft);color:var(--good)}
   button.check:disabled{opacity:.5;cursor:progress}
+  button.check.ghost{background:none;color:var(--accent)}
+  button.check.ghost.checked{background:var(--good-soft);border-color:var(--good-soft);color:var(--good)}
+  .check-btns{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end}
+  .check-btns .check{margin-left:0}
 
   .meet-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:16px 0 4px}
   select,input,textarea{font:inherit;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 10px}
@@ -385,13 +389,20 @@ function cardEl(it){
   if(it.dueLabel) chips+='<span class="chip due '+it.dueClass+'">期限 '+esc(it.dueLabel)+'</span>';
   chips+='<span class="chip target">対象: '+esc(it.targetType)+'</span>';
 
-  var verb=it.action?'対応':'確認';
-  var pct=it.targetCount?Math.round(it.doneCount/it.targetCount*100):0;
   var meta='<span>発信: '+esc(it.speaker)+'</span>';
   (it.links||[]).forEach(function(u,i){
     meta+='<a href="'+esc(u)+'" target="_blank" rel="noopener">📄 資料'+(it.links.length>1?(i+1):'')+'</a>';
   });
   meta+='<button class="link" data-names>未対応者を見る</button>';
+
+  // ボタン: 要対応は「確認した」＋「対応済みにする」の2段階、閲覧のみは「確認」のみ
+  var buttons='';
+  if(it.action){
+    buttons+='<button class="check ghost'+(it.myAck?' checked':'')+'" data-type="確認">'+(it.myAck?'✓ 確認済み':'確認した')+'</button>';
+    buttons+='<button class="check'+(it.myDone?' checked':'')+'" data-type="対応">'+(it.myDone?'✓ 対応済み':'対応済みにする')+'</button>';
+  }else{
+    buttons+='<button class="check'+(it.myDone?' checked':'')+'" data-type="確認">'+(it.myDone?'✓ 確認済み':'確認する')+'</button>';
+  }
 
   var card=el(
     '<div class="card'+(it.myDone?' done':'')+'">'
@@ -400,37 +411,51 @@ function cardEl(it){
     +(it.body?'<p class="body">'+esc(it.body)+'</p>':'')
     +'<div class="meta">'+meta+'</div>'
     +'<div class="card-foot">'
-      +'<div class="progress"><div class="bar"><div class="fill" style="width:'+pct+'%"></div></div>'
-        +'<div class="txt">'+it.doneCount+'/'+it.targetCount+'名 '+verb+'済み（'+pct+'%）</div></div>'
-      +'<button class="check'+(it.myDone?' checked':'')+'">'+(it.myDone?'✓ '+verb+'済み':verb+'済みにする')+'</button>'
+      +'<div class="progress"><div class="bar"><div class="fill" style="width:'+pctOf(it)+'%"></div></div>'
+        +'<div class="txt">'+progressText(it)+'</div></div>'
+      +'<div class="check-btns">'+buttons+'</div>'
     +'</div></div>');
 
-  var btn=card.querySelector('button.check');
-  if(!it.myTarget){ btn.disabled=true; btn.title='あなたは対象外です'; }
-  btn.addEventListener('click', function(){ doCheck(it, card, btn); });
+  card.querySelectorAll('button.check').forEach(function(btn){
+    if(!it.myTarget){ btn.disabled=true; btn.title='あなたは対象外です'; return; }
+    btn.addEventListener('click', function(){ doCheck(it, card, btn, btn.dataset.type); });
+  });
   card.querySelector('[data-names]').addEventListener('click', function(){ showNames(it); });
   return card;
 }
 
-function doCheck(it, card, btn){
-  var next=!it.myDone;
+// メイン進捗（要対応=対応済み率 / 閲覧のみ=確認率）
+function pctOf(it){ return it.targetCount?Math.round(it.doneCount/it.targetCount*100):0; }
+function progressText(it){
+  var pct=pctOf(it);
+  if(it.action){
+    return '対応 '+it.doneCount+'/'+it.targetCount+'名（'+pct+'%）・確認 '+(it.ackCount||0)+'/'+it.targetCount+'名';
+  }
+  return '確認 '+it.doneCount+'/'+it.targetCount+'名（'+pct+'%）';
+}
+
+function doCheck(it, card, btn, type){
+  var isAckBtn=(type==='確認'&&it.action);          // 要対応カードの「確認した」ボタンか
+  var cur=isAckBtn?it.myAck:it.myDone;
+  var next=!cur;
   btn.disabled=true;
   google.script.run.withSuccessHandler(function(res){
-    it.myDone=next; it.doneCount=res.doneCount; it.targetCount=res.targetCount; it.uncheckedNames=res.uncheckedNames;
-    var verb=it.action?'対応':'確認';
-    var pct=it.targetCount?Math.round(it.doneCount/it.targetCount*100):0;
-    card.classList.toggle('done', next);
+    if(isAckBtn) it.myAck=next; else it.myDone=next;
+    if(!it.action) it.myAck=it.myDone;               // 閲覧のみは確認＝メイン
+    it.doneCount=res.doneCount; it.ackCount=res.ackCount; it.targetCount=res.targetCount; it.uncheckedNames=res.uncheckedNames;
+    card.classList.toggle('done', it.myDone);        // カードが薄くなるのは対応済み（閲覧のみは確認済み）のとき
     btn.classList.toggle('checked', next);
-    btn.textContent=next?'✓ '+verb+'済み':verb+'済みにする';
-    card.querySelector('.fill').style.width=pct+'%';
-    card.querySelector('.progress .txt').textContent=it.doneCount+'/'+it.targetCount+'名 '+verb+'済み（'+pct+'%）';
+    if(isAckBtn) btn.textContent=next?'✓ 確認済み':'確認した';
+    else btn.textContent=next?('✓ '+(it.action?'対応':'確認')+'済み'):(it.action?'対応済みにする':'確認する');
+    card.querySelector('.fill').style.width=pctOf(it)+'%';
+    card.querySelector('.progress .txt').textContent=progressText(it);
     btn.disabled=false;
     updateBadge(myOpenItems().length);
     var sm=document.getElementById('stat-mine'); if(sm) sm.textContent=myOpenItems().length;
     showToast(next?'記録しました':'取り消しました');
   }).withFailureHandler(function(err){
     btn.disabled=false; showToast('エラー: '+err.message);
-  }).recordCheck(it.id, next);
+  }).recordCheck(it.id, next, type);
 }
 
 function updateBadge(n){
@@ -531,7 +556,7 @@ function renderAdmin(){
       +'<span class="chip target">対象: '+esc(it.targetType)+'</span></div>'
       +'<h3>'+esc(it.title)+'</h3>'
       +'<div class="progress" style="margin-top:8px;max-width:none"><div class="bar"><div class="fill" style="width:'+pct+'%"></div></div>'
-      +'<div class="txt">'+it.doneCount+'/'+it.targetCount+'名 対応済み（'+pct+'%）</div></div>'
+      +'<div class="txt">対応 '+it.doneCount+'/'+it.targetCount+'名（'+pct+'%）・確認 '+(it.ackCount||0)+'/'+it.targetCount+'名</div></div>'
       +'<h2 class="section-label" style="margin:14px 0 0">未対応（'+(it.uncheckedNames||[]).length+'名）</h2>'
       +'<div class="staff-chips">'+chips+'</div></div>');
     v.appendChild(c);

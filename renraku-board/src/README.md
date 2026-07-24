@@ -76,7 +76,7 @@ clasp push
 | `doGet()` | 自動 | ウェブアプリ配信 |
 | `getInitialData()` | UI | ボード初期表示＋本人の最終ログイン更新 |
 | `registerMe(name, homeroom)` | UI | 初回アクセス時の自己登録 |
-| `recordCheck(id, done)` | UI | 確認・対応の記録／取消 |
+| `recordCheck(id, done, checkType)` | UI | 確認／対応の記録・取消（要対応は「確認した」「対応済み」の2段階） |
 | `submitItem(payload)` | UI | 連絡の起票 |
 | `getMeetingAgenda(id)` | UI | 会議アジェンダ取得 |
 | `getUncheckedNames(id)` | UI | 未対応者名の取得 |

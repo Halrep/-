@@ -24,7 +24,7 @@ var HEADERS = {
   items: ['ID', '会議ID', '種別', 'No', '議題', '内容', '発言者', '時間', '資料', '資料リンク',
           '期限', '要対応', '対象区分', '対象メール', '掲載', '作成日時'],
   staff: ['氏名', 'メール', '分掌', '表示順', '在職', '最終ログイン'],
-  log:   ['連絡ID', 'メール', '氏名', '状態', '更新日時'],
+  log:   ['連絡ID', 'メール', '氏名', '状態', '更新日時', 'チェック種別'],
   meetings: ['会議ID', '日付', '種別', '名称']
 };
 
@@ -210,15 +210,26 @@ function targetsFor_(item, staff) {
   return staff.slice(); // 全員
 }
 
-/** 確認ログを {連絡ID: {email: 状態}} のマップに畳み込む */
+/**
+ * 確認ログを {連絡ID: {email: {kaku, tai, main}}} のマップに畳み込む。
+ *  kaku: 「確認した」チェック / tai: 「対応済み」チェック /
+ *  main: チェック種別が空の旧データ（当時の唯一のチェック。要対応なら対応、閲覧のみなら確認とみなす）
+ * 状態は 済=true / 取消=false（後の行が優先）。
+ */
 function logMap_() {
   var t = readTable_(SHEET_LOG);
+  var hasType = t.col['チェック種別'] !== undefined;
   var map = {};
   t.rows.forEach(function (r) {
     var id = r[t.col['連絡ID']];
     var email = String(r[t.col['メール']]).toLowerCase();
+    var done = r[t.col['状態']] === '済';
+    var type = hasType ? String(r[t.col['チェック種別']] || '') : '';
     if (!map[id]) map[id] = {};
-    map[id][email] = r[t.col['状態']]; // 済 / 取消（後勝ち＝最新行が優先されるよう順に上書き）
+    if (!map[id][email]) map[id][email] = { kaku: false, tai: false, main: false };
+    if (type === '確認') map[id][email].kaku = done;
+    else if (type === '対応') map[id][email].tai = done;
+    else map[id][email].main = done;
   });
   return map;
 }
@@ -311,18 +322,27 @@ function enrolledStaff_() {
   return list;
 }
 
-/** 1件の連絡に集計（進捗・自分のチェック・未対応者名）を付与 */
+/** 1件の連絡に集計（確認・対応の進捗、自分のチェック、未対応者名）を付与 */
 function decorateItem_(it, staff, logs, me, meetingName) {
   var targets = targetsFor_(it, staff);
   var itemLog = logs[it.id] || {};
-  var doneEmails = {};
-  Object.keys(itemLog).forEach(function (e) { if (itemLog[e] === '済') doneEmails[e] = true; });
 
-  var doneCount = 0;
+  // 要対応: メイン指標=対応済み、サブ=確認した。閲覧のみ: 確認のみ。
+  // 旧データ(main)は、その連絡の当時のメインチェックとして数える。
+  function stateOf(email) {
+    var e = itemLog[email] || { kaku: false, tai: false, main: false };
+    var done = it.action ? (e.tai || e.main) : (e.kaku || e.main);
+    var ack = e.kaku || (!it.action && e.main);
+    return { done: done, ack: ack };
+  }
+
+  var doneCount = 0, ackCount = 0;
   var unchecked = [];
   targets.forEach(function (s) {
-    if (doneEmails[s.email]) doneCount++;
+    var st = stateOf(s.email);
+    if (st.done) doneCount++;
     else unchecked.push(s.name);
+    if (st.ack) ackCount++;
   });
 
   var due = it.dueRaw;
@@ -338,44 +358,65 @@ function decorateItem_(it, staff, logs, me, meetingName) {
     }
   }
 
+  var myState = stateOf(me.email.toLowerCase());
   return {
     id: it.id, kind: it.kind, meetingLabel: meetingName[it.meetingId] || it.meetingId,
     title: it.title, body: it.body, speaker: it.speaker, links: it.links,
     action: it.action, targetType: it.targetType,
     due: it.due, dueLabel: it.dueLabel || '', dueClass: dueClass, dueSort: dueSort,
-    doneCount: doneCount, targetCount: targets.length,
-    myDone: !!doneEmails[me.email.toLowerCase()],
+    doneCount: doneCount, ackCount: ackCount, targetCount: targets.length,
+    myDone: myState.done,
+    myAck: myState.ack,
     myTarget: targets.some(function (s) { return s.email === me.email.toLowerCase(); }),
     uncheckedNames: unchecked
   };
 }
 
 /**
- * 確認・対応済みの記録／取消。(連絡ID×職員)で1行、状態列を更新。
- * @return {Object} 更新後の { doneCount, targetCount }
+ * 確認／対応済みの記録・取消。(連絡ID×職員×チェック種別)で1行、状態列を更新。
+ * @param {string} itemId 連絡ID
+ * @param {boolean} done true=チェック / false=取消
+ * @param {string} checkType '確認' または '対応'（省略時はその連絡のメインチェック）
+ * @return {Object} 更新後の { doneCount, ackCount, targetCount, uncheckedNames }
  */
-function recordCheck(itemId, done) {
+function recordCheck(itemId, done, checkType) {
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
     var me = currentStaff_();
     if (!me.email) throw new Error('ログイン情報を取得できませんでした。');
+
+    // 連絡が要対応かどうかでメインのチェック種別を決める
+    var item = findItem_(itemId);
+    if (!item) throw new Error('連絡が見つかりませんでした。');
+    var mainType = item.action ? '対応' : '確認';
+    var type = (checkType === '確認' || checkType === '対応') ? checkType : mainType;
+
     var state = done ? '済' : '取消';
     var t = readTable_(SHEET_LOG);
+    var hasType = t.col['チェック種別'] !== undefined;
     var found = -1;
     for (var i = 0; i < t.rows.length; i++) {
-      if (t.rows[i][t.col['連絡ID']] === itemId &&
-          String(t.rows[i][t.col['メール']]).toLowerCase() === me.email.toLowerCase()) {
-        found = i;
-        break;
-      }
+      if (t.rows[i][t.col['連絡ID']] !== itemId) continue;
+      if (String(t.rows[i][t.col['メール']]).toLowerCase() !== me.email.toLowerCase()) continue;
+      var rowType = hasType ? String(t.rows[i][t.col['チェック種別']] || '') : '';
+      // 同じ種別の行、または種別が空の旧行（＝当時のメインチェック）を更新対象にする
+      if (rowType === type || (rowType === '' && type === mainType)) { found = i; break; }
     }
     if (found >= 0) {
       var rowNum = found + 2; // ヘッダー分＋1
       t.sheet.getRange(rowNum, t.col['状態'] + 1).setValue(state);
       t.sheet.getRange(rowNum, t.col['更新日時'] + 1).setValue(nowStr_());
+      if (hasType) t.sheet.getRange(rowNum, t.col['チェック種別'] + 1).setValue(type);
     } else {
-      t.sheet.appendRow([itemId, me.email, me.name, state, nowStr_()]);
+      var row = [];
+      row[t.col['連絡ID']] = itemId;
+      row[t.col['メール']] = me.email;
+      row[t.col['氏名']] = me.name;
+      row[t.col['状態']] = state;
+      row[t.col['更新日時']] = nowStr_();
+      if (hasType) row[t.col['チェック種別']] = type;
+      t.sheet.appendRow(row);
     }
     return recount_(itemId);
   } finally {
@@ -383,19 +424,24 @@ function recordCheck(itemId, done) {
   }
 }
 
+/** IDで連絡事項を1件探す */
+function findItem_(itemId) {
+  var t = readTable_(SHEET_ITEMS);
+  for (var i = 0; i < t.rows.length; i++) {
+    if (t.rows[i][t.col['ID']] === itemId) return toItem_(t.rows[i], t.col);
+  }
+  return null;
+}
+
 /** 1件の連絡の進捗を再計算して返す */
 function recount_(itemId) {
   var staff = activeStaff_();
-  var t = readTable_(SHEET_ITEMS);
-  var item = null;
-  for (var i = 0; i < t.rows.length; i++) {
-    if (t.rows[i][t.col['ID']] === itemId) { item = toItem_(t.rows[i], t.col); break; }
-  }
-  if (!item) return { doneCount: 0, targetCount: 0, uncheckedNames: [] };
+  var item = findItem_(itemId);
+  if (!item) return { doneCount: 0, ackCount: 0, targetCount: 0, uncheckedNames: [] };
   var logs = logMap_();
   var me = currentStaff_();
   var dec = decorateItem_(item, staff, logs, me, {});
-  return { doneCount: dec.doneCount, targetCount: dec.targetCount, uncheckedNames: dec.uncheckedNames };
+  return { doneCount: dec.doneCount, ackCount: dec.ackCount, targetCount: dec.targetCount, uncheckedNames: dec.uncheckedNames };
 }
 
 /**
@@ -633,6 +679,7 @@ function setup() {
   ensureSheet_(ss, SHEET_LOG, HEADERS.log);
   ensureSheet_(ss, SHEET_MEETINGS, HEADERS.meetings);
   ensureStaffColumns_(); // 旧シートに「最終ログイン」列が無ければ追加（再セットアップ時の移行）
+  ensureLogColumns_();   // 旧シートに「チェック種別」列が無ければ追加（同上）
   seedSample_();
   SpreadsheetApp.getActiveSpreadsheet().toast('セットアップ完了。職員は初回アクセス時に自動登録されます。', '連絡ボード', 8);
 }
@@ -654,6 +701,16 @@ function ensureStaffColumns_() {
   var header = sh.getRange(1, 1, 1, width).getValues()[0];
   if (header.indexOf('最終ログイン') < 0) {
     sh.getRange(1, header.length + 1).setValue('最終ログイン').setFontWeight('bold');
+  }
+}
+
+/** 確認ログに「チェック種別」列が無ければ末尾に追加する（旧バージョンからの移行用） */
+function ensureLogColumns_() {
+  var sh = sheet_(SHEET_LOG);
+  var width = Math.max(sh.getLastColumn(), 1);
+  var header = sh.getRange(1, 1, 1, width).getValues()[0];
+  if (header.indexOf('チェック種別') < 0) {
+    sh.getRange(1, header.length + 1).setValue('チェック種別').setFontWeight('bold');
   }
 }
 
