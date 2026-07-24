@@ -434,27 +434,61 @@ function progressText(it){
   return '確認 '+it.doneCount+'/'+it.targetCount+'名（'+pct+'%）';
 }
 
+/* チェック状態をデータに反映（人数・自分の状態・未対応者名を更新） */
+function setCheckState(it, isAckBtn, next){
+  if(isAckBtn){
+    it.myAck=next;
+    it.ackCount=(it.ackCount||0)+(next?1:-1);
+  }else{
+    it.myDone=next;
+    it.doneCount+=(next?1:-1);
+    if(!it.action) it.myAck=next;                    // 閲覧のみは確認＝メイン
+    var n=DATA.me.name;                              // 未対応者リストの自分の名前を更新
+    it.uncheckedNames=it.uncheckedNames||[];
+    if(next) it.uncheckedNames=it.uncheckedNames.filter(function(x){return x!==n;});
+    else if(it.uncheckedNames.indexOf(n)<0) it.uncheckedNames.push(n);
+  }
+  it.doneCount=Math.max(0,Math.min(it.doneCount,it.targetCount));
+  it.ackCount=Math.max(0,Math.min(it.ackCount||0,it.targetCount));
+}
+
+/* カードの見た目を it の状態に合わせて更新 */
+function updateCardUI(it, card){
+  card.classList.toggle('done', it.myDone);          // 薄くなるのは対応済み（閲覧のみは確認済み）のとき
+  var ack=card.querySelector('.check.ghost');
+  if(ack){ ack.classList.toggle('checked', it.myAck); ack.textContent=it.myAck?'✓ 確認済み':'確認した'; }
+  var main=card.querySelector('.check:not(.ghost)');
+  if(main){
+    main.classList.toggle('checked', it.myDone);
+    main.textContent=it.myDone?('✓ '+(it.action?'対応':'確認')+'済み'):(it.action?'対応済みにする':'確認する');
+  }
+  var fill=card.querySelector('.fill'); if(fill) fill.style.width=pctOf(it)+'%';
+  var txt=card.querySelector('.progress .txt'); if(txt) txt.textContent=progressText(it);
+}
+
+function refreshMineCounters(){
+  var n=myOpenItems().length;
+  updateBadge(n);
+  var sm=document.getElementById('stat-mine'); if(sm) sm.textContent=n;
+}
+
+/*
+ * チェックの記録。押した瞬間に画面へ反映し、保存はバックグラウンドで行う。
+ * ボタンは無効化しないので、続けて他の連絡をチェックできる。
+ * 保存に失敗したときだけ元に戻してお知らせする。
+ */
 function doCheck(it, card, btn, type){
-  var isAckBtn=(type==='確認'&&it.action);          // 要対応カードの「確認した」ボタンか
-  var cur=isAckBtn?it.myAck:it.myDone;
-  var next=!cur;
-  btn.disabled=true;
-  google.script.run.withSuccessHandler(function(res){
-    if(isAckBtn) it.myAck=next; else it.myDone=next;
-    if(!it.action) it.myAck=it.myDone;               // 閲覧のみは確認＝メイン
-    it.doneCount=res.doneCount; it.ackCount=res.ackCount; it.targetCount=res.targetCount; it.uncheckedNames=res.uncheckedNames;
-    card.classList.toggle('done', it.myDone);        // カードが薄くなるのは対応済み（閲覧のみは確認済み）のとき
-    btn.classList.toggle('checked', next);
-    if(isAckBtn) btn.textContent=next?'✓ 確認済み':'確認した';
-    else btn.textContent=next?('✓ '+(it.action?'対応':'確認')+'済み'):(it.action?'対応済みにする':'確認する');
-    card.querySelector('.fill').style.width=pctOf(it)+'%';
-    card.querySelector('.progress .txt').textContent=progressText(it);
-    btn.disabled=false;
-    updateBadge(myOpenItems().length);
-    var sm=document.getElementById('stat-mine'); if(sm) sm.textContent=myOpenItems().length;
-    showToast(next?'記録しました':'取り消しました');
-  }).withFailureHandler(function(err){
-    btn.disabled=false; showToast('エラー: '+err.message);
+  var isAckBtn=(type==='確認'&&it.action);           // 要対応カードの「確認した」ボタンか
+  var next=!(isAckBtn?it.myAck:it.myDone);
+  setCheckState(it, isAckBtn, next);
+  updateCardUI(it, card);
+  refreshMineCounters();
+  showToast(next?'記録しました':'取り消しました');
+  google.script.run.withFailureHandler(function(err){
+    setCheckState(it, isAckBtn, !next);              // 失敗したら巻き戻す
+    updateCardUI(it, card);
+    refreshMineCounters();
+    showToast('保存できませんでした。もう一度お試しください（'+err.message+'）');
   }).recordCheck(it.id, next, type);
 }
 
@@ -532,9 +566,15 @@ function renderMine(){
       +'<div class="card-foot"><div class="progress"></div>'
       +'<button class="check">対応済みにする</button></div></div>');
     c.querySelector('button.check').addEventListener('click', function(){
-      google.script.run.withSuccessHandler(function(){
-        it.myDone=true; renderMine(); renderToday(); showToast('記録しました');
-      }).withFailureHandler(function(e){ showToast('エラー: '+e.message); }).recordCheck(it.id, true);
+      // 即時反映してバックグラウンドで保存（失敗時のみ巻き戻し）
+      setCheckState(it, false, true);
+      renderMine(); renderToday(); refreshMineCounters();
+      showToast('記録しました');
+      google.script.run.withFailureHandler(function(e){
+        setCheckState(it, false, false);
+        renderMine(); renderToday(); refreshMineCounters();
+        showToast('保存できませんでした。もう一度お試しください（'+e.message+'）');
+      }).recordCheck(it.id, true, '対応');
     });
     v.appendChild(c);
   });

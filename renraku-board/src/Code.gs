@@ -94,21 +94,31 @@ function currentEmail_() {
   return email || '';
 }
 
-/** 職員マスタからログインユーザーの情報を引く。未登録なら仮の氏名を返す */
-function currentStaff_() {
-  var email = currentEmail_();
-  var t = readTable_(SHEET_STAFF);
+/** 読み込み済みの職員マスタから該当メールの行番号（0始まり）を返す。無ければ -1 */
+function findStaffRow_(t, email) {
   for (var i = 0; i < t.rows.length; i++) {
-    if (String(t.rows[i][t.col['メール']]).toLowerCase() === email.toLowerCase()) {
-      return {
-        email: email,
-        name: t.rows[i][t.col['氏名']],
-        role: t.rows[i][t.col['分掌']],
-        registered: true
-      };
-    }
+    if (String(t.rows[i][t.col['メール']]).toLowerCase() === String(email).toLowerCase()) return i;
+  }
+  return -1;
+}
+
+/** 読み込み済みの職員マスタからログインユーザーの情報を組み立てる */
+function staffFromTable_(t, email) {
+  var i = findStaffRow_(t, email);
+  if (i >= 0) {
+    return {
+      email: email,
+      name: t.rows[i][t.col['氏名']],
+      role: t.rows[i][t.col['分掌']],
+      registered: true
+    };
   }
   return { email: email, name: email ? email.split('@')[0] : 'ゲスト', role: '', registered: false };
+}
+
+/** 職員マスタからログインユーザーの情報を引く。未登録なら仮の氏名を返す */
+function currentStaff_() {
+  return staffFromTable_(readTable_(SHEET_STAFF), currentEmail_());
 }
 
 /**
@@ -150,19 +160,6 @@ function registerMe(name, isHomeroom) {
   }
 }
 
-/** 指定メールの職員の「最終ログイン」を現在時刻に更新（未登録なら何もしない） */
-function touchLastLogin_(email) {
-  if (!email) return;
-  var t = readTable_(SHEET_STAFF);
-  if (t.col['最終ログイン'] === undefined) return; // 旧シートで列が無い場合は setup() で追加
-  for (var i = 0; i < t.rows.length; i++) {
-    if (String(t.rows[i][t.col['メール']]).toLowerCase() === email.toLowerCase()) {
-      t.sheet.getRange(i + 2, t.col['最終ログイン'] + 1).setValue(nowStr_());
-      return;
-    }
-  }
-}
-
 // ============================================================
 // マスタ・集計の取得
 // ============================================================
@@ -172,7 +169,11 @@ function touchLastLogin_(email) {
  * 最終ログインが空欄（手動追加でまだ未ログイン等）の職員は除外しない。
  */
 function activeStaff_() {
-  var t = readTable_(SHEET_STAFF);
+  return activeStaffFrom_(readTable_(SHEET_STAFF));
+}
+
+/** activeStaff_ の本体（読み込み済みテーブルを受け取る版。再読込を避ける） */
+function activeStaffFrom_(t) {
   var cutoff = new Date().getTime() - INACTIVE_DAYS * 86400000;
   var list = t.rows
     .filter(function (r) {
@@ -272,9 +273,12 @@ function formatDate_(v) {
  * { me, today, meetings, items:[{…, doneCount, targetCount, myDone, uncheckedNames}] }
  */
 function getInitialData() {
-  var me = currentStaff_();
-  if (me.registered) touchLastLogin_(me.email); // 開いた時刻を記録（無ログイン判定に使う）
-  var staff = activeStaff_();
+  // 職員マスタは1回だけ読み、本人情報・集計対象・起票用リストすべてに使い回す
+  var email = currentEmail_();
+  var st = readTable_(SHEET_STAFF);
+  var me = staffFromTable_(st, email);
+  if (me.registered) touchLastLoginThrottled_(st, email); // 開いた時刻を記録（1時間に1回だけ書く）
+  var staff = activeStaffFrom_(st);
   var logs = logMap_();
   var meetings = readMeetings_();
   var meetingName = {};
@@ -302,13 +306,27 @@ function getInitialData() {
     staffCount: staff.length,
     meetings: meetings,
     items: items,
-    staffList: enrolledStaff_() // 起票フォームの「個別」対象選択用（在職の全職員）
+    staffList: enrolledFrom_(st) // 起票フォームの「個別」対象選択用（在職の全職員）
   };
 }
 
+/**
+ * 最終ログインの更新を1時間に1回に間引く。
+ * 毎回書き込むとシートへの書き込み待ちで表示が遅くなるため（判定は30日単位なので十分）。
+ */
+function touchLastLoginThrottled_(t, email) {
+  var i = findStaffRow_(t, email);
+  if (i < 0 || t.col['最終ログイン'] === undefined) return;
+  var last = t.rows[i][t.col['最終ログイン']];
+  if (last) {
+    var d = (Object.prototype.toString.call(last) === '[object Date]') ? last : new Date(last);
+    if (!isNaN(d.getTime()) && new Date().getTime() - d.getTime() < 3600000) return; // 1時間以内なら書かない
+  }
+  t.sheet.getRange(i + 2, t.col['最終ログイン'] + 1).setValue(nowStr_());
+}
+
 /** 在職＝TRUE の全職員（名前・メール）。対象の個別選択用。ログイン日では絞らない */
-function enrolledStaff_() {
-  var t = readTable_(SHEET_STAFF);
+function enrolledFrom_(t) {
   var list = t.rows
     .filter(function (r) { return r[t.col['在職']] === true || String(r[t.col['在職']]).toUpperCase() === 'TRUE'; })
     .map(function (r) {
@@ -418,7 +436,8 @@ function recordCheck(itemId, done, checkType) {
       if (hasType) row[t.col['チェック種別']] = type;
       t.sheet.appendRow(row);
     }
-    return recount_(itemId);
+    // 集計はここでは行わない（画面側が即時反映済み。全体の再集計は次回の画面読込時）
+    return { ok: true };
   } finally {
     lock.releaseLock();
   }
