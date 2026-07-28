@@ -1,0 +1,863 @@
+<title>いきもの図鑑 UIプレビュー</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* ============================================================
+   いきもの図鑑 — UIプレビュー
+   デザインコンセプト：「標本箱」
+   方眼紙の地・標本ラベル・引き出しのグリッド。
+   子供向けだが玩具的にはせず、本物の図鑑の手ざわりを持たせる。
+   ============================================================ */
+:root{
+  /* 地：方眼紙のペールグリーン */
+  --paper:#EDF1E7; --surface:#FFFFFF; --surface2:#F5F8F0; --drawer:#E2E8DA;
+  --ink:#1F2C22; --muted:#5C6C5E; --faint:#8A9A8C; --line:#D3DBCB;
+  /* 主：若葉 */
+  --leaf:#2E7A4E; --leaf-ink:#FFFFFF; --leaf-soft:#E1EFE5; --leaf-line:#A8CDB4;
+  /* 副：琥珀（標本ラベル・新着） */
+  --amber:#B5710D; --amber-soft:#FAEFD9; --amber-line:#E2C489;
+  /* 状態 */
+  --alert:#BE3826; --alert-soft:#FADFD9; --alert-line:#EBAE9F;
+  --grid:rgba(46,122,78,.07);
+  --shadow:0 1px 2px rgba(31,44,34,.07), 0 6px 20px rgba(31,44,34,.06);
+  --shadow-lift:0 2px 4px rgba(31,44,34,.09), 0 14px 34px rgba(31,44,34,.11);
+  --r:14px; --r-sm:9px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --paper:#131A14; --surface:#1C241D; --surface2:#242E26; --drawer:#161E17;
+    --ink:#E7EEE5; --muted:#9BAC9D; --faint:#748475; --line:#37453A;
+    --leaf:#69C08A; --leaf-ink:#0D1610; --leaf-soft:#1F362A; --leaf-line:#3A6249;
+    --amber:#DFA94F; --amber-soft:#372C16; --amber-line:#5C4823;
+    --alert:#EC7C67; --alert-soft:#3E1F19; --alert-line:#6B342A;
+    --grid:rgba(105,192,138,.07);
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.28);
+    --shadow-lift:0 2px 4px rgba(0,0,0,.36), 0 14px 34px rgba(0,0,0,.42);
+  }
+}
+:root[data-theme="light"]{
+  --paper:#EDF1E7; --surface:#FFFFFF; --surface2:#F5F8F0; --drawer:#E2E8DA;
+  --ink:#1F2C22; --muted:#5C6C5E; --faint:#8A9A8C; --line:#D3DBCB;
+  --leaf:#2E7A4E; --leaf-ink:#FFFFFF; --leaf-soft:#E1EFE5; --leaf-line:#A8CDB4;
+  --amber:#B5710D; --amber-soft:#FAEFD9; --amber-line:#E2C489;
+  --alert:#BE3826; --alert-soft:#FADFD9; --alert-line:#EBAE9F;
+  --grid:rgba(46,122,78,.07);
+  --shadow:0 1px 2px rgba(31,44,34,.07), 0 6px 20px rgba(31,44,34,.06);
+  --shadow-lift:0 2px 4px rgba(31,44,34,.09), 0 14px 34px rgba(31,44,34,.11);
+}
+:root[data-theme="dark"]{
+  --paper:#131A14; --surface:#1C241D; --surface2:#242E26; --drawer:#161E17;
+  --ink:#E7EEE5; --muted:#9BAC9D; --faint:#748475; --line:#37453A;
+  --leaf:#69C08A; --leaf-ink:#0D1610; --leaf-soft:#1F362A; --leaf-line:#3A6249;
+  --amber:#DFA94F; --amber-soft:#372C16; --amber-line:#5C4823;
+  --alert:#EC7C67; --alert-soft:#3E1F19; --alert-line:#6B342A;
+  --grid:rgba(105,192,138,.07);
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.28);
+  --shadow-lift:0 2px 4px rgba(0,0,0,.36), 0 14px 34px rgba(0,0,0,.42);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  /* 丸ゴシック優先。UDフォントは子供の可読性のために設計されたもの */
+  font-family:"Hiragino Maru Gothic ProN","BIZ UDPGothic","Yu Gothic UI",
+              "Hiragino Kaku Gothic ProN","Noto Sans JP",Meiryo,sans-serif;
+  font-size:16px; line-height:1.7; -webkit-font-smoothing:antialiased;
+  /* 方眼紙 */
+  background-image:linear-gradient(var(--grid) 1px, transparent 1px),
+                   linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size:22px 22px;
+}
+button{font-family:inherit; font-size:inherit; color:inherit; cursor:pointer; border:0; background:none}
+input{font-family:inherit}
+:focus-visible{outline:3px solid var(--amber); outline-offset:2px; border-radius:4px}
+@media (prefers-reduced-motion: reduce){ *,*::before,*::after{animation:none !important; transition:none !important} }
+
+/* 標本ラベル用の等幅 */
+.mono{font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+      font-variant-numeric:tabular-nums; letter-spacing:.09em}
+
+ruby{ruby-align:center}
+rt{font-size:.52em; font-weight:600; color:var(--faint); letter-spacing:.02em}
+
+/* ---------------- プレビュー用の外枠 ---------------- */
+.bar{
+  position:sticky; top:0; z-index:60; background:var(--surface);
+  border-bottom:1px solid var(--line); padding:11px 18px;
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+}
+.bar .brand{font-weight:800; letter-spacing:.01em}
+.bar .tag{font-size:10.5px; color:var(--muted); border:1px solid var(--line);
+          border-radius:4px; padding:2px 7px}
+.seg{display:inline-flex; gap:2px; background:var(--surface2);
+     border:1px solid var(--line); border-radius:999px; padding:3px}
+.seg button{border-radius:999px; padding:6px 13px; font-size:13.5px; font-weight:700; color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--leaf); color:var(--leaf-ink)}
+.bar .right{margin-left:auto; display:flex; align-items:center; gap:10px}
+.tog{border:1px solid var(--line); border-radius:999px; padding:6px 14px;
+     font-size:13px; font-weight:700; color:var(--muted); background:var(--surface2)}
+
+.subbar{
+  background:var(--surface2); border-bottom:1px solid var(--line);
+  padding:9px 18px; display:none; align-items:center; gap:10px; flex-wrap:wrap;
+}
+.subbar.on{display:flex}
+.subbar .lbl{font-size:11px; font-weight:800; letter-spacing:.1em; color:var(--faint)}
+.pick{border:1.5px solid var(--line); background:var(--surface); border-radius:999px;
+      padding:6px 14px; font-size:13.5px; font-weight:700; color:var(--muted)}
+.pick[aria-pressed="true"]{border-color:var(--leaf); background:var(--leaf-soft); color:var(--ink)}
+.pick .st{font-size:11px; color:var(--faint); margin-left:5px}
+.pick[aria-pressed="true"] .st{color:var(--leaf)}
+
+.stage{display:flex; gap:32px; justify-content:center; align-items:flex-start;
+       padding:30px 20px 70px; flex-wrap:wrap}
+
+/* ---------------- 端末フレーム ---------------- */
+.phone{
+  width:412px; max-width:100%; height:812px; flex:none;
+  background:var(--surface); border:1px solid var(--line); border-radius:30px;
+  box-shadow:var(--shadow-lift); overflow:hidden;
+  display:flex; flex-direction:column; position:relative;
+}
+.status{
+  flex:none; height:30px; display:flex; align-items:center; justify-content:space-between;
+  padding:0 20px; font-size:11.5px; color:var(--faint); border-bottom:1px solid var(--line);
+  background:var(--surface2);
+}
+.view{flex:1; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch}
+.screen{display:none}
+.screen.on{display:block}
+
+.nav{
+  flex:none; display:grid; grid-template-columns:1fr 1fr; border-top:1px solid var(--line);
+  background:var(--surface2);
+}
+.nav button{padding:11px 0 14px; display:grid; gap:2px; justify-items:center;
+            font-size:11.5px; font-weight:800; color:var(--faint)}
+.nav button .ic{font-size:19px; line-height:1}
+.nav button[aria-pressed="true"]{color:var(--leaf)}
+
+/* ---------------- 共通パーツ ---------------- */
+.pad{padding:20px 18px}
+.eyebrow{font-size:10.5px; font-weight:800; letter-spacing:.16em; color:var(--faint)}
+
+/* 警告バー：カードより必ず上に出る */
+.banner{display:flex; gap:12px; align-items:flex-start; padding:14px 16px;
+        border-bottom:1px solid transparent}
+.banner .bic{font-size:22px; line-height:1.2; flex:none}
+.banner .bt{font-size:17px; font-weight:800; letter-spacing:.01em; margin-bottom:2px}
+.banner .bd{font-size:14px; line-height:1.6}
+.banner.alert{background:var(--alert-soft); border-bottom-color:var(--alert-line); color:var(--ink)}
+.banner.alert .bt{color:var(--alert)}
+.banner.warn{background:var(--amber-soft); border-bottom-color:var(--amber-line)}
+.banner.warn .bt{color:var(--amber)}
+.banner ul{margin:6px 0 0; padding-left:1.1em; font-size:13.5px; line-height:1.6}
+
+/* 生き物の図 */
+.plate{position:relative; background:var(--surface2); border-bottom:1px solid var(--line);
+       padding:14px 0 10px; text-align:center}
+.plate svg{width:196px; height:196px; display:block; margin:0 auto}
+.plateno{position:absolute; top:12px; left:14px; font-size:10.5px; font-weight:700;
+         color:var(--faint); background:var(--surface); border:1px solid var(--line);
+         border-radius:4px; padding:2px 8px}
+.credit{font-size:10.5px; color:var(--faint); padding:0 16px; line-height:1.5}
+
+/* 名前ブロック */
+.name{padding:16px 18px 0}
+.name h1{font-size:31px; margin:0; letter-spacing:.01em; text-wrap:balance; line-height:1.35}
+.rdg{font-size:12px; color:var(--faint); margin-top:3px}
+.metarow{display:flex; align-items:center; gap:8px; margin-top:9px; flex-wrap:wrap}
+.cat{font-size:12px; font-weight:800; border-radius:999px; padding:4px 12px;
+     background:var(--leaf-soft); color:var(--leaf); border:1px solid var(--leaf-line)}
+.diff{font-size:12px; font-weight:700; color:var(--muted); border:1px solid var(--line);
+      border-radius:999px; padding:4px 12px; background:var(--surface2)}
+.lead{padding:12px 18px 0; font-size:16px; line-height:2}
+
+/* 4項目カード */
+.cards{display:grid; gap:12px; padding:18px}
+.c{background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
+   box-shadow:var(--shadow); overflow:hidden}
+.c-h{display:flex; align-items:center; gap:11px; padding:13px 15px 0}
+.c-ic{width:38px; height:38px; border-radius:11px; display:grid; place-items:center;
+      font-size:20px; flex:none; background:var(--leaf-soft)}
+.c-h h2{font-size:17px; margin:0; font-weight:800}
+.c-b{padding:10px 15px 16px; font-size:15.5px; line-height:1.95}
+.kv{display:flex; gap:9px; margin-top:9px; font-size:14px; line-height:1.7}
+.kv .k{flex:none; font-weight:800; color:var(--muted); min-width:4.6em}
+.tags{display:flex; flex-wrap:wrap; gap:6px; margin-top:9px}
+.tag2{font-size:13px; font-weight:700; background:var(--surface2); border:1px solid var(--line);
+      border-radius:7px; padding:4px 10px}
+.steps{margin:10px 0 0; padding:0; list-style:none; display:grid; gap:8px}
+.steps li{display:flex; gap:10px; font-size:14.5px; line-height:1.7}
+.steps .n{flex:none; width:23px; height:23px; border-radius:50%; background:var(--leaf);
+          color:var(--leaf-ink); font-size:12.5px; font-weight:800; display:grid;
+          place-items:center; margin-top:4px}
+.note{margin-top:11px; background:var(--amber-soft); border:1px solid var(--amber-line);
+      border-radius:var(--r-sm); padding:9px 12px; font-size:13.5px; line-height:1.65}
+.note b{color:var(--amber)}
+
+/* 危険・違法のときに「捕まえ方／飼い方」の代わりに出るカード */
+.c.blocked{border-color:var(--alert-line); background:var(--alert-soft)}
+.c.blocked .c-ic{background:var(--alert); color:#fff}
+.c.blocked .c-h h2{color:var(--alert)}
+
+.sources{padding:0 18px 26px; font-size:12px; color:var(--faint); line-height:1.7}
+.sources a{color:var(--muted)}
+
+/* ---------------- 画面1：さがす ---------------- */
+.hero{padding:26px 18px 6px}
+.hero .kicker{font-size:12px; font-weight:800; letter-spacing:.14em; color:var(--leaf)}
+.hero h1{font-size:26px; margin:7px 0 0; line-height:1.5; text-wrap:balance}
+.search{display:flex; gap:9px; padding:16px 18px 0}
+.search input{
+  flex:1; min-width:0; font-size:18px; padding:15px 16px; border-radius:var(--r);
+  border:2px solid var(--line); background:var(--surface); color:var(--ink);
+}
+.search input::placeholder{color:var(--faint)}
+.search input:focus{border-color:var(--leaf); outline:none}
+.go{background:var(--leaf); color:var(--leaf-ink); border-radius:var(--r);
+    padding:0 20px; font-size:17px; font-weight:800; min-height:56px; flex:none}
+.go:active{transform:translateY(1px)}
+.hint{padding:9px 18px 0; font-size:13px; color:var(--muted)}
+.sect{padding:26px 18px 0}
+.sect h2{font-size:14px; margin:0 0 11px; font-weight:800; color:var(--muted)}
+.quick{display:flex; flex-wrap:wrap; gap:9px}
+.q{border:1.5px solid var(--line); background:var(--surface); border-radius:999px;
+   padding:11px 17px; font-size:15px; font-weight:700; min-height:48px}
+.q:hover{border-color:var(--leaf-line); background:var(--leaf-soft)}
+.recent{display:grid; gap:1px; background:var(--line); border:1px solid var(--line);
+        border-radius:var(--r); overflow:hidden}
+.recent .r{display:flex; align-items:center; gap:12px; background:var(--surface); padding:11px 14px}
+.recent .r svg{width:38px; height:38px; flex:none}
+.recent .r .rn{font-weight:800; font-size:15.5px}
+.recent .r .rt2{font-size:11.5px; color:var(--faint)}
+.recent .r .ra{margin-left:auto; color:var(--faint); font-size:17px}
+.newbadge{font-size:10px; font-weight:800; color:var(--amber); background:var(--amber-soft);
+          border:1px solid var(--amber-line); border-radius:4px; padding:1px 6px; margin-left:7px}
+
+/* ---------------- 画面2：さがし中 ---------------- */
+.loading{display:grid; place-items:center; gap:18px; padding:110px 30px; text-align:center}
+.lens{width:92px; height:92px; animation:sweep 2.6s ease-in-out infinite}
+@keyframes sweep{
+  0%,100%{transform:translate(-14px,4px) rotate(-9deg)}
+  50%{transform:translate(14px,-6px) rotate(9deg)}
+}
+.loading h2{font-size:21px; margin:0; font-weight:800}
+.loading p{margin:0; font-size:14.5px; color:var(--muted); line-height:1.8}
+.bardots{display:flex; gap:6px}
+.bardots i{width:9px; height:9px; border-radius:50%; background:var(--leaf-line);
+           animation:blip 1.3s ease-in-out infinite}
+.bardots i:nth-child(2){animation-delay:.18s} .bardots i:nth-child(3){animation-delay:.36s}
+@keyframes blip{0%,100%{opacity:.3; transform:scale(.8)} 50%{opacity:1; transform:scale(1)}}
+.steps2{margin-top:6px; display:grid; gap:7px; text-align:left; font-size:13px; color:var(--muted)}
+.steps2 div{display:flex; gap:9px; align-items:center}
+.steps2 .dn{color:var(--leaf); font-weight:800}
+
+/* ---------------- 画面3：みんなの図鑑 ---------------- */
+.filters{display:flex; gap:7px; padding:14px 18px 0; overflow-x:auto; scrollbar-width:thin}
+.f{flex:none; border:1.5px solid var(--line); background:var(--surface); border-radius:999px;
+   padding:8px 15px; font-size:14px; font-weight:700; color:var(--muted); white-space:nowrap}
+.f[aria-pressed="true"]{background:var(--leaf); border-color:var(--leaf); color:var(--leaf-ink)}
+/* 標本箱の引き出し */
+.drawer{margin:14px 18px 24px; background:var(--drawer); border:1px solid var(--line);
+        border-radius:var(--r); padding:12px; box-shadow:inset 0 2px 7px rgba(31,44,34,.09)}
+.grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
+.sp{background:var(--surface); border:1px solid var(--line); border-radius:var(--r-sm);
+    padding:9px 7px 8px; text-align:center; box-shadow:var(--shadow); position:relative}
+.sp svg{width:100%; height:62px; display:block}
+/* 名前が2行になっても タイルの高さを揃える */
+.sp .spn{font-size:12.5px; font-weight:800; margin-top:5px; line-height:1.35; min-height:2.7em}
+.sp .spno{font-size:9.5px; color:var(--faint); margin-top:2px}
+.sp .flag{position:absolute; top:5px; right:5px; font-size:12px}
+.count{padding:0 18px; font-size:12.5px; color:var(--muted)}
+
+/* ---------------- 画面4：みつからない ---------------- */
+.empty{display:grid; place-items:center; gap:14px; padding:80px 34px; text-align:center}
+.empty .em{font-size:46px}
+.empty h2{font-size:20px; margin:0}
+.empty p{margin:0; color:var(--muted); font-size:14.5px; line-height:1.85}
+.empty .again{background:var(--leaf); color:var(--leaf-ink); border-radius:var(--r);
+              padding:13px 26px; font-weight:800; font-size:16px; margin-top:6px}
+
+/* ---------------- 注釈パネル ---------------- */
+.notes{width:390px; flex:1 1 340px; max-width:460px; display:grid; gap:14px}
+.nc{background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
+    padding:16px 18px; box-shadow:var(--shadow)}
+.nc h3{margin:0 0 9px; font-size:14.5px; font-weight:800; display:flex; align-items:center; gap:8px}
+.nc h3::before{content:""; width:4px; height:15px; background:var(--leaf); border-radius:2px; flex:none}
+.nc p{margin:0 0 9px; font-size:13.5px; line-height:1.85; color:var(--muted)}
+.nc p:last-child{margin-bottom:0}
+.nc strong{color:var(--ink)}
+.nc ul{margin:0; padding-left:1.2em; font-size:13.5px; line-height:1.85; color:var(--muted)}
+.nc li{margin-bottom:5px}
+.nc.flagged{border-color:var(--amber-line); background:var(--amber-soft)}
+.nc.flagged h3::before{background:var(--amber)}
+@media (max-width:900px){ .notes{max-width:412px} }
+</style>
+
+<div class="bar">
+  <span class="brand">いきもの図鑑</span>
+  <span class="tag">UIプレビュー / フェーズ1</span>
+  <div class="seg" id="screens">
+    <button data-s="search" aria-pressed="true">さがす</button>
+    <button data-s="loading" aria-pressed="false">さがし中</button>
+    <button data-s="card" aria-pressed="false">図鑑カード</button>
+    <button data-s="list" aria-pressed="false">みんなの図鑑</button>
+    <button data-s="none" aria-pressed="false">みつからない</button>
+  </div>
+  <div class="right">
+    <button class="tog" id="theme">テーマ切替</button>
+  </div>
+</div>
+
+<div class="subbar" id="picker">
+  <span class="lbl">生き物を切り替えて、安全設計の出しわけを確認</span>
+  <button class="pick" data-c="kabuto" aria-pressed="true">カブトムシ<span class="st">安全</span></button>
+  <button class="pick" data-c="suzume" aria-pressed="false">スズメバチ<span class="st">危険</span></button>
+  <button class="pick" data-c="zari" aria-pressed="false">アメリカザリガニ<span class="st">条件付き</span></button>
+  <button class="pick" data-c="ushi" aria-pressed="false">ウシガエル<span class="st">飼育禁止</span></button>
+</div>
+
+<div class="stage">
+  <div class="phone">
+    <div class="status"><span>9:41</span><span id="stitle">さがす</span></div>
+    <div class="view" id="view">
+
+      <!-- ============ 画面1：さがす ============ -->
+      <section class="screen on" id="s-search">
+        <div class="hero">
+          <div class="kicker">みんなでつくる ずかん</div>
+          <h1>しらべた いきものが、<br>みんなの ずかんに たまっていく。</h1>
+        </div>
+        <div class="search">
+          <input type="text" placeholder="いきものの なまえ" value="かぶとむし" aria-label="いきものの名前">
+          <button class="go">しらべる</button>
+        </div>
+        <p class="hint">ひらがなでも カタカナでも かんじでも だいじょうぶ。</p>
+
+        <div class="sect">
+          <h2>よく しらべられて いる いきもの</h2>
+          <div class="quick">
+            <button class="q">カブトムシ</button><button class="q">ダンゴムシ</button>
+            <button class="q">アメリカザリガニ</button><button class="q">カナヘビ</button>
+            <button class="q">メダカ</button><button class="q">テントウムシ</button>
+            <button class="q">カタツムリ</button>
+          </div>
+        </div>
+
+        <div class="sect" style="padding-bottom:26px">
+          <h2>さいきん みんなが しらべた いきもの</h2>
+          <div class="recent" id="recent"></div>
+        </div>
+      </section>
+
+      <!-- ============ 画面2：さがし中 ============ -->
+      <section class="screen" id="s-loading">
+        <div class="loading">
+          <svg class="lens" viewBox="0 0 100 100" aria-hidden="true">
+            <circle cx="42" cy="42" r="27" fill="none" stroke="var(--leaf)" stroke-width="7"/>
+            <circle cx="42" cy="42" r="22" fill="var(--leaf-soft)" opacity=".65"/>
+            <path d="M62 62 L86 86" stroke="var(--amber)" stroke-width="11" stroke-linecap="round"/>
+          </svg>
+          <h2>さがして います…</h2>
+          <div class="bardots" aria-hidden="true"><i></i><i></i><i></i></div>
+          <p>はじめての いきものは、<br>20びょう くらい かかります。</p>
+          <div class="steps2">
+            <div><span class="dn">✓</span><span>みんなの ずかんを さがした</span></div>
+            <div><span class="dn">✓</span><span>ずかんの じょうほうを あつめた</span></div>
+            <div><span style="color:var(--faint)">…</span><span>しゃしんを さがして いる</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 画面3：図鑑カード ============ -->
+      <section class="screen" id="s-card"></section>
+
+      <!-- ============ 画面4：みんなの図鑑 ============ -->
+      <section class="screen" id="s-list">
+        <div class="pad" style="padding-bottom:0">
+          <div class="eyebrow">みんなの ずかん</div>
+          <h1 style="font-size:24px; margin:6px 0 0">10しゅるい あつまった</h1>
+        </div>
+        <div class="filters" id="filters"></div>
+        <p class="count" id="count" style="padding-top:12px"></p>
+        <div class="drawer"><div class="grid" id="grid"></div></div>
+      </section>
+
+      <!-- ============ 画面5：みつからない ============ -->
+      <section class="screen" id="s-none">
+        <div class="empty">
+          <div class="em" aria-hidden="true">🔍</div>
+          <h2>その いきもの、みつからなかった</h2>
+          <p>「あああ」は いきものの なまえでは ないみたい。<br>
+             もういちど なまえを たしかめて みてね。</p>
+          <button class="again">もういちど さがす</button>
+        </div>
+        <div class="pad" style="padding-top:0">
+          <div class="note"><b>設計メモ：</b>Gemini が返す <span class="mono">is_creature</span> が偽のときの画面。
+            ここで止めることで、図鑑シートにゴミデータが入らない。入力は検索ログにだけ残る。</div>
+        </div>
+      </section>
+
+    </div>
+    <div class="nav" id="nav">
+      <button data-s="search" aria-pressed="true"><span class="ic">🔍</span>さがす</button>
+      <button data-s="list" aria-pressed="false"><span class="ic">📚</span>みんなの ずかん</button>
+    </div>
+  </div>
+
+  <!-- ============ 注釈 ============ -->
+  <div class="notes">
+    <div class="nc">
+      <h3>このプレビューで見てほしいところ</h3>
+      <p>上の切替で <strong>4種の生き物</strong>を見比べてください。危険度と法規制によって、
+         <strong>カードの構成そのものが変わります</strong>。警告を小さく添えるのではなく、
+         見せてはいけない情報は<strong>存在させない</strong>という方針を形にしています。</p>
+      <ul>
+        <li><strong>カブトムシ</strong>（安全）— 4項目すべて表示</li>
+        <li><strong>スズメバチ</strong>（危険）— 「つかまえかた」が消え、「みつけたときは」に置き換わる</li>
+        <li><strong>アメリカザリガニ</strong>（条件付特定外来生物）— 飼えるが、放出禁止の警告が常時ついてまわる</li>
+        <li><strong>ウシガエル</strong>（特定外来生物）— 「つかまえかた」も「かいかた」も消える。生きた運搬も禁止のため</li>
+      </ul>
+    </div>
+    <div class="nc">
+      <h3>デザインの方針</h3>
+      <p><strong>「標本箱」</strong>をコンセプトにしました。子供向けを原色の玩具的な見た目に
+         短絡させず、本物の図鑑の手ざわり —— 方眼紙の地、標本ラベル（プレート番号）、
+         引き出しを覗くようなグリッド —— を持たせています。
+         「研究者みたいなことをしている」という感覚が、この年齢の子には効きます。</p>
+      <p>本文は<strong>丸ゴシック／UDフォント</strong>。UDフォントは子供の可読性のために
+         設計された書体で、これは制約への妥協ではなく積極的な選択です。
+         ラベルと番号だけ等幅にして、標本札の質感を出しています。</p>
+    </div>
+    <div class="nc">
+      <h3>ふりがなの実装方針</h3>
+      <p>本文は <span class="mono">｜漢字《かんじ》</span> という記法（青空文庫式）で持ち、
+         表示時に <span class="mono">&lt;ruby&gt;</span> に変換しています。
+         このプレビューでも実際にその変換で動いています。
+         Gemini にこの記法で返させれば、辞書を持たずにふりがなを実現できます。</p>
+    </div>
+    <div class="nc flagged">
+      <h3>作ってみて気づいた、構想書の修正点</h3>
+      <p>カテゴリの enum に <strong>川や池の生き物の居場所がありません</strong>。
+         現在は「うみのいきもの」しかないため、アメリカザリガニやメダカの扱いが
+         「そのほか」に落ちてしまいます。子供が最もよく捕まえる層がここです。</p>
+      <p>このプレビューでは <strong>「みずのいきもの」</strong>に変えて海・川・池をまとめました。
+         フェーズ2の実装前に、構想書 §4 のスキーマを直しておきます。</p>
+    </div>
+    <div class="nc">
+      <h3>まだ入れていないもの</h3>
+      <ul>
+        <li>写真は<strong>プロトタイプ用のイラスト</strong>です。実装では Wikipedia の実写が入り、
+            下に作者名とライセンスのクレジットが出ます（位置だけ再現しています）</li>
+        <li>読み上げボタン（フェーズ3）</li>
+        <li>「つかまえた！」の記録（フェーズ4）</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ｜漢字《かんじ》 → <ruby>漢字<rt>かんじ</rt></ruby> */
+function rb(s){
+  return String(s).replace(/｜([^《]+)《([^》]+)》/g, '<ruby>$1<rt>$2</rt></ruby>');
+}
+
+/* ---------------- 生き物の図（プロトタイプ用） ---------------- */
+const ART = {
+  kabuto:`<svg viewBox="0 0 200 200" aria-label="カブトムシのイラスト" role="img">
+    <g stroke="#3A2A1B" stroke-width="7" stroke-linecap="round" fill="none">
+      <path d="M74 100 36 76"/><path d="M72 118 32 116"/><path d="M74 136 40 160"/>
+      <path d="M126 100 164 76"/><path d="M128 118 168 116"/><path d="M126 136 160 160"/></g>
+    <ellipse cx="100" cy="132" rx="44" ry="52" fill="#4C3421"/>
+    <path d="M100 84 100 182" stroke="#2C1E12" stroke-width="4"/>
+    <ellipse cx="100" cy="86" rx="33" ry="25" fill="#3D2A1A"/>
+    <ellipse cx="100" cy="64" rx="18" ry="13" fill="#33220F"/>
+    <path d="M100 66 100 40" stroke="#33240F" stroke-width="13" stroke-linecap="round"/>
+    <g stroke="#33240F" stroke-width="9" stroke-linecap="round" fill="none">
+      <path d="M100 43 C96 29 88 21 79 15"/><path d="M100 43 C104 29 112 21 121 15"/></g>
+    <ellipse cx="86" cy="116" rx="9" ry="20" fill="#5E4229" opacity=".45"/></svg>`,
+
+  suzume:`<svg viewBox="0 0 200 200" aria-label="スズメバチのイラスト" role="img">
+    <g fill="#BFCBD4" opacity=".5">
+      <ellipse cx="64" cy="106" rx="37" ry="14" transform="rotate(-27 64 106)"/>
+      <ellipse cx="136" cy="106" rx="37" ry="14" transform="rotate(27 136 106)"/></g>
+    <g stroke="#2A2013" stroke-width="6" stroke-linecap="round" fill="none">
+      <path d="M82 98 50 84"/><path d="M82 110 48 116"/>
+      <path d="M118 98 150 84"/><path d="M118 110 152 116"/></g>
+    <defs><clipPath id="wsp"><ellipse cx="100" cy="142" rx="29" ry="44"/></clipPath></defs>
+    <ellipse cx="100" cy="142" rx="29" ry="44" fill="#E0AF2C"/>
+    <g clip-path="url(#wsp)" fill="#26200F">
+      <rect x="64" y="107" width="72" height="13"/><rect x="64" y="133" width="72" height="13"/>
+      <rect x="64" y="159" width="72" height="13"/></g>
+    <ellipse cx="100" cy="101" rx="24" ry="21" fill="#2E2513"/>
+    <ellipse cx="100" cy="70" rx="21" ry="18" fill="#E0AF2C"/>
+    <g fill="#26200F"><ellipse cx="91" cy="67" rx="5" ry="7"/><ellipse cx="109" cy="67" rx="5" ry="7"/></g>
+    <g stroke="#26200F" stroke-width="5" stroke-linecap="round" fill="none">
+      <path d="M92 56 C86 46 80 42 74 40"/><path d="M108 56 C114 46 120 42 126 40"/></g></svg>`,
+
+  zari:`<svg viewBox="0 0 200 200" aria-label="アメリカザリガニのイラスト" role="img">
+    <g stroke="#A6371F" stroke-width="8" stroke-linecap="round" fill="none">
+      <path d="M80 92 62 78"/><path d="M120 92 138 78"/></g>
+    <g transform="translate(50,66) rotate(-32)">
+      <ellipse cx="0" cy="-8" rx="24" ry="9" fill="#C4462D" transform="rotate(-13)"/>
+      <ellipse cx="0" cy="8" rx="24" ry="9" fill="#A6371F" transform="rotate(13)"/></g>
+    <g transform="translate(150,66) rotate(32)">
+      <ellipse cx="0" cy="-8" rx="24" ry="9" fill="#C4462D" transform="rotate(13)"/>
+      <ellipse cx="0" cy="8" rx="24" ry="9" fill="#A6371F" transform="rotate(-13)"/></g>
+    <g stroke="#A6371F" stroke-width="5" stroke-linecap="round" fill="none">
+      <path d="M78 102 56 110"/><path d="M80 114 58 126"/>
+      <path d="M122 102 144 110"/><path d="M120 114 142 126"/></g>
+    <ellipse cx="100" cy="96" rx="26" ry="32" fill="#C4462D"/>
+    <g fill="#B03C25"><rect x="80" y="121" width="40" height="12" rx="5"/>
+      <rect x="82" y="133" width="36" height="12" rx="5"/>
+      <rect x="84" y="145" width="32" height="12" rx="5"/></g>
+    <path d="M100 156 74 182 100 171 126 182Z" fill="#C4462D"/>
+    <path d="M100 66 100 50" stroke="#A6371F" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="90" cy="72" r="5" fill="#2A1410"/><circle cx="110" cy="72" r="5" fill="#2A1410"/></svg>`,
+
+  ushi:`<svg viewBox="0 0 200 200" aria-label="ウシガエルのイラスト" role="img">
+    <g fill="#5E8A3C">
+      <path d="M64 110 C34 114 26 142 42 160 C56 174 78 166 80 148Z"/>
+      <path d="M136 110 C166 114 174 142 158 160 C144 174 122 166 120 148Z"/></g>
+    <g stroke="#5E8A3C" stroke-width="13" stroke-linecap="round" fill="none">
+      <path d="M78 80 54 98"/><path d="M122 80 146 98"/></g>
+    <ellipse cx="100" cy="114" rx="46" ry="52" fill="#6E9C46"/>
+    <ellipse cx="100" cy="72" rx="40" ry="30" fill="#7CAA50"/>
+    <circle cx="80" cy="54" r="13" fill="#D6C047"/><circle cx="120" cy="54" r="13" fill="#D6C047"/>
+    <circle cx="80" cy="54" r="6" fill="#20260F"/><circle cx="120" cy="54" r="6" fill="#20260F"/>
+    <path d="M78 86 Q100 98 122 86" stroke="#4E7431" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <g fill="#4E7431" opacity=".45"><ellipse cx="86" cy="108" rx="9" ry="7"/>
+      <ellipse cx="116" cy="122" rx="8" ry="6"/><ellipse cx="98" cy="142" rx="10" ry="7"/></g></svg>`,
+
+  dango:`<svg viewBox="0 0 200 200" aria-label="ダンゴムシ" role="img">
+    <ellipse cx="100" cy="108" rx="52" ry="62" fill="#6E6B63"/>
+    <g stroke="#4F4D47" stroke-width="4" fill="none">
+      <path d="M50 94 Q100 82 150 94"/><path d="M50 114 Q100 102 150 114"/>
+      <path d="M54 134 Q100 122 146 134"/><path d="M60 152 Q100 142 140 152"/></g>
+    <ellipse cx="100" cy="58" rx="30" ry="18" fill="#5B5952"/>
+    <g stroke="#4F4D47" stroke-width="5" stroke-linecap="round"><path d="M84 46 70 32"/><path d="M116 46 130 32"/></g></svg>`,
+
+  tentou:`<svg viewBox="0 0 200 200" aria-label="テントウムシ" role="img">
+    <circle cx="100" cy="114" r="54" fill="#C6362B"/>
+    <path d="M100 60 100 168" stroke="#2A1A16" stroke-width="5"/>
+    <g fill="#2A1A16"><circle cx="74" cy="98" r="11"/><circle cx="126" cy="98" r="11"/>
+      <circle cx="78" cy="134" r="10"/><circle cx="122" cy="134" r="10"/><circle cx="100" cy="152" r="8"/></g>
+    <ellipse cx="100" cy="60" rx="26" ry="18" fill="#2A1A16"/>
+    <circle cx="90" cy="56" r="5" fill="#F0EDE4"/><circle cx="110" cy="56" r="5" fill="#F0EDE4"/></svg>`,
+
+  medaka:`<svg viewBox="0 0 200 200" aria-label="メダカ" role="img">
+    <path d="M52 100 C62 72 118 68 144 96 L174 72 168 100 174 128 144 104 C118 132 62 128 52 100Z" fill="#B99A4E"/>
+    <path d="M100 72 114 56 122 78Z" fill="#A98C44"/><path d="M100 128 112 144 120 122Z" fill="#A98C44"/>
+    <circle cx="74" cy="94" r="7" fill="#241D10"/></svg>`,
+
+  katatsumuri:`<svg viewBox="0 0 200 200" aria-label="カタツムリ" role="img">
+    <path d="M44 158 C36 132 60 122 92 126 L142 132 C152 150 130 160 104 160Z" fill="#C0AC85"/>
+    <g stroke="#C0AC85" stroke-width="7" stroke-linecap="round" fill="none">
+      <path d="M56 132 46 108"/><path d="M72 130 66 106"/></g>
+    <circle cx="45" cy="104" r="6" fill="#3A2E1E"/><circle cx="65" cy="102" r="6" fill="#3A2E1E"/>
+    <circle cx="120" cy="96" r="42" fill="#A9763E"/>
+    <g fill="none" stroke="#7E5629" stroke-width="6">
+      <circle cx="120" cy="96" r="29"/><circle cx="125" cy="101" r="17"/><circle cx="129" cy="104" r="7"/></g></svg>`,
+
+  kanahebi:`<svg viewBox="0 0 200 200" aria-label="カナヘビ" role="img">
+    <g stroke="#7A6A42" stroke-width="9" stroke-linecap="round" fill="none">
+      <path d="M88 72 58 58"/><path d="M112 72 142 58"/><path d="M88 118 58 134"/><path d="M112 118 142 134"/></g>
+    <path d="M100 34 C112 34 118 46 116 60 C114 78 112 96 112 112 C112 140 108 168 100 188
+             C92 168 88 140 88 112 C88 96 86 78 84 60 C82 46 88 34 100 34Z" fill="#7A6A42"/>
+    <path d="M100 60 100 152" stroke="#5E5232" stroke-width="3"/>
+    <circle cx="93" cy="46" r="4" fill="#241E12"/><circle cx="107" cy="46" r="4" fill="#241E12"/></svg>`,
+
+  amenbo:`<svg viewBox="0 0 200 200" aria-label="アメンボ" role="img">
+    <g stroke="#3A4034" stroke-width="4" stroke-linecap="round" fill="none">
+      <path d="M96 88 C70 72 44 58 26 42"/><path d="M104 88 C130 72 156 58 174 42"/>
+      <path d="M94 106 C64 108 38 120 22 138"/><path d="M106 106 C136 108 162 120 178 138"/>
+      <path d="M96 78 76 58"/><path d="M104 78 124 58"/></g>
+    <ellipse cx="100" cy="102" rx="12" ry="34" fill="#3A4034"/>
+    <ellipse cx="100" cy="72" rx="11" ry="13" fill="#2C3128"/></svg>`
+};
+
+/* ---------------- 生き物データ ---------------- */
+/* legal: none | conditional_invasive | invasive_banned | protected
+   danger: safe | caution | danger                                     */
+const C = {
+  kabuto:{
+    plate:'No.001', name:'カブトムシ', reading:'かぶとむし', cat:'むし', art:'kabuto',
+    danger:'safe', legal:'none', release:false, difficulty:'ふつう',
+    lead:'｜日本《にほん》で いちばん｜人気《にんき》の ある むし。オスの｜大《おお》きな ツノは、'+
+         'エサ｜場《ば》を めぐって ほかの オスと たたかう ときに つかいます。',
+    habitat:{places:['クヌギや コナラの ｜林《はやし》','｜樹液《じゅえき》の｜出《で》て いる｜木《き》','｜雑木林《ぞうきばやし》の そば'],
+             season:'7がつ 〜 8がつ の よる',
+             text:'｜昼《ひる》は｜土《つち》の｜中《なか》や｜落《お》ち｜葉《ば》の｜下《した》に かくれて いて、'+
+                  '｜夕方《ゆうがた》から よるに かけて｜活動《かつどう》します。'},
+    catching:{tools:['｜虫《むし》あみ','かい｜中《ちゅう》｜電灯《でんとう》','｜虫《むし》かご','｜長《なが》そで・｜長《なが》ズボン'],
+              steps:['｜夕方《ゆうがた》か、｜朝《あさ》｜早《はや》くに｜林《はやし》へ｜行《い》く',
+                     '｜樹液《じゅえき》が｜出《で》て いる｜木《き》を さがす',
+                     'そっと｜近《ちか》づいて、ツノを もって やさしく つかむ',
+                     '｜虫《むし》かごに｜入《い》れたら、すずしい ところへ'],
+              note:'｜木《き》を けとばして｜落《お》とす ｜方法《ほうほう》は、｜木《き》が いたむので しません。'},
+    food:{items:['｜昆虫《こんちゅう》ゼリー','バナナ','リンゴ'], frequency:'1〜2にちに 1かい',
+          text:'スイカや キュウリは｜水《みず》っぽくて おなかを こわす ことが あります。'+
+               '｜昆虫《こんちゅう》ゼリーが いちばん あんしんです。'},
+    keeping:{container:'｜飼育《しいく》ケース（｜中《ちゅう》くらい）',
+             environment:'｜昆虫《こんちゅう》マットを 5cm ほど。｜直射《ちょくしゃ》｜日光《にっこう》の あたらない すずしい ところ',
+             cautions:['ひっくり｜返《かえ》った ときに｜起《お》き｜上《あ》がれる よう、｜木《き》の｜枝《えだ》を｜入《い》れる',
+                       'オスを 2ひき｜一緒《いっしょ》に すると けんかを します',
+                       'マットが かわいたら きりふきで しめらせる'],
+             text:'｜秋《あき》には｜寿命《じゅみょう》を むかえます。さいごまで｜大切《たいせつ》に｜世話《せわ》を して あげましょう。'}
+  },
+
+  suzume:{
+    plate:'No.014', name:'スズメバチ', reading:'すずめばち', cat:'むし', art:'suzume',
+    danger:'danger', legal:'none', release:false, difficulty:'かえません',
+    dangerNotes:['さされると、いのちに かかわる ことが あります',
+                 '｜巣《す》に｜近《ちか》づくと、たくさんで おそって きます',
+                 '｜黒《くろ》い｜服《ふく》や、あまい においに はんのうします'],
+    lead:'とても つよい どくを もつ ハチ。｜森《もり》の｜掃除《そうじ》｜屋《や》として｜大切《たいせつ》な'+
+         '｜生《い》き｜物《もの》ですが、ぜったいに ｜自分《じぶん》で つかまえては いけません。',
+    habitat:{places:['｜木《き》の うろ','｜屋根裏《やねうら》や｜軒下《のきした》','｜土《つち》の｜中《なか》'],
+             season:'4がつ 〜 11がつ（9〜10がつが いちばん あぶない）',
+             text:'｜秋《あき》に なると｜巣《す》を｜守《まも》る ちからが つよく なり、'+
+                  '｜近《ちか》づいた だけで おそって くる ことが あります。'},
+    catching:null,
+    instead:{icon:'🚸', title:'みつけた ときは', kind:'catch',
+             steps:['｜手《て》で はらったり、あおいだり しない',
+                    'しずかに、ゆっくり その｜場《ば》を はなれる',
+                    'すぐに おとなの｜人《ひと》に｜知《し》らせる'],
+             text:'｜巣《す》を みつけた ときは、じぶんで どうにか しようと せず、'+
+                  '｜必《かなら》ず おとなの｜人《ひと》か、｜市役所《しやくしょ》に｜相談《そうだん》します。'},
+    food:{items:['ほかの｜昆虫《こんちゅう》','｜樹液《じゅえき》','｜花《はな》の みつ'], frequency:'—',
+          text:'｜幼虫《ようちゅう》には かんだ｜肉《にく》だんごを、おとなは｜樹液《じゅえき》を のみます。'+
+               '｜畑《はたけ》の｜害虫《がいちゅう》を たべて くれる｜面《めん》も あります。'},
+    keeping:null,
+    instead2:{icon:'🚫', title:'かうことは できません', kind:'keep',
+              text:'どくが つよく、おうちで かうことは できません。'+
+                   '｜図鑑《ずかん》や どうがで かんさつ しましょう。'}
+  },
+
+  zari:{
+    plate:'No.002', name:'アメリカザリガニ', reading:'あめりかざりがに', cat:'みずのいきもの', art:'zari',
+    danger:'safe', legal:'conditional_invasive', release:true, difficulty:'やさしい',
+    lead:'｜田《た》んぼや｜用水路《ようすいろ》に すむ、まっ｜赤《か》な ザリガニ。'+
+         'もとは アメリカから きた｜生《い》き｜物《もの》です。',
+    habitat:{places:['｜田《た》んぼ','｜用水路《ようすいろ》','｜池《いけ》や ぬま'],
+             season:'4がつ 〜 10がつ',
+             text:'｜水《みず》の きれいさに あまり こだわらず、あさい ところに たくさん います。'+
+                  '｜石《いし》や どろの｜中《なか》に かくれて います。'},
+    catching:{tools:['するめ か さきいか','たこ｜糸《いと》','あみ','バケツ'],
+              steps:['たこ｜糸《いと》の さきに するめを むすぶ',
+                     '｜水《みず》の｜中《なか》へ そっと たらす',
+                     'ハサミで つかんだら、ゆっくり ひき｜上《あ》げる',
+                     '｜下《した》から あみを あてて すくう'],
+              note:'ハサミに はさまれると いたいので、｜背中《せなか》の まん｜中《なか》を もちます。'},
+    food:{items:['ザリガニの エサ','｜煮干《にぼ》し','ニンジン や キャベツ'], frequency:'2〜3にちに 1かい',
+          text:'たべ｜残《のこ》しは すぐ とりのぞきます。｜水《みず》が よごれる いちばんの｜原因《げんいん》です。'},
+    keeping:{container:'｜水《みず》そう（30cm くらい）',
+             environment:'｜水《みず》は あさく（せなかが すこし｜出《で》る くらい）。かくれ｜家《が》に｜土《つち》｜管《かん》や｜植木鉢《うえきばち》のかけら',
+             cautions:['1ぴきずつ かう（｜共食《ともぐ》いを します）',
+                       '｜水《みず》は 3にちに 1かい とりかえる',
+                       'フタを する（よる のうちに にげ｜出《だ》します）'],
+             text:'だっぴを すると からだが やわらかく なります。しばらく そっと して おきましょう。'}
+  },
+
+  ushi:{
+    plate:'No.031', name:'ウシガエル', reading:'うしがえる', cat:'かえる・とかげ・へび', art:'ushi',
+    danger:'safe', legal:'invasive_banned', release:true, difficulty:'かえません',
+    lead:'「ブォー」と｜牛《うし》の ような｜声《こえ》で ｜鳴《な》く、｜大《おお》きな カエル。'+
+         '｜食用《しょくよう》に つれて こられた あと、｜日本《にほん》じゅうに ひろがりました。',
+    habitat:{places:['｜池《いけ》や ぬま','｜川《かわ》の ながれの ゆるい ところ','｜田《た》んぼ'],
+             season:'5がつ 〜 9がつ',
+             text:'｜夜《よる》に｜活動《かつどう》し、｜昼《ひる》は｜水辺《みずべ》の くさむらに かくれて います。'},
+    catching:null,
+    instead:{icon:'⚖️', title:'つかまえて はこぶ ことも できません', kind:'catch',
+             text:'｜特定《とくてい》｜外来《がいらい》｜生物《せいぶつ》は、いきた まま はこぶ ことが '+
+                  '｜法律《ほうりつ》で きんし されて います。みつけても、その｜場《ば》で かんさつ するだけに しましょう。'},
+    food:{items:['｜昆虫《こんちゅう》','ザリガニ','｜小《ちい》さな｜魚《さかな》','ほかの カエル'], frequency:'—',
+          text:'｜口《くち》に｜入《はい》る ものは なんでも たべて しまうため、'+
+               '｜日本《にほん》に もともと いた｜生《い》き｜物《もの》が へって しまいました。'},
+    keeping:null,
+    instead2:{icon:'⚖️', title:'なぜ かえないの？', kind:'keep',
+              text:'ウシガエルは「｜特定《とくてい》｜外来《がいらい》｜生物《せいぶつ》」に えらばれて いて、'+
+                   'かう ことが｜法律《ほうりつ》で きんし されて います。'+
+                   '｜日本《にほん》の しぜんを｜守《まも》る ための きまりです。'}
+  }
+};
+
+/* ---------------- 図鑑カードの組み立て ---------------- */
+const LEGAL_BANNER = {
+  invasive_banned:{cls:'alert', ic:'⚖️', t:'ほうりつで かえません',
+    d:'この｜生《い》き｜物《もの》は「｜特定《とくてい》｜外来《がいらい》｜生物《せいぶつ》」です。'+
+      'かう ことも、いきた まま はこぶ ことも できません。'},
+  conditional_invasive:{cls:'warn', ic:'🌏', t:'そとに にがしては いけません',
+    d:'かう ことは できますが、｜池《いけ》や｜川《かわ》に にがすのは｜法律《ほうりつ》｜違反《いはん》です。'+
+      'さいごまで｜責任《せきにん》を もって｜世話《せわ》を しましょう。'},
+  protected:{cls:'alert', ic:'🛡️', t:'つかまえては いけません',
+    d:'｜法律《ほうりつ》で｜守《まも》られて いる｜生《い》き｜物《もの》です。'}
+};
+
+function card(k){
+  const c = C[k];
+  let h = '';
+
+  /* --- 警告バーは必ずカードより上 --- */
+  if(c.danger === 'danger'){
+    h += '<div class="banner alert"><div class="bic">⚠️</div><div>'+
+         '<div class="bt">さわらないで！</div>'+
+         '<div class="bd">'+rb('この｜生《い》き｜物《もの》には つよい どくが あります。')+'</div>'+
+         '<ul>'+c.dangerNotes.map(n=>'<li>'+rb(n)+'</li>').join('')+'</ul></div></div>';
+  }
+  const lb = LEGAL_BANNER[c.legal];
+  if(lb){
+    h += '<div class="banner '+lb.cls+'"><div class="bic">'+lb.ic+'</div><div>'+
+         '<div class="bt">'+rb(lb.t)+'</div><div class="bd">'+rb(lb.d)+'</div></div></div>';
+  }
+
+  /* --- 図 + 標本ラベル --- */
+  h += '<div class="plate"><span class="plateno mono">'+c.plate+'</span>'+ART[c.art]+'</div>'+
+       '<p class="credit" style="padding-top:8px">'+
+       rb('｜図《ず》：プロトタイプ用イラスト　—　実装では Wikipedia の実写と、'+
+          '作者名・ライセンスの表示が ここに入ります')+'</p>';
+
+  /* --- 名前 --- */
+  h += '<div class="name"><h1>'+c.name+'</h1>'+
+       '<div class="rdg mono">'+c.reading+'</div>'+
+       '<div class="metarow"><span class="cat">'+c.cat+'</span>'+
+       '<span class="diff">かいやすさ：'+c.difficulty+'</span></div></div>'+
+       '<p class="lead">'+rb(c.lead)+'</p>';
+
+  /* --- 4項目 --- */
+  const cards = [];
+
+  cards.push(sec('🏞','すんで いる ところ', [
+    tags(c.habitat.places),
+    kv('じき', c.habitat.season),
+    '<div style="margin-top:9px">'+rb(c.habitat.text)+'</div>'
+  ].join('')));
+
+  if(c.catching){
+    cards.push(sec('🥅','つかまえかた', [
+      tags(c.catching.tools),
+      steps(c.catching.steps),
+      c.catching.note ? '<div class="note"><b>やくそく：</b>'+rb(c.catching.note)+'</div>' : ''
+    ].join('')));
+  }else{
+    const i = c.instead;
+    cards.push(sec(i.icon, i.title, [
+      i.steps ? steps(i.steps) : '',
+      i.text ? '<div style="margin-top:9px">'+rb(i.text)+'</div>' : ''
+    ].join(''), true));
+  }
+
+  cards.push(sec('🍽','たべもの', [
+    tags(c.food.items),
+    c.food.frequency !== '—' ? kv('かいすう', c.food.frequency) : '',
+    '<div style="margin-top:9px">'+rb(c.food.text)+'</div>'
+  ].join('')));
+
+  if(c.keeping){
+    let body = kv('いれもの', c.keeping.container) + kv('かんきょう', c.keeping.environment) +
+               '<ul style="margin:10px 0 0; padding-left:1.2em">'+
+               c.keeping.cautions.map(x=>'<li>'+rb(x)+'</li>').join('')+'</ul>'+
+               '<div style="margin-top:9px">'+rb(c.keeping.text)+'</div>';
+    if(c.release){
+      body += '<div class="note"><b>わすれないで：</b>'+
+              rb('そとに にがしては いけません。｜法律《ほうりつ》で きまって います。')+'</div>';
+    }
+    cards.push(sec('🏠','かいかた', body));
+  }else{
+    const i = c.instead2;
+    cards.push(sec(i.icon, i.title, '<div>'+rb(i.text)+'</div>', true));
+  }
+
+  h += '<div class="cards">'+cards.join('')+'</div>'+
+       '<p class="sources">しゅってん：環境省「日本の外来種対策」／国立環境研究所 侵入生物データベース ほか　'+
+       '<span class="mono">'+c.plate+'</span>　この図鑑にくわわった日：2026-07-28</p>';
+  return h;
+}
+function sec(ic, title, body, blocked){
+  return '<div class="c'+(blocked?' blocked':'')+'"><div class="c-h">'+
+         '<div class="c-ic">'+ic+'</div><h2>'+rb(title)+'</h2></div>'+
+         '<div class="c-b">'+body+'</div></div>';
+}
+function tags(a){ return '<div class="tags">'+a.map(x=>'<span class="tag2">'+rb(x)+'</span>').join('')+'</div>'; }
+function kv(k,v){ return '<div class="kv"><span class="k">'+k+'</span><span>'+rb(v)+'</span></div>'; }
+function steps(a){ return '<ol class="steps">'+a.map((x,i)=>'<li><span class="n">'+(i+1)+'</span><span>'+rb(x)+'</span></li>').join('')+'</ol>'; }
+
+/* ---------------- みんなの図鑑 ---------------- */
+const LIST = [
+  {n:'カブトムシ',       no:'No.001', cat:'むし',              art:'kabuto',      isNew:true},
+  {n:'アメリカザリガニ', no:'No.002', cat:'みずのいきもの',    art:'zari',        flag:'🌏', isNew:true},
+  {n:'ダンゴムシ',       no:'No.003', cat:'むし',              art:'dango'},
+  {n:'テントウムシ',     no:'No.005', cat:'むし',              art:'tentou'},
+  {n:'メダカ',           no:'No.008', cat:'さかな',            art:'medaka'},
+  {n:'カタツムリ',       no:'No.011', cat:'そのほか',          art:'katatsumuri'},
+  {n:'スズメバチ',       no:'No.014', cat:'むし',              art:'suzume',      flag:'⚠️'},
+  {n:'カナヘビ',         no:'No.019', cat:'かえる・とかげ・へび', art:'kanahebi'},
+  {n:'アメンボ',         no:'No.024', cat:'むし',              art:'amenbo'},
+  {n:'ウシガエル',       no:'No.031', cat:'かえる・とかげ・へび', art:'ushi',      flag:'⚖️'}
+];
+const CATS = ['ぜんぶ','むし','さかな','かえる・とかげ・へび','みずのいきもの','そのほか'];
+let curCat = 'ぜんぶ';
+
+function drawList(){
+  document.getElementById('filters').innerHTML = CATS.map(c=>
+    '<button class="f" data-f="'+c+'" aria-pressed="'+(c===curCat)+'">'+c+'</button>').join('');
+  const items = LIST.filter(x=>curCat==='ぜんぶ' || x.cat===curCat);
+  document.getElementById('count').textContent =
+    curCat==='ぜんぶ' ? '10しゅるい' : curCat+'：'+items.length+'しゅるい';
+  document.getElementById('grid').innerHTML = items.map(x=>
+    '<div class="sp">'+(x.flag?'<span class="flag">'+x.flag+'</span>':'')+ART[x.art]+
+    '<div class="spn">'+x.n+'</div><div class="spno mono">'+x.no+'</div></div>').join('');
+  document.querySelectorAll('#filters .f').forEach(b=>{
+    b.onclick = ()=>{ curCat = b.dataset.f; drawList(); };
+  });
+}
+
+function drawRecent(){
+  document.getElementById('recent').innerHTML = LIST.slice(0,4).map(x=>
+    '<div class="r">'+ART[x.art]+'<div><div class="rn">'+x.n+
+    (x.isNew?'<span class="newbadge">NEW</span>':'')+'</div>'+
+    '<div class="rt2 mono">'+x.no+' / '+x.cat+'</div></div><span class="ra">›</span></div>').join('');
+}
+
+/* ---------------- 画面切替 ---------------- */
+const TITLES = {search:'さがす', loading:'さがしています…', card:'図鑑カード',
+                list:'みんなの ずかん', none:'みつからない'};
+function show(s){
+  document.querySelectorAll('.screen').forEach(e=>e.classList.remove('on'));
+  document.getElementById('s-'+s).classList.add('on');
+  document.getElementById('stitle').textContent = TITLES[s];
+  document.querySelectorAll('#screens button').forEach(b=>
+    b.setAttribute('aria-pressed', String(b.dataset.s===s)));
+  document.querySelectorAll('#nav button').forEach(b=>
+    b.setAttribute('aria-pressed', String(b.dataset.s===s || (s==='card' && b.dataset.s==='search'))));
+  document.getElementById('picker').classList.toggle('on', s==='card');
+  document.getElementById('view').scrollTop = 0;
+}
+document.querySelectorAll('#screens button, #nav button').forEach(b=>{
+  b.onclick = ()=>show(b.dataset.s);
+});
+document.querySelectorAll('#picker .pick').forEach(b=>{
+  b.onclick = ()=>{
+    document.querySelectorAll('#picker .pick').forEach(x=>x.setAttribute('aria-pressed','false'));
+    b.setAttribute('aria-pressed','true');
+    document.getElementById('s-card').innerHTML = card(b.dataset.c);
+    document.getElementById('view').scrollTop = 0;
+  };
+});
+document.getElementById('theme').onclick = ()=>{
+  const r = document.documentElement;
+  const dark = r.getAttribute('data-theme')==='dark' ||
+    (!r.getAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);
+  r.setAttribute('data-theme', dark ? 'light' : 'dark');
+};
+/* 検索ボタン → さがし中 → 図鑑カード の流れを再現 */
+document.querySelector('.go').onclick = ()=>{
+  show('loading');
+  setTimeout(()=>show('card'), 1600);
+};
+document.querySelector('.again').onclick = ()=>show('search');
+
+document.getElementById('s-card').innerHTML = card('kabuto');
+drawList();
+drawRecent();
+</script>
