@@ -22,4 +22,8 @@
 
 - **技術構成**: Gemini API（構造化出力＋検索グラウンディング）＋ Google スプレッドシート ＋ Google Apps Script
 - **構想書**: [ikimono-zukan/CONCEPT.md](ikimono-zukan/CONCEPT.md) — スキーマ設計・安全設計・画面構成・開発ロードマップ
-- **状況**: フェーズ1（構想）完了。フェーズ2で実装。
+- **セットアップ**: [ikimono-zukan/src/README.md](ikimono-zukan/src/README.md) — APIキー取得からデプロイまで
+- **UIプレビュー**: [ikimono-zukan/mockups/ui-prototype.html](ikimono-zukan/mockups/ui-prototype.html) — Chromebook 横画面
+- **状況**: フェーズ2（MVP実装）完了
+
+「捕まえ方・飼い方」を子供に見せるため、AIの出力を人手の要注意リストが無条件に上書きする安全設計を三層で実装しています。危険な生き物や特定外来生物では、警告を添えるのではなく**該当のカードそのものを表示しません**。

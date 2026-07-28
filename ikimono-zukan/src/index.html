@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <?!= include('css'); ?>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- 左のナビレール。Chromebookは縦が狭いので、タブは下ではなく横に置く -->
+  <nav class="rail">
+    <svg class="mark" viewBox="0 0 100 100" aria-hidden="true">
+      <circle cx="42" cy="42" r="27" fill="none" stroke="var(--leaf)" stroke-width="8"/>
+      <circle cx="42" cy="42" r="22" fill="var(--leaf-soft)"/>
+      <path d="M62 62 86 86" stroke="var(--amber)" stroke-width="12" stroke-linecap="round"/>
+    </svg>
+    <button data-nav="search" aria-pressed="true"><span class="ic">🔍</span>さがす</button>
+    <button data-nav="list" aria-pressed="false"><span class="ic">📚</span>みんなの<br>ずかん</button>
+    <div class="count"><b id="total">–</b>しゅるい<br>あつまった</div>
+  </nav>
+
+  <div class="view">
+
+    <!-- ===== さがす ===== -->
+    <section class="screen on" id="s-search">
+      <div class="searchpane">
+        <div class="sleft">
+          <div class="kicker">みんなでつくる ずかん</div>
+          <h1>しらべた いきものが、<br>みんなの ずかんに たまっていく。</h1>
+          <div class="search">
+            <input type="text" id="q" placeholder="いきものの なまえ"
+                   aria-label="いきものの名前" autocomplete="off" maxlength="30">
+            <button class="go" id="go">しらべる</button>
+          </div>
+          <p class="hint">ひらがなでも カタカナでも かんじでも だいじょうぶ。キーボードが むずかしい ときは →</p>
+          <h2>よく しらべられて いる いきもの</h2>
+          <div class="quick" id="quick"></div>
+        </div>
+
+        <aside class="sright">
+          <div class="panel">
+            <h2>ひらがな キーボード</h2>
+            <div class="kbd">
+              <div class="kg" id="kg"></div>
+              <div class="krow">
+                <button class="km" data-m="dakuten">゛ てんてん</button>
+                <button class="km" data-m="handakuten">゜ まる</button>
+                <button class="km" data-m="small">ちいさく</button>
+                <button class="km wide" data-m="back">← けす</button>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <h2>さいきん みんなが しらべた いきもの</h2>
+            <div class="recent" id="recent"></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ===== さがし中 ===== -->
+    <section class="screen" id="s-loading">
+      <div class="center"><div class="loading">
+        <svg class="lens" viewBox="0 0 100 100" aria-hidden="true">
+          <circle cx="42" cy="42" r="27" fill="none" stroke="var(--leaf)" stroke-width="7"/>
+          <circle cx="42" cy="42" r="22" fill="var(--leaf-soft)" opacity=".65"/>
+          <path d="M62 62 86 86" stroke="var(--amber)" stroke-width="11" stroke-linecap="round"/>
+        </svg>
+        <h2 id="loadingName">さがして います…</h2>
+        <div class="bardots" aria-hidden="true"><i></i><i></i><i></i></div>
+        <p>はじめての いきものは、20びょう くらい かかります。</p>
+        <div class="steps2" id="steps2"></div>
+      </div></div>
+    </section>
+
+    <!-- ===== 図鑑カード ===== -->
+    <section class="screen" id="s-card"></section>
+
+    <!-- ===== みんなの図鑑 ===== -->
+    <section class="screen" id="s-list">
+      <div class="listhead">
+        <div>
+          <div class="eyebrow">みんなの ずかん</div>
+          <h1 id="listCount">よみこみ中…</h1>
+        </div>
+        <div class="filters" id="filters"></div>
+      </div>
+      <div class="drawerwrap"><div class="drawer"><div class="grid" id="grid"></div></div></div>
+    </section>
+
+    <!-- ===== みつからない・エラー ===== -->
+    <section class="screen" id="s-none">
+      <div class="center"><div class="empty">
+        <div class="em" aria-hidden="true">🔍</div>
+        <h2 id="noneTitle">その いきもの、みつからなかった</h2>
+        <p id="noneBody"></p>
+        <button class="again" id="again">もういちど さがす</button>
+      </div></div>
+    </section>
+
+  </div>
+</div>
+
+<?!= include('js'); ?>
+</body>
+</html>

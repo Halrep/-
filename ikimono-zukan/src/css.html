@@ -1,0 +1,261 @@
+<style>
+/* ============================================================
+   いきもの図鑑 — Chromebook 横画面
+   デザインコンセプト：「標本箱」
+   方眼紙の地・標本ラベル・引き出しのグリッド。
+   子供向けだが玩具的にはせず、本物の図鑑の手ざわりを持たせる。
+
+   ■ 設計の起点
+   GIGA標準の Chromebook は 1366x768。Chrome のタブ＋ツールバー(約68px)と
+   ChromeOS のシェルフ(約48px)を引くと、使えるのは 1366x650。
+   「横は広いが縦は極端に狭い」——縦を食う要素はすべて横に逃がす。
+   ============================================================ */
+:root{
+  --paper:#EDF1E7; --surface:#FFFFFF; --surface2:#F5F8F0; --drawer:#E2E8DA;
+  --ink:#1F2C22; --muted:#5C6C5E; --faint:#8A9A8C; --line:#D3DBCB;
+  --leaf:#2E7A4E; --leaf-ink:#FFFFFF; --leaf-soft:#E1EFE5; --leaf-line:#A8CDB4;
+  --amber:#B5710D; --amber-soft:#FAEFD9; --amber-line:#E2C489;
+  --alert:#BE3826; --alert-soft:#FADFD9; --alert-line:#EBAE9F;
+  --grid:rgba(46,122,78,.07);
+  --shadow:0 1px 2px rgba(31,44,34,.07), 0 6px 20px rgba(31,44,34,.06);
+  --shadow-lift:0 2px 4px rgba(31,44,34,.09), 0 18px 44px rgba(31,44,34,.14);
+  --r:13px; --r-sm:9px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --paper:#131A14; --surface:#1C241D; --surface2:#242E26; --drawer:#161E17;
+    --ink:#E7EEE5; --muted:#9BAC9D; --faint:#748475; --line:#37453A;
+    --leaf:#69C08A; --leaf-ink:#0D1610; --leaf-soft:#1F362A; --leaf-line:#3A6249;
+    --amber:#DFA94F; --amber-soft:#372C16; --amber-line:#5C4823;
+    --alert:#EC7C67; --alert-soft:#3E1F19; --alert-line:#6B342A;
+    --grid:rgba(105,192,138,.07);
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.28);
+    --shadow-lift:0 2px 4px rgba(0,0,0,.36), 0 18px 44px rgba(0,0,0,.5);
+  }
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  /* 丸ゴシック優先。UDフォントは子供の可読性のために設計された書体 */
+  font-family:"Hiragino Maru Gothic ProN","BIZ UDPGothic","Yu Gothic UI",
+              "Hiragino Kaku Gothic ProN","Noto Sans JP",Meiryo,sans-serif;
+  font-size:16px; line-height:1.7; -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+button{font-family:inherit; font-size:inherit; color:inherit; cursor:pointer; border:0; background:none}
+input{font-family:inherit}
+:focus-visible{outline:3px solid var(--amber); outline-offset:2px; border-radius:4px}
+@media (prefers-reduced-motion: reduce){ *,*::before,*::after{animation:none !important; transition:none !important} }
+.mono{font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+      font-variant-numeric:tabular-nums; letter-spacing:.09em}
+ruby{ruby-align:center}
+rt{font-size:.52em; font-weight:600; color:var(--faint); letter-spacing:.02em}
+
+.app{height:100%; display:flex;
+     background-image:linear-gradient(var(--grid) 1px, transparent 1px),
+                      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+     background-size:22px 22px}
+
+/* ---------- 左のナビレール ---------- */
+.rail{flex:none; width:96px; background:var(--surface2); border-right:1px solid var(--line);
+      display:flex; flex-direction:column; align-items:center; padding:14px 0 10px; gap:6px}
+.rail .mark{width:42px; height:42px; margin-bottom:10px}
+.rail button{width:80px; padding:10px 4px 9px; border-radius:11px; display:grid; gap:3px;
+             justify-items:center; font-size:11px; font-weight:800; color:var(--faint); line-height:1.35}
+.rail button .ic{font-size:21px; line-height:1}
+.rail button[aria-pressed="true"]{background:var(--leaf-soft); color:var(--leaf)}
+.rail .count{margin-top:auto; font-size:10px; color:var(--faint); text-align:center; line-height:1.5}
+.rail .count b{display:block; font-size:17px; color:var(--leaf)}
+
+.view{flex:1; min-width:0; display:flex; flex-direction:column; background:var(--surface)}
+.screen{display:none; flex:1; min-height:0}
+.screen.on{display:flex; flex-direction:column}
+
+/* ---------- 共通 ---------- */
+.eyebrow{font-size:10.5px; font-weight:800; letter-spacing:.16em; color:var(--faint)}
+
+/* 警告バーは全幅・最上部。スクロールしても消えない位置に置く */
+.banner{display:flex; gap:13px; align-items:flex-start; padding:13px 24px; flex:none}
+.banner .bic{font-size:22px; line-height:1.2; flex:none}
+.banner .bt{font-size:18px; font-weight:800; margin-bottom:1px}
+.banner .bd{font-size:14.5px; line-height:1.6}
+.banner.alert{background:var(--alert-soft); border-bottom:1px solid var(--alert-line)}
+.banner.alert .bt{color:var(--alert)}
+.banner.warn{background:var(--amber-soft); border-bottom:1px solid var(--amber-line)}
+.banner.warn .bt{color:var(--amber)}
+/* 箇条書きは横並び。縦積みだと危険情報だけで100px超を食う */
+.banner ul{margin:5px 0 0; padding:0; list-style:none; display:flex; flex-wrap:wrap;
+           gap:6px 18px; font-size:13.5px}
+.banner ul li{display:flex; gap:6px}
+.banner ul li::before{content:"・"; color:var(--faint)}
+
+/* ---------- 図鑑カード：左＝標本プレート／右＝解説 ---------- */
+.split{flex:1; min-height:0; display:grid; grid-template-columns:392px 1fr}
+.figpane{border-right:1px solid var(--line); background:var(--surface2);
+         padding:18px 22px 16px; display:flex; flex-direction:column;
+         position:relative; overflow:hidden}
+.plateno{position:absolute; top:16px; left:20px; font-size:10.5px; font-weight:700;
+         color:var(--faint); background:var(--surface); border:1px solid var(--line);
+         border-radius:4px; padding:2px 8px}
+.figpane .art{flex:1; min-height:0; display:grid; place-items:center; padding:6px 0}
+.figpane .art img{max-width:100%; max-height:100%; object-fit:contain; border-radius:8px}
+.figpane .art .noimg{color:var(--faint); font-size:13px; text-align:center; line-height:1.8}
+.figpane .art .noimg span{font-size:40px; display:block; margin-bottom:6px}
+.figpane h1{font-size:30px; margin:0; line-height:1.3; text-wrap:balance}
+.rdg{font-size:12px; color:var(--faint); margin-top:3px}
+.metarow{display:flex; align-items:center; gap:7px; margin-top:10px; flex-wrap:wrap}
+.cat{font-size:12px; font-weight:800; border-radius:999px; padding:4px 12px;
+     background:var(--leaf-soft); color:var(--leaf); border:1px solid var(--leaf-line)}
+.diff{font-size:12px; font-weight:700; color:var(--muted); border:1px solid var(--line);
+      border-radius:999px; padding:4px 12px; background:var(--surface)}
+.aibadge{font-size:11px; font-weight:800; color:var(--amber); background:var(--amber-soft);
+         border:1px solid var(--amber-line); border-radius:5px; padding:2px 8px}
+.credit{font-size:10.5px; color:var(--faint); line-height:1.5; margin-top:12px;
+        padding-top:10px; border-top:1px dashed var(--line)}
+
+.bodypane{overflow-y:auto; padding:18px 24px 24px}
+.lead{font-size:16.5px; line-height:2; margin:0 0 16px; max-width:64ch}
+/* 4項目は2x2。横の広さをここで使う */
+.cards{display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start}
+.c{background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
+   box-shadow:var(--shadow); overflow:hidden}
+.c-h{display:flex; align-items:center; gap:10px; padding:12px 15px 0}
+.c-ic{width:36px; height:36px; border-radius:10px; display:grid; place-items:center;
+      font-size:19px; flex:none; background:var(--leaf-soft)}
+.c-h h2{font-size:16.5px; margin:0; font-weight:800}
+.c-b{padding:9px 15px 15px; font-size:15px; line-height:1.9}
+.kv{display:flex; gap:9px; margin-top:8px; font-size:14px; line-height:1.7}
+.kv .k{flex:none; font-weight:800; color:var(--muted); min-width:4.6em}
+.tags{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
+.tag2{font-size:13px; font-weight:700; background:var(--surface2); border:1px solid var(--line);
+      border-radius:7px; padding:3px 10px}
+.steps{margin:9px 0 0; padding:0; list-style:none; display:grid; gap:7px}
+.steps li{display:flex; gap:9px; font-size:14.5px; line-height:1.65}
+.steps .n{flex:none; width:22px; height:22px; border-radius:50%; background:var(--leaf);
+          color:var(--leaf-ink); font-size:12px; font-weight:800; display:grid;
+          place-items:center; margin-top:4px}
+.note{margin-top:10px; background:var(--amber-soft); border:1px solid var(--amber-line);
+      border-radius:var(--r-sm); padding:8px 12px; font-size:13.5px; line-height:1.6}
+.note b{color:var(--amber)}
+/* 危険・違法で「つかまえかた／かいかた」の代わりに出るカード */
+.c.blocked{border-color:var(--alert-line); background:var(--alert-soft)}
+.c.blocked .c-ic{background:var(--alert)}
+.c.blocked .c-h h2{color:var(--alert)}
+.sources{margin:16px 0 0; font-size:11.5px; color:var(--faint); line-height:1.7}
+.sources a{color:var(--muted)}
+
+/* ---------- さがす ---------- */
+.searchpane{flex:1; min-height:0; display:grid; grid-template-columns:1fr 560px; overflow:hidden}
+.sleft{padding:34px 30px 24px; display:flex; flex-direction:column; overflow-y:auto}
+.kicker{font-size:12px; font-weight:800; letter-spacing:.14em; color:var(--leaf)}
+.sleft h1{font-size:32px; margin:8px 0 0; line-height:1.45; text-wrap:balance}
+.search{display:flex; gap:10px; margin-top:22px; max-width:640px}
+.search input{flex:1; min-width:0; font-size:20px; padding:15px 17px; border-radius:var(--r);
+              border:2px solid var(--line); background:var(--surface); color:var(--ink)}
+.search input::placeholder{color:var(--faint)}
+.search input:focus{border-color:var(--leaf); outline:none}
+.go{background:var(--leaf); color:var(--leaf-ink); border-radius:var(--r);
+    padding:0 26px; font-size:18px; font-weight:800; min-height:58px; flex:none}
+.go:active{transform:translateY(1px)}
+.hint{margin:9px 0 0; font-size:13px; color:var(--muted)}
+.sleft h2{font-size:13.5px; margin:26px 0 10px; font-weight:800; color:var(--muted)}
+.quick{display:flex; flex-wrap:wrap; gap:8px; max-width:640px}
+.q{border:1.5px solid var(--line); background:var(--surface); border-radius:999px;
+   padding:10px 17px; font-size:15px; font-weight:700; min-height:46px}
+.q:hover{border-color:var(--leaf-line); background:var(--leaf-soft)}
+
+.sright{border-left:1px solid var(--line); background:var(--surface2);
+        padding:22px 24px; overflow-y:auto; display:flex; flex-direction:column; gap:18px}
+.panel h2{font-size:13.5px; margin:0 0 10px; font-weight:800; color:var(--muted)}
+.recent{display:grid; gap:1px; background:var(--line); border:1px solid var(--line);
+        border-radius:var(--r); overflow:hidden}
+.recent .r{display:flex; align-items:center; gap:11px; background:var(--surface);
+           padding:9px 13px; width:100%; text-align:left}
+.recent .r img{width:34px; height:34px; flex:none; object-fit:cover; border-radius:6px;
+               background:var(--surface2)}
+.recent .r .ph{width:34px; height:34px; flex:none; border-radius:6px; background:var(--surface2)}
+.recent .r .rn{font-weight:800; font-size:15px}
+.recent .r .rt2{font-size:11px; color:var(--faint)}
+.recent .r .ra{margin-left:auto; color:var(--faint); font-size:17px}
+.newbadge{font-size:10px; font-weight:800; color:var(--amber); background:var(--amber-soft);
+          border:1px solid var(--amber-line); border-radius:4px; padding:1px 6px; margin-left:6px}
+.emptyhint{font-size:13px; color:var(--faint); line-height:1.8; padding:4px 2px}
+
+/* ---------- ひらがなキーボード ----------
+   Chromebookにはフリック入力がなく、日本語はIME＋ローマ字入力になる。
+   ローマ字未習の低学年には検索より高い壁になるため、五十音を常設する。 */
+.kbd{background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:11px}
+.kbd .kg{display:grid; grid-template-rows:repeat(5,1fr); grid-auto-flow:column;
+         grid-auto-columns:1fr; gap:4px}
+.kbd .k{height:38px; border:1px solid var(--line); border-radius:7px; background:var(--surface2);
+        font-size:17px; font-weight:700}
+.kbd .k:hover{background:var(--leaf-soft); border-color:var(--leaf-line)}
+.kbd .k.void{border:0; background:none; pointer-events:none}
+.kbd .krow{display:flex; gap:5px; margin-top:7px}
+.kbd .km{flex:1; height:38px; border:1px solid var(--line); border-radius:7px;
+         background:var(--surface2); font-size:14px; font-weight:800}
+.kbd .km.wide{flex:1.5}
+.kbd .km:hover{background:var(--leaf-soft); border-color:var(--leaf-line)}
+
+/* ---------- みんなの図鑑 ---------- */
+.listhead{flex:none; padding:20px 26px 0; display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap}
+.listhead h1{font-size:25px; margin:5px 0 0}
+.filters{display:flex; gap:7px; margin-left:auto; flex-wrap:wrap}
+.f{border:1.5px solid var(--line); background:var(--surface); border-radius:999px;
+   padding:7px 15px; font-size:14px; font-weight:700; color:var(--muted); white-space:nowrap}
+.f[aria-pressed="true"]{background:var(--leaf); border-color:var(--leaf); color:var(--leaf-ink)}
+.drawerwrap{flex:1; min-height:0; overflow-y:auto; padding:14px 26px 24px}
+.drawer{background:var(--drawer); border:1px solid var(--line); border-radius:var(--r);
+        padding:14px; box-shadow:inset 0 2px 7px rgba(31,44,34,.09); min-height:120px}
+.grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(178px,1fr)); gap:12px}
+.sp{background:var(--surface); border:1px solid var(--line); border-radius:var(--r-sm);
+    padding:11px 9px 9px; text-align:center; box-shadow:var(--shadow); position:relative;
+    transition:transform .12s, box-shadow .12s}
+.sp:hover{transform:translateY(-2px); box-shadow:var(--shadow-lift)}
+.sp img{width:100%; height:74px; object-fit:contain; display:block}
+.sp .ph{width:100%; height:74px; display:grid; place-items:center; font-size:26px; color:var(--faint)}
+.sp .spn{font-size:13.5px; font-weight:800; margin-top:6px; line-height:1.35; min-height:2.7em}
+.sp .spno{font-size:10px; color:var(--faint)}
+.sp .flag{position:absolute; top:6px; right:6px; font-size:13px}
+
+/* ---------- さがし中・みつからない ---------- */
+.center{flex:1; min-height:0; display:grid; place-items:center; padding:20px}
+.loading{display:grid; justify-items:center; gap:14px; text-align:center}
+.lens{width:88px; height:88px; animation:sweep 2.6s ease-in-out infinite}
+@keyframes sweep{0%,100%{transform:translate(-14px,4px) rotate(-9deg)}
+                 50%{transform:translate(14px,-6px) rotate(9deg)}}
+.loading h2{font-size:22px; margin:0; font-weight:800}
+.loading p{margin:0; font-size:14.5px; color:var(--muted); line-height:1.8}
+.bardots{display:flex; gap:6px}
+.bardots i{width:9px; height:9px; border-radius:50%; background:var(--leaf-line);
+           animation:blip 1.3s ease-in-out infinite}
+.bardots i:nth-child(2){animation-delay:.18s} .bardots i:nth-child(3){animation-delay:.36s}
+@keyframes blip{0%,100%{opacity:.3; transform:scale(.8)} 50%{opacity:1; transform:scale(1)}}
+/* 横画面なので進捗は横一列に */
+.steps2{display:flex; gap:22px; font-size:13px; color:var(--muted); margin-top:4px}
+.steps2 div{display:flex; gap:7px; align-items:center}
+.steps2 .dn{color:var(--leaf); font-weight:800}
+.empty{display:grid; justify-items:center; gap:12px; text-align:center; max-width:560px}
+.empty .em{font-size:44px}
+.empty h2{font-size:21px; margin:0}
+.empty p{margin:0; color:var(--muted); font-size:14.5px; line-height:1.85}
+.empty .again{background:var(--leaf); color:var(--leaf-ink); border-radius:var(--r);
+              padding:13px 28px; font-weight:800; font-size:16px; margin-top:4px}
+
+/* ---------- 狭い画面（タブレット縦・小さいウィンドウ）へのたたみ方 ---------- */
+@media (max-width:1100px){
+  .searchpane{grid-template-columns:1fr}
+  .sright{border-left:0; border-top:1px solid var(--line)}
+  .split{grid-template-columns:300px 1fr}
+  .cards{grid-template-columns:1fr}
+}
+@media (max-width:760px){
+  .app{flex-direction:column-reverse}
+  .rail{width:100%; flex-direction:row; justify-content:center; gap:20px;
+        border-right:0; border-top:1px solid var(--line); padding:6px 0}
+  .rail .mark,.rail .count{display:none}
+  .split{grid-template-columns:1fr; grid-template-rows:auto 1fr}
+  .figpane{border-right:0; border-bottom:1px solid var(--line)}
+}
+</style>

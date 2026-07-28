@@ -1,0 +1,382 @@
+<script>
+/* ============================================================
+   いきもの図鑑 — 画面側
+   サーバー（Api.gs）は、ふりがなを <ruby> に変換し、危険度と法規制を
+   「どのカードを出さないか」まで解決した状態で返してくる。
+   ここでは判断をせず、返ってきたとおりに描く。
+   ============================================================ */
+
+var App = {
+  screen: 'search',
+  list: null,
+  cat: 'ぜんぶ'
+};
+
+/* ---------- 画面切替 ---------- */
+function show(s){
+  App.screen = s;
+  var ids = ['search','loading','card','list','none'];
+  ids.forEach(function(k){
+    document.getElementById('s-'+k).classList.toggle('on', k===s);
+  });
+  document.querySelectorAll('.rail button').forEach(function(b){
+    b.setAttribute('aria-pressed', String(b.dataset.nav===s || (s==='card' && b.dataset.nav==='search')));
+  });
+}
+
+/* ---------- さがす ---------- */
+function doSearch(word){
+  var q = String(word || document.getElementById('q').value || '').trim();
+  if(!q) return;
+  document.getElementById('q').value = q;
+  document.getElementById('loadingName').textContent = '「' + q + '」を さがして います…';
+  setSteps(0);
+  show('loading');
+
+  // 進捗の見せかけではなく、実際にサーバーが通る順番に合わせてある
+  var t1 = setTimeout(function(){ setSteps(1); }, 1200);
+  var t2 = setTimeout(function(){ setSteps(2); }, 12000);
+
+  google.script.run
+    .withSuccessHandler(function(res){
+      clearTimeout(t1); clearTimeout(t2);
+      if(res && res.found){ renderCard(res); show('card'); refreshTotal(); }
+      else { renderNone(res, q); show('none'); }
+    })
+    .withFailureHandler(function(err){
+      clearTimeout(t1); clearTimeout(t2);
+      renderNone({reason:'error', message:String(err && err.message || err)}, q);
+      show('none');
+    })
+    .apiSearch(q);
+}
+
+function setSteps(n){
+  var labels = ['みんなの ずかんを さがす','ずかんの じょうほうを あつめる','しゃしんを さがす'];
+  document.getElementById('steps2').innerHTML = labels.map(function(l,i){
+    var mark = i < n ? '<span class="dn">✓</span>'
+             : i === n ? '<span style="color:var(--faint)">…</span>'
+             : '<span style="color:var(--faint)">・</span>';
+    return '<div>' + mark + '<span>' + l + '</span></div>';
+  }).join('');
+}
+
+function renderNone(res, q){
+  var t = document.getElementById('noneTitle');
+  var b = document.getElementById('noneBody');
+  var r = (res && res.reason) || 'notcreature';
+  if(r === 'error'){
+    t.textContent = 'うまく しらべられませんでした';
+    b.innerHTML = 'もういちど ためして みてね。<br>' +
+      '<span style="font-size:12px; color:var(--faint)">' + esc(res.message || '') + '</span>';
+  }else if(r === 'toolong'){
+    t.textContent = 'なまえが ながすぎます';
+    b.textContent = 'いきものの なまえだけを いれて ください。';
+  }else{
+    t.textContent = 'その いきもの、みつからなかった';
+    b.innerHTML = '「' + esc(q) + '」は いきものの なまえでは ないみたい。<br>' +
+                  'もういちど なまえを たしかめて みてね。';
+  }
+}
+
+/* ---------- 図鑑カード ---------- */
+var LEGAL_BANNER = {
+  invasive_banned:{cls:'alert', ic:'⚖️', t:'ほうりつで かえません',
+    d:'この<ruby>生<rt>い</rt></ruby>き<ruby>物<rt>もの</rt></ruby>は' +
+      '「<ruby>特定外来生物<rt>とくていがいらいせいぶつ</rt></ruby>」です。' +
+      'かう ことも、いきた まま はこぶ ことも できません。'},
+  conditional_invasive:{cls:'warn', ic:'🌏', t:'そとに にがしては いけません',
+    d:'かう ことは できますが、<ruby>池<rt>いけ</rt></ruby>や<ruby>川<rt>かわ</rt></ruby>に にがすのは' +
+      '<ruby>法律<rt>ほうりつ</rt></ruby><ruby>違反<rt>いはん</rt></ruby>です。' +
+      'さいごまで<ruby>責任<rt>せきにん</rt></ruby>を もって<ruby>世話<rt>せわ</rt></ruby>を しましょう。'},
+  protected:{cls:'alert', ic:'🛡️', t:'つかまえては いけません',
+    d:'<ruby>法律<rt>ほうりつ</rt></ruby>で<ruby>守<rt>まも</rt></ruby>られて いる' +
+      '<ruby>生<rt>い</rt></ruby>き<ruby>物<rt>もの</rt></ruby>です。'},
+  permit_required:{cls:'alert', ic:'🛡️', t:'つかまえては いけません',
+    d:'<ruby>法律<rt>ほうりつ</rt></ruby>で<ruby>守<rt>まも</rt></ruby>られて いる' +
+      '<ruby>生<rt>い</rt></ruby>き<ruby>物<rt>もの</rt></ruby>です。'}
+};
+var DIFF_LABEL = {easy:'やさしい', normal:'ふつう', hard:'むずかしい', not_recommended:'かえません'};
+
+function renderCard(d){
+  var h = '';
+
+  /* 警告バーは必ずカードより上・全幅 */
+  if(d.danger === 'danger'){
+    h += '<div class="banner alert"><div class="bic">⚠️</div><div>' +
+         '<div class="bt">さわらないで！</div>' +
+         '<div class="bd">この<ruby>生<rt>い</rt></ruby>き<ruby>物<rt>もの</rt></ruby>には ' +
+         'つよい どくが あります。</div>' +
+         (d.dangerNotes.length
+           ? '<ul>' + d.dangerNotes.map(function(n){return '<li><span>'+n+'</span></li>';}).join('') + '</ul>'
+           : '') +
+         '</div></div>';
+  }
+  var lb = LEGAL_BANNER[d.legal];
+  if(lb){
+    h += '<div class="banner '+lb.cls+'"><div class="bic">'+lb.ic+'</div><div>' +
+         '<div class="bt">'+lb.t+'</div><div class="bd">'+lb.d+'</div></div></div>';
+  }
+
+  /* 左：標本プレート（固定・スクロールしない） */
+  var art = d.image.url
+    ? '<img src="'+esc(d.image.url)+'" alt="'+esc(d.name)+'の写真" loading="lazy">'
+    : '<div class="noimg"><span>🔍</span>しゃしんは まだ ありません</div>';
+  var credit = d.image.url
+    ? (d.image.kind === 'ai'
+        ? 'AIが かいた イラストです。ほんものと ちがう ことが あります。'
+        : esc(d.image.credit))
+    : '';
+
+  var fig = '<div class="figpane"><span class="plateno mono">'+esc(d.no)+'</span>' +
+    '<div class="art">'+art+'</div>' +
+    '<h1>'+esc(d.name)+'</h1><div class="rdg mono">'+esc(d.reading)+'</div>' +
+    '<div class="metarow"><span class="cat">'+esc(d.cat)+'</span>' +
+    '<span class="diff">かいやすさ：'+(DIFF_LABEL[d.difficulty]||'ふつう')+'</span>' +
+    (d.image.kind==='ai' ? '<span class="aibadge">AIイラスト</span>' : '') +
+    '</div><p class="credit">'+credit+'</p></div>';
+
+  /* 右：解説（ここだけスクロールする） */
+  var cards = [];
+  cards.push(sec('🏞','すんで いる ところ',
+    tags(d.habitat.places) + kv('じき', d.habitat.season) + para(d.habitat.text)));
+
+  if(d.catching){
+    cards.push(sec('🥅','つかまえかた',
+      tags(d.catching.tools) + steps(d.catching.steps) + para(d.catching.text)));
+  }else{
+    cards.push(sec(d.danger==='danger' ? '🚸' : '⚖️',
+      d.danger==='danger' ? 'みつけた ときは' : 'つかまえる ことは できません',
+      para(whyNoCatching(d)), true));
+  }
+
+  cards.push(sec('🍽','たべもの',
+    tags(d.food.items) + (d.food.frequency ? kv('かいすう', d.food.frequency) : '') + para(d.food.text)));
+
+  /* カードを消したときの説明。
+     「つかまえかた」と「かいかた」で同じ文を繰り返すと読みにくいので、理由ごとに言い分ける。
+     要注意リストに文があればそれを最優先で使う。 */
+  var BANNED = '<ruby>特定外来生物<rt>とくていがいらいせいぶつ</rt></ruby>';
+
+  function whyNoCatching(d){
+    if(d.safetyMessages.length) return d.safetyMessages.join('');
+    if(d.legal === 'invasive_banned')
+      return BANNED + 'は、いきた まま はこぶ ことも<ruby>法律<rt>ほうりつ</rt></ruby>で ' +
+             'きんし されて います。みつけても、その<ruby>場<rt>ば</rt></ruby>で かんさつ するだけに しましょう。';
+    if(d.legal === 'protected' || d.legal === 'permit_required')
+      return '<ruby>法律<rt>ほうりつ</rt></ruby>で<ruby>守<rt>まも</rt></ruby>られて いる' +
+             '<ruby>生<rt>い</rt></ruby>き<ruby>物<rt>もの</rt></ruby>なので、つかまえては いけません。';
+    return 'どくが あるので、さわらないで ください。' +
+           'すぐに おとなの<ruby>人<rt>ひと</rt></ruby>に<ruby>知<rt>し</rt></ruby>らせましょう。';
+  }
+
+  function whyNoKeeping(d){
+    if(d.legal === 'invasive_banned')
+      return BANNED + 'に えらばれて いて、かう ことが' +
+             '<ruby>法律<rt>ほうりつ</rt></ruby>で きんし されて います。' +
+             '<ruby>日本<rt>にほん</rt></ruby>の しぜんを<ruby>守<rt>まも</rt></ruby>る ための きまりです。';
+    if(d.legal === 'protected' || d.legal === 'permit_required')
+      return '<ruby>法律<rt>ほうりつ</rt></ruby>で<ruby>守<rt>まも</rt></ruby>られて いる' +
+             '<ruby>生<rt>い</rt></ruby>き<ruby>物<rt>もの</rt></ruby>なので、かう ことは できません。';
+    if(d.danger === 'danger')
+      return 'どくが つよく、おうちで かう ことは できません。' +
+             '<ruby>図鑑<rt>ずかん</rt></ruby>や どうがで かんさつ しましょう。';
+    return 'おうちで かうのは むずかしい<ruby>生<rt>い</rt></ruby>き<ruby>物<rt>もの</rt></ruby>です。' +
+           'かんさつ したら、もと いた ばしょに かえして あげよう。';
+  }
+
+  if(d.keeping){
+    var body = kv('いれもの', d.keeping.container) + kv('かんきょう', d.keeping.environment) +
+      (d.keeping.cautions && d.keeping.cautions.length
+        ? '<ul style="margin:9px 0 0; padding-left:1.2em">' +
+          d.keeping.cautions.map(function(x){return '<li>'+x+'</li>';}).join('') + '</ul>'
+        : '') +
+      para(d.keeping.text) +
+      (d.release
+        ? '<div class="note"><b>わすれないで：</b>そとに にがしては いけません。' +
+          '<ruby>法律<rt>ほうりつ</rt></ruby>で きまって います。</div>'
+        : '');
+    cards.push(sec('🏠','かいかた', body));
+  }else{
+    cards.push(sec('🚫','かうことは できません', para(whyNoKeeping(d)), true));
+  }
+
+  var src = d.sources.length
+    ? 'しゅってん：' + d.sources.slice(0,4).map(function(u){
+        return '<a href="'+esc(u)+'" target="_blank" rel="noopener">'+esc(hostOf(u))+'</a>';
+      }).join('、')
+    : '';
+
+  h += '<div class="split">' + fig +
+       '<div class="bodypane"><p class="lead">'+d.summary+'</p>' +
+       '<div class="cards">'+cards.join('')+'</div>' +
+       '<p class="sources">'+src+'　<span class="mono">'+esc(d.no)+'</span>' +
+       '　この ずかんに くわわった日：'+esc(d.addedAt)+'</p></div></div>';
+
+  document.getElementById('s-card').innerHTML = h;
+}
+
+function sec(ic,t,b,blocked){
+  return '<div class="c'+(blocked?' blocked':'')+'"><div class="c-h">' +
+         '<div class="c-ic">'+ic+'</div><h2>'+t+'</h2></div><div class="c-b">'+b+'</div></div>';
+}
+function tags(a){
+  if(!a || !a.length) return '';
+  return '<div class="tags">'+a.map(function(x){return '<span class="tag2">'+x+'</span>';}).join('')+'</div>';
+}
+function kv(k,v){
+  if(!v) return '';
+  return '<div class="kv"><span class="k">'+k+'</span><span>'+v+'</span></div>';
+}
+function steps(a){
+  if(!a || !a.length) return '';
+  return '<ol class="steps">'+a.map(function(x,i){
+    return '<li><span class="n">'+(i+1)+'</span><span>'+x+'</span></li>';
+  }).join('')+'</ol>';
+}
+function para(t){ return t ? '<div style="margin-top:8px">'+t+'</div>' : ''; }
+
+/* ---------- みんなの図鑑 ---------- */
+function loadList(){
+  document.getElementById('listCount').textContent = 'よみこみ中…';
+  google.script.run.withSuccessHandler(function(res){
+    App.list = res;
+    drawFilters(); drawGrid();
+  }).apiList();
+}
+function drawFilters(){
+  var cats = ['ぜんぶ'].concat(App.list.categories);
+  document.getElementById('filters').innerHTML = cats.map(function(c){
+    return '<button class="f" data-f="'+esc(c)+'" aria-pressed="'+(c===App.cat)+'">'+esc(c)+'</button>';
+  }).join('');
+  document.querySelectorAll('#filters .f').forEach(function(b){
+    b.onclick = function(){ App.cat = b.dataset.f; drawFilters(); drawGrid(); };
+  });
+}
+var FLAG = {danger:'⚠️', legal:'⚖️', release:'🌏'};
+function drawGrid(){
+  var items = App.list.items.filter(function(x){ return App.cat==='ぜんぶ' || x.cat===App.cat; });
+  document.getElementById('listCount').textContent =
+    App.cat==='ぜんぶ' ? items.length + 'しゅるい あつまった' : App.cat + '：' + items.length + 'しゅるい';
+  document.getElementById('grid').innerHTML = items.length
+    ? items.map(function(x){
+        return '<button class="sp" data-id="'+esc(x.id)+'">' +
+          (FLAG[x.flag] ? '<span class="flag">'+FLAG[x.flag]+'</span>' : '') +
+          (x.img ? '<img src="'+esc(x.img)+'" alt="" loading="lazy">' : '<div class="ph">🔍</div>') +
+          '<div class="spn">'+esc(x.name)+'</div><div class="spno mono">'+esc(x.no)+'</div></button>';
+      }).join('')
+    : '<p class="emptyhint">まだ なにも ありません。「さがす」から いきものを しらべて みよう。</p>';
+  document.querySelectorAll('#grid .sp').forEach(function(b){
+    b.onclick = function(){ openById(b.dataset.id); };
+  });
+}
+function openById(id){
+  show('loading');
+  document.getElementById('loadingName').textContent = 'ひらいて います…';
+  setSteps(0);
+  google.script.run.withSuccessHandler(function(res){
+    if(res && res.found){ renderCard(res); show('card'); }
+    else { renderNone(res, ''); show('none'); }
+  }).apiGet(id);
+}
+
+/* ---------- さがす画面の初期表示 ---------- */
+function loadHome(){
+  google.script.run.withSuccessHandler(function(h){
+    document.getElementById('total').textContent = h.total;
+
+    var seeds = ['カブトムシ','ダンゴムシ','アメリカザリガニ','カナヘビ','メダカ','テントウムシ','カタツムリ','アメンボ'];
+    var names = h.popular.length ? h.popular : seeds;
+    document.getElementById('quick').innerHTML = names.map(function(n){
+      return '<button class="q">'+esc(n)+'</button>';
+    }).join('');
+    document.querySelectorAll('#quick .q').forEach(function(b){
+      b.onclick = function(){ doSearch(b.textContent); };
+    });
+
+    document.getElementById('recent').innerHTML = h.recent.length
+      ? h.recent.map(function(x){
+          return '<button class="r" data-id="'+esc(x.id)+'">' +
+            (x.img ? '<img src="'+esc(x.img)+'" alt="">' : '<div class="ph"></div>') +
+            '<div><div class="rn">'+esc(x.name)+'<span class="newbadge">NEW</span></div>' +
+            '<div class="rt2 mono">'+esc(x.no)+' / '+esc(x.cat)+'</div></div>' +
+            '<span class="ra">›</span></button>';
+        }).join('')
+      : '<p class="emptyhint">まだ だれも しらべて いません。<br>さいしょの ひとりに なろう。</p>';
+    document.querySelectorAll('#recent .r').forEach(function(b){
+      b.onclick = function(){ openById(b.dataset.id); };
+    });
+  }).apiHome();
+}
+function refreshTotal(){
+  google.script.run.withSuccessHandler(function(h){
+    document.getElementById('total').textContent = h.total;
+  }).apiHome();
+}
+
+/* ---------- ひらがなキーボード ----------
+   濁点・半濁点・小文字は直前の1文字を変換する方式にして、
+   50キー＋4キーで濁音・半濁音・拗音まで打てるようにしている。 */
+var KANA = [
+  ['あ','い','う','え','お'],['か','き','く','け','こ'],['さ','し','す','せ','そ'],
+  ['た','ち','つ','て','と'],['な','に','ぬ','ね','の'],['は','ひ','ふ','へ','ほ'],
+  ['ま','み','む','め','も'],['や','','ゆ','','よ'],['ら','り','る','れ','ろ'],
+  ['わ','','を','','ん']
+];
+var DAKU = {'か':'が','き':'ぎ','く':'ぐ','け':'げ','こ':'ご','さ':'ざ','し':'じ','す':'ず','せ':'ぜ','そ':'ぞ',
+            'た':'だ','ち':'ぢ','つ':'づ','て':'で','と':'ど','は':'ば','ひ':'び','ふ':'ぶ','へ':'べ','ほ':'ぼ'};
+var HANDAKU = {'は':'ぱ','ひ':'ぴ','ふ':'ぷ','へ':'ぺ','ほ':'ぽ'};
+var SMALL = {'あ':'ぁ','い':'ぃ','う':'ぅ','え':'ぇ','お':'ぉ','つ':'っ','や':'ゃ','ゆ':'ゅ','よ':'ょ'};
+
+function drawKbd(){
+  var q = document.getElementById('q');
+  document.getElementById('kg').innerHTML = KANA.reduce(function(a,b){return a.concat(b);},[])
+    .map(function(k){ return k ? '<button class="k">'+k+'</button>' : '<span class="k void"></span>'; })
+    .join('');
+  document.querySelectorAll('#kg .k').forEach(function(b){
+    if(!b.textContent) return;
+    b.onclick = function(){ q.value += b.textContent; q.focus(); };
+  });
+  document.querySelectorAll('.kbd .km').forEach(function(b){
+    b.onclick = function(){
+      var m = b.dataset.m, v = q.value, last = v.slice(-1);
+      if(m === 'back'){ q.value = v.slice(0,-1); }
+      else {
+        var map = m==='dakuten' ? DAKU : m==='handakuten' ? HANDAKU : SMALL;
+        if(map[last]) q.value = v.slice(0,-1) + map[last];
+      }
+      q.focus();
+    };
+  });
+}
+
+/* ---------- ちいさな道具 ---------- */
+function esc(s){
+  return String(s===null||s===undefined?'':s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function hostOf(u){
+  try { return String(u).split('/')[2] || u; } catch(e){ return u; }
+}
+
+/* ---------- 起動 ---------- */
+document.getElementById('go').onclick = function(){ doSearch(); };
+document.getElementById('q').addEventListener('keydown', function(e){
+  if(e.key === 'Enter') doSearch();
+});
+document.getElementById('again').onclick = function(){
+  show('search');
+  document.getElementById('q').select();
+};
+document.querySelectorAll('.rail button').forEach(function(b){
+  b.onclick = function(){
+    show(b.dataset.nav);
+    if(b.dataset.nav === 'list') loadList();
+  };
+});
+
+drawKbd();
+loadHome();
+setSteps(0);
+</script>
