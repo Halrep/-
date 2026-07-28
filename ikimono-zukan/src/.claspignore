@@ -1,0 +1,9 @@
+# clasp push の対象から除外するファイル。
+# 重要：tests/harness.test.js は Node の require/fs/vm をトップレベルで呼ぶため、
+# 誤って push すると GAS 側の初回実行時に ReferenceError で全体が壊れる。
+**/node_modules/**
+**/.git/**
+.clasp.json
+.claspignore
+README.md
+tests/**
