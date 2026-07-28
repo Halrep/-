@@ -1,26 +1,27 @@
-<title>いきもの図鑑 UIプレビュー</title>
+<title>いきもの図鑑 UIプレビュー（Chromebook 横画面）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 /* ============================================================
-   いきもの図鑑 — UIプレビュー
+   いきもの図鑑 — UIプレビュー / Chromebook 横画面 最適化版
    デザインコンセプト：「標本箱」
    方眼紙の地・標本ラベル・引き出しのグリッド。
    子供向けだが玩具的にはせず、本物の図鑑の手ざわりを持たせる。
+
+   ■ 前提とした画面サイズ
+   GIGA標準の Chromebook は 1366x768。Chrome のタブ＋ツールバー(約68px)と
+   ChromeOS のシェルフ(約48px)を引くと、アプリが使えるのは 1366x650。
+   「横は広いが縦は極端に狭い」——これが全レイアウトの制約になる。
    ============================================================ */
 :root{
-  /* 地：方眼紙のペールグリーン */
   --paper:#EDF1E7; --surface:#FFFFFF; --surface2:#F5F8F0; --drawer:#E2E8DA;
   --ink:#1F2C22; --muted:#5C6C5E; --faint:#8A9A8C; --line:#D3DBCB;
-  /* 主：若葉 */
   --leaf:#2E7A4E; --leaf-ink:#FFFFFF; --leaf-soft:#E1EFE5; --leaf-line:#A8CDB4;
-  /* 副：琥珀（標本ラベル・新着） */
   --amber:#B5710D; --amber-soft:#FAEFD9; --amber-line:#E2C489;
-  /* 状態 */
   --alert:#BE3826; --alert-soft:#FADFD9; --alert-line:#EBAE9F;
   --grid:rgba(46,122,78,.07);
   --shadow:0 1px 2px rgba(31,44,34,.07), 0 6px 20px rgba(31,44,34,.06);
-  --shadow-lift:0 2px 4px rgba(31,44,34,.09), 0 14px 34px rgba(31,44,34,.11);
-  --r:14px; --r-sm:9px;
+  --shadow-lift:0 2px 4px rgba(31,44,34,.09), 0 18px 44px rgba(31,44,34,.14);
+  --r:13px; --r-sm:9px;
 }
 @media (prefers-color-scheme: dark){
   :root{
@@ -31,7 +32,7 @@
     --alert:#EC7C67; --alert-soft:#3E1F19; --alert-line:#6B342A;
     --grid:rgba(105,192,138,.07);
     --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.28);
-    --shadow-lift:0 2px 4px rgba(0,0,0,.36), 0 14px 34px rgba(0,0,0,.42);
+    --shadow-lift:0 2px 4px rgba(0,0,0,.36), 0 18px 44px rgba(0,0,0,.5);
   }
 }
 :root[data-theme="light"]{
@@ -42,7 +43,7 @@
   --alert:#BE3826; --alert-soft:#FADFD9; --alert-line:#EBAE9F;
   --grid:rgba(46,122,78,.07);
   --shadow:0 1px 2px rgba(31,44,34,.07), 0 6px 20px rgba(31,44,34,.06);
-  --shadow-lift:0 2px 4px rgba(31,44,34,.09), 0 14px 34px rgba(31,44,34,.11);
+  --shadow-lift:0 2px 4px rgba(31,44,34,.09), 0 18px 44px rgba(31,44,34,.14);
 }
 :root[data-theme="dark"]{
   --paper:#131A14; --surface:#1C241D; --surface2:#242E26; --drawer:#161E17;
@@ -52,17 +53,15 @@
   --alert:#EC7C67; --alert-soft:#3E1F19; --alert-line:#6B342A;
   --grid:rgba(105,192,138,.07);
   --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.28);
-  --shadow-lift:0 2px 4px rgba(0,0,0,.36), 0 14px 34px rgba(0,0,0,.42);
+  --shadow-lift:0 2px 4px rgba(0,0,0,.36), 0 18px 44px rgba(0,0,0,.5);
 }
 
 *{box-sizing:border-box}
 body{
   margin:0; background:var(--paper); color:var(--ink);
-  /* 丸ゴシック優先。UDフォントは子供の可読性のために設計されたもの */
   font-family:"Hiragino Maru Gothic ProN","BIZ UDPGothic","Yu Gothic UI",
               "Hiragino Kaku Gothic ProN","Noto Sans JP",Meiryo,sans-serif;
   font-size:16px; line-height:1.7; -webkit-font-smoothing:antialiased;
-  /* 方眼紙 */
   background-image:linear-gradient(var(--grid) 1px, transparent 1px),
                    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
   background-size:22px 22px;
@@ -71,35 +70,29 @@ button{font-family:inherit; font-size:inherit; color:inherit; cursor:pointer; bo
 input{font-family:inherit}
 :focus-visible{outline:3px solid var(--amber); outline-offset:2px; border-radius:4px}
 @media (prefers-reduced-motion: reduce){ *,*::before,*::after{animation:none !important; transition:none !important} }
-
-/* 標本ラベル用の等幅 */
 .mono{font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
       font-variant-numeric:tabular-nums; letter-spacing:.09em}
-
 ruby{ruby-align:center}
 rt{font-size:.52em; font-weight:600; color:var(--faint); letter-spacing:.02em}
 
-/* ---------------- プレビュー用の外枠 ---------------- */
-.bar{
-  position:sticky; top:0; z-index:60; background:var(--surface);
-  border-bottom:1px solid var(--line); padding:11px 18px;
-  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
-}
-.bar .brand{font-weight:800; letter-spacing:.01em}
+/* ================= プレビュー用の外枠 ================= */
+.bar{position:sticky; top:0; z-index:60; background:var(--surface);
+     border-bottom:1px solid var(--line); padding:11px 20px;
+     display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+.bar .brand{font-weight:800}
 .bar .tag{font-size:10.5px; color:var(--muted); border:1px solid var(--line);
           border-radius:4px; padding:2px 7px}
 .seg{display:inline-flex; gap:2px; background:var(--surface2);
      border:1px solid var(--line); border-radius:999px; padding:3px}
 .seg button{border-radius:999px; padding:6px 13px; font-size:13.5px; font-weight:700; color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--leaf); color:var(--leaf-ink)}
-.bar .right{margin-left:auto; display:flex; align-items:center; gap:10px}
+.bar .right{margin-left:auto; display:flex; align-items:center; gap:9px}
 .tog{border:1px solid var(--line); border-radius:999px; padding:6px 14px;
      font-size:13px; font-weight:700; color:var(--muted); background:var(--surface2)}
+.tog[aria-pressed="true"]{background:var(--leaf); border-color:var(--leaf); color:var(--leaf-ink)}
 
-.subbar{
-  background:var(--surface2); border-bottom:1px solid var(--line);
-  padding:9px 18px; display:none; align-items:center; gap:10px; flex-wrap:wrap;
-}
+.subbar{background:var(--surface2); border-bottom:1px solid var(--line);
+        padding:9px 20px; display:none; align-items:center; gap:9px; flex-wrap:wrap}
 .subbar.on{display:flex}
 .subbar .lbl{font-size:11px; font-weight:800; letter-spacing:.1em; color:var(--faint)}
 .pick{border:1.5px solid var(--line); background:var(--surface); border-radius:999px;
@@ -108,178 +101,198 @@ rt{font-size:.52em; font-weight:600; color:var(--faint); letter-spacing:.02em}
 .pick .st{font-size:11px; color:var(--faint); margin-left:5px}
 .pick[aria-pressed="true"] .st{color:var(--leaf)}
 
-.stage{display:flex; gap:32px; justify-content:center; align-items:flex-start;
-       padding:30px 20px 70px; flex-wrap:wrap}
+.fitwrap{padding:26px 20px 0; overflow:hidden}
+.fitinner{transform-origin:top left}
+.scalenote{max-width:1180px; margin:14px auto 0; font-size:12px; color:var(--faint); text-align:center}
 
-/* ---------------- 端末フレーム ---------------- */
-.phone{
-  width:412px; max-width:100%; height:812px; flex:none;
-  background:var(--surface); border:1px solid var(--line); border-radius:30px;
-  box-shadow:var(--shadow-lift); overflow:hidden;
-  display:flex; flex-direction:column; position:relative;
+/* ================= Chromebook の画面 ================= */
+.cb{
+  width:1366px; height:650px; background:var(--surface);
+  border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow-lift);
+  overflow:hidden; display:flex;
 }
-.status{
-  flex:none; height:30px; display:flex; align-items:center; justify-content:space-between;
-  padding:0 20px; font-size:11.5px; color:var(--faint); border-bottom:1px solid var(--line);
-  background:var(--surface2);
-}
-.view{flex:1; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch}
-.screen{display:none}
-.screen.on{display:block}
 
-.nav{
-  flex:none; display:grid; grid-template-columns:1fr 1fr; border-top:1px solid var(--line);
-  background:var(--surface2);
+/* --- 左のナビレール（縦が狭いので、下ではなく横に置く） --- */
+.rail{
+  flex:none; width:96px; background:var(--surface2); border-right:1px solid var(--line);
+  display:flex; flex-direction:column; align-items:center; padding:14px 0 10px; gap:6px;
 }
-.nav button{padding:11px 0 14px; display:grid; gap:2px; justify-items:center;
-            font-size:11.5px; font-weight:800; color:var(--faint)}
-.nav button .ic{font-size:19px; line-height:1}
-.nav button[aria-pressed="true"]{color:var(--leaf)}
+.rail .mark{width:42px; height:42px; margin-bottom:10px}
+.rail button{
+  width:80px; padding:10px 4px 9px; border-radius:11px; display:grid; gap:3px;
+  justify-items:center; font-size:11px; font-weight:800; color:var(--faint); line-height:1.35;
+}
+.rail button .ic{font-size:21px; line-height:1}
+.rail button[aria-pressed="true"]{background:var(--leaf-soft); color:var(--leaf)}
+.rail .count{margin-top:auto; font-size:10px; color:var(--faint); text-align:center; line-height:1.5}
+.rail .count b{display:block; font-size:17px; color:var(--leaf)}
 
-/* ---------------- 共通パーツ ---------------- */
-.pad{padding:20px 18px}
+.view{flex:1; min-width:0; display:flex; flex-direction:column}
+.screen{display:none; flex:1; min-height:0}
+.screen.on{display:flex; flex-direction:column}
+
+/* ================= 共通パーツ ================= */
 .eyebrow{font-size:10.5px; font-weight:800; letter-spacing:.16em; color:var(--faint)}
 
-/* 警告バー：カードより必ず上に出る */
-.banner{display:flex; gap:12px; align-items:flex-start; padding:14px 16px;
-        border-bottom:1px solid transparent}
+.banner{display:flex; gap:13px; align-items:flex-start; padding:13px 24px; flex:none}
 .banner .bic{font-size:22px; line-height:1.2; flex:none}
-.banner .bt{font-size:17px; font-weight:800; letter-spacing:.01em; margin-bottom:2px}
-.banner .bd{font-size:14px; line-height:1.6}
-.banner.alert{background:var(--alert-soft); border-bottom-color:var(--alert-line); color:var(--ink)}
+.banner .bt{font-size:18px; font-weight:800; margin-bottom:1px}
+.banner .bd{font-size:14.5px; line-height:1.6}
+.banner.alert{background:var(--alert-soft); border-bottom:1px solid var(--alert-line)}
 .banner.alert .bt{color:var(--alert)}
-.banner.warn{background:var(--amber-soft); border-bottom-color:var(--amber-line)}
+.banner.warn{background:var(--amber-soft); border-bottom:1px solid var(--amber-line)}
 .banner.warn .bt{color:var(--amber)}
-.banner ul{margin:6px 0 0; padding-left:1.1em; font-size:13.5px; line-height:1.6}
+/* 横画面では注意書きを横並びにして、縦を食わせない */
+.banner ul{margin:5px 0 0; padding:0; list-style:none; display:flex; flex-wrap:wrap; gap:6px 18px;
+           font-size:13.5px}
+.banner ul li{display:flex; gap:6px}
+.banner ul li::before{content:"・"; color:var(--faint)}
 
-/* 生き物の図 */
-.plate{position:relative; background:var(--surface2); border-bottom:1px solid var(--line);
-       padding:14px 0 10px; text-align:center}
-.plate svg{width:196px; height:196px; display:block; margin:0 auto}
-.plateno{position:absolute; top:12px; left:14px; font-size:10.5px; font-weight:700;
+/* ================= 図鑑カード（左＝標本プレート／右＝解説） ================= */
+.split{flex:1; min-height:0; display:grid; grid-template-columns:392px 1fr}
+.figpane{
+  border-right:1px solid var(--line); background:var(--surface2);
+  padding:18px 22px 16px; display:flex; flex-direction:column; position:relative; overflow:hidden;
+}
+.plateno{position:absolute; top:16px; left:20px; font-size:10.5px; font-weight:700;
          color:var(--faint); background:var(--surface); border:1px solid var(--line);
          border-radius:4px; padding:2px 8px}
-.credit{font-size:10.5px; color:var(--faint); padding:0 16px; line-height:1.5}
-
-/* 名前ブロック */
-.name{padding:16px 18px 0}
-.name h1{font-size:31px; margin:0; letter-spacing:.01em; text-wrap:balance; line-height:1.35}
+.figpane .art{flex:1; min-height:0; display:grid; place-items:center; padding:6px 0}
+.figpane .art svg{width:min(238px,100%); height:100%; max-height:238px}
+.figpane h1{font-size:30px; margin:0; line-height:1.3; text-wrap:balance}
 .rdg{font-size:12px; color:var(--faint); margin-top:3px}
-.metarow{display:flex; align-items:center; gap:8px; margin-top:9px; flex-wrap:wrap}
+.metarow{display:flex; align-items:center; gap:7px; margin-top:10px; flex-wrap:wrap}
 .cat{font-size:12px; font-weight:800; border-radius:999px; padding:4px 12px;
      background:var(--leaf-soft); color:var(--leaf); border:1px solid var(--leaf-line)}
 .diff{font-size:12px; font-weight:700; color:var(--muted); border:1px solid var(--line);
-      border-radius:999px; padding:4px 12px; background:var(--surface2)}
-.lead{padding:12px 18px 0; font-size:16px; line-height:2}
+      border-radius:999px; padding:4px 12px; background:var(--surface)}
+.credit{font-size:10.5px; color:var(--faint); line-height:1.5; margin-top:12px;
+        padding-top:10px; border-top:1px dashed var(--line)}
 
-/* 4項目カード */
-.cards{display:grid; gap:12px; padding:18px}
+.bodypane{overflow-y:auto; padding:18px 24px 24px}
+.lead{font-size:16.5px; line-height:2; margin:0 0 16px; max-width:64ch}
+/* 4項目は2x2。横の広さをここで使う */
+.cards{display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start}
 .c{background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
    box-shadow:var(--shadow); overflow:hidden}
-.c-h{display:flex; align-items:center; gap:11px; padding:13px 15px 0}
-.c-ic{width:38px; height:38px; border-radius:11px; display:grid; place-items:center;
-      font-size:20px; flex:none; background:var(--leaf-soft)}
-.c-h h2{font-size:17px; margin:0; font-weight:800}
-.c-b{padding:10px 15px 16px; font-size:15.5px; line-height:1.95}
-.kv{display:flex; gap:9px; margin-top:9px; font-size:14px; line-height:1.7}
+.c-h{display:flex; align-items:center; gap:10px; padding:12px 15px 0}
+.c-ic{width:36px; height:36px; border-radius:10px; display:grid; place-items:center;
+      font-size:19px; flex:none; background:var(--leaf-soft)}
+.c-h h2{font-size:16.5px; margin:0; font-weight:800}
+.c-b{padding:9px 15px 15px; font-size:15px; line-height:1.9}
+.kv{display:flex; gap:9px; margin-top:8px; font-size:14px; line-height:1.7}
 .kv .k{flex:none; font-weight:800; color:var(--muted); min-width:4.6em}
-.tags{display:flex; flex-wrap:wrap; gap:6px; margin-top:9px}
+.tags{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
 .tag2{font-size:13px; font-weight:700; background:var(--surface2); border:1px solid var(--line);
-      border-radius:7px; padding:4px 10px}
-.steps{margin:10px 0 0; padding:0; list-style:none; display:grid; gap:8px}
-.steps li{display:flex; gap:10px; font-size:14.5px; line-height:1.7}
-.steps .n{flex:none; width:23px; height:23px; border-radius:50%; background:var(--leaf);
-          color:var(--leaf-ink); font-size:12.5px; font-weight:800; display:grid;
+      border-radius:7px; padding:3px 10px}
+.steps{margin:9px 0 0; padding:0; list-style:none; display:grid; gap:7px}
+.steps li{display:flex; gap:9px; font-size:14.5px; line-height:1.65}
+.steps .n{flex:none; width:22px; height:22px; border-radius:50%; background:var(--leaf);
+          color:var(--leaf-ink); font-size:12px; font-weight:800; display:grid;
           place-items:center; margin-top:4px}
-.note{margin-top:11px; background:var(--amber-soft); border:1px solid var(--amber-line);
-      border-radius:var(--r-sm); padding:9px 12px; font-size:13.5px; line-height:1.65}
+.note{margin-top:10px; background:var(--amber-soft); border:1px solid var(--amber-line);
+      border-radius:var(--r-sm); padding:8px 12px; font-size:13.5px; line-height:1.6}
 .note b{color:var(--amber)}
-
-/* 危険・違法のときに「捕まえ方／飼い方」の代わりに出るカード */
 .c.blocked{border-color:var(--alert-line); background:var(--alert-soft)}
-.c.blocked .c-ic{background:var(--alert); color:#fff}
+.c.blocked .c-ic{background:var(--alert)}
 .c.blocked .c-h h2{color:var(--alert)}
+.sources{margin:16px 0 0; font-size:11.5px; color:var(--faint); line-height:1.7}
 
-.sources{padding:0 18px 26px; font-size:12px; color:var(--faint); line-height:1.7}
-.sources a{color:var(--muted)}
-
-/* ---------------- 画面1：さがす ---------------- */
-.hero{padding:26px 18px 6px}
-.hero .kicker{font-size:12px; font-weight:800; letter-spacing:.14em; color:var(--leaf)}
-.hero h1{font-size:26px; margin:7px 0 0; line-height:1.5; text-wrap:balance}
-.search{display:flex; gap:9px; padding:16px 18px 0}
-.search input{
-  flex:1; min-width:0; font-size:18px; padding:15px 16px; border-radius:var(--r);
-  border:2px solid var(--line); background:var(--surface); color:var(--ink);
-}
+/* ================= さがす ================= */
+.searchpane{flex:1; min-height:0; display:grid; grid-template-columns:1fr 560px; overflow:hidden}
+.sleft{padding:34px 30px 24px; display:flex; flex-direction:column; overflow-y:auto}
+.kicker{font-size:12px; font-weight:800; letter-spacing:.14em; color:var(--leaf)}
+.sleft h1{font-size:32px; margin:8px 0 0; line-height:1.45; text-wrap:balance}
+.search{display:flex; gap:10px; margin-top:22px; max-width:640px}
+.search input{flex:1; min-width:0; font-size:20px; padding:15px 17px; border-radius:var(--r);
+              border:2px solid var(--line); background:var(--surface); color:var(--ink)}
 .search input::placeholder{color:var(--faint)}
 .search input:focus{border-color:var(--leaf); outline:none}
 .go{background:var(--leaf); color:var(--leaf-ink); border-radius:var(--r);
-    padding:0 20px; font-size:17px; font-weight:800; min-height:56px; flex:none}
+    padding:0 26px; font-size:18px; font-weight:800; min-height:58px; flex:none}
 .go:active{transform:translateY(1px)}
-.hint{padding:9px 18px 0; font-size:13px; color:var(--muted)}
-.sect{padding:26px 18px 0}
-.sect h2{font-size:14px; margin:0 0 11px; font-weight:800; color:var(--muted)}
-.quick{display:flex; flex-wrap:wrap; gap:9px}
+.hint{margin:9px 0 0; font-size:13px; color:var(--muted)}
+.sleft h2{font-size:13.5px; margin:26px 0 10px; font-weight:800; color:var(--muted)}
+.quick{display:flex; flex-wrap:wrap; gap:8px; max-width:640px}
 .q{border:1.5px solid var(--line); background:var(--surface); border-radius:999px;
-   padding:11px 17px; font-size:15px; font-weight:700; min-height:48px}
+   padding:10px 17px; font-size:15px; font-weight:700; min-height:46px}
 .q:hover{border-color:var(--leaf-line); background:var(--leaf-soft)}
+
+.sright{border-left:1px solid var(--line); background:var(--surface2);
+        padding:22px 24px; overflow-y:auto; display:flex; flex-direction:column; gap:18px}
+.panel h2{font-size:13.5px; margin:0 0 10px; font-weight:800; color:var(--muted);
+          display:flex; align-items:center; gap:8px}
 .recent{display:grid; gap:1px; background:var(--line); border:1px solid var(--line);
         border-radius:var(--r); overflow:hidden}
-.recent .r{display:flex; align-items:center; gap:12px; background:var(--surface); padding:11px 14px}
-.recent .r svg{width:38px; height:38px; flex:none}
-.recent .r .rn{font-weight:800; font-size:15.5px}
-.recent .r .rt2{font-size:11.5px; color:var(--faint)}
+.recent .r{display:flex; align-items:center; gap:11px; background:var(--surface); padding:9px 13px}
+.recent .r svg{width:34px; height:34px; flex:none}
+.recent .r .rn{font-weight:800; font-size:15px}
+.recent .r .rt2{font-size:11px; color:var(--faint)}
 .recent .r .ra{margin-left:auto; color:var(--faint); font-size:17px}
 .newbadge{font-size:10px; font-weight:800; color:var(--amber); background:var(--amber-soft);
-          border:1px solid var(--amber-line); border-radius:4px; padding:1px 6px; margin-left:7px}
+          border:1px solid var(--amber-line); border-radius:4px; padding:1px 6px; margin-left:6px}
 
-/* ---------------- 画面2：さがし中 ---------------- */
-.loading{display:grid; place-items:center; gap:18px; padding:110px 30px; text-align:center}
-.lens{width:92px; height:92px; animation:sweep 2.6s ease-in-out infinite}
-@keyframes sweep{
-  0%,100%{transform:translate(-14px,4px) rotate(-9deg)}
-  50%{transform:translate(14px,-6px) rotate(9deg)}
-}
-.loading h2{font-size:21px; margin:0; font-weight:800}
+/* --- ひらがなキーボード（Chromebookのローマ字入力が壁になる低学年向け） --- */
+.kbd{background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:11px}
+.kbd .kg{display:grid; grid-template-rows:repeat(5,1fr); grid-auto-flow:column;
+         grid-auto-columns:1fr; gap:4px}
+.kbd .k{height:38px; border:1px solid var(--line); border-radius:7px; background:var(--surface2);
+        font-size:17px; font-weight:700}
+.kbd .k:hover{background:var(--leaf-soft); border-color:var(--leaf-line)}
+.kbd .k.void{border:0; background:none; pointer-events:none}
+.kbd .krow{display:flex; gap:5px; margin-top:7px}
+.kbd .km{flex:1; height:38px; border:1px solid var(--line); border-radius:7px;
+         background:var(--surface2); font-size:14px; font-weight:800}
+.kbd .km.wide{flex:1.5}
+.kbd .km:hover{background:var(--leaf-soft); border-color:var(--leaf-line)}
+
+/* ================= みんなの図鑑 ================= */
+.listhead{flex:none; padding:20px 26px 0; display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap}
+.listhead h1{font-size:25px; margin:5px 0 0}
+.filters{display:flex; gap:7px; margin-left:auto; flex-wrap:wrap}
+.f{border:1.5px solid var(--line); background:var(--surface); border-radius:999px;
+   padding:7px 15px; font-size:14px; font-weight:700; color:var(--muted); white-space:nowrap}
+.f[aria-pressed="true"]{background:var(--leaf); border-color:var(--leaf); color:var(--leaf-ink)}
+.drawerwrap{flex:1; min-height:0; overflow-y:auto; padding:14px 26px 24px}
+.drawer{background:var(--drawer); border:1px solid var(--line); border-radius:var(--r);
+        padding:14px; box-shadow:inset 0 2px 7px rgba(31,44,34,.09)}
+.grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(178px,1fr)); gap:12px}
+.sp{background:var(--surface); border:1px solid var(--line); border-radius:var(--r-sm);
+    padding:11px 9px 9px; text-align:center; box-shadow:var(--shadow); position:relative;
+    transition:transform .12s, box-shadow .12s}
+.sp:hover{transform:translateY(-2px); box-shadow:var(--shadow-lift)}
+.sp svg{width:100%; height:74px; display:block}
+.sp .spn{font-size:13.5px; font-weight:800; margin-top:6px; line-height:1.35; min-height:2.7em}
+.sp .spno{font-size:10px; color:var(--faint)}
+.sp .flag{position:absolute; top:6px; right:6px; font-size:13px}
+
+/* ================= さがし中／みつからない ================= */
+.center{flex:1; min-height:0; display:grid; place-items:center; padding:20px}
+.loading{display:grid; justify-items:center; gap:14px; text-align:center}
+.lens{width:88px; height:88px; animation:sweep 2.6s ease-in-out infinite}
+@keyframes sweep{0%,100%{transform:translate(-14px,4px) rotate(-9deg)}
+                 50%{transform:translate(14px,-6px) rotate(9deg)}}
+.loading h2{font-size:22px; margin:0; font-weight:800}
 .loading p{margin:0; font-size:14.5px; color:var(--muted); line-height:1.8}
 .bardots{display:flex; gap:6px}
 .bardots i{width:9px; height:9px; border-radius:50%; background:var(--leaf-line);
            animation:blip 1.3s ease-in-out infinite}
 .bardots i:nth-child(2){animation-delay:.18s} .bardots i:nth-child(3){animation-delay:.36s}
 @keyframes blip{0%,100%{opacity:.3; transform:scale(.8)} 50%{opacity:1; transform:scale(1)}}
-.steps2{margin-top:6px; display:grid; gap:7px; text-align:left; font-size:13px; color:var(--muted)}
-.steps2 div{display:flex; gap:9px; align-items:center}
+/* 横画面なので進捗は横一列に */
+.steps2{display:flex; gap:22px; font-size:13px; color:var(--muted); margin-top:4px}
+.steps2 div{display:flex; gap:7px; align-items:center}
 .steps2 .dn{color:var(--leaf); font-weight:800}
-
-/* ---------------- 画面3：みんなの図鑑 ---------------- */
-.filters{display:flex; gap:7px; padding:14px 18px 0; overflow-x:auto; scrollbar-width:thin}
-.f{flex:none; border:1.5px solid var(--line); background:var(--surface); border-radius:999px;
-   padding:8px 15px; font-size:14px; font-weight:700; color:var(--muted); white-space:nowrap}
-.f[aria-pressed="true"]{background:var(--leaf); border-color:var(--leaf); color:var(--leaf-ink)}
-/* 標本箱の引き出し */
-.drawer{margin:14px 18px 24px; background:var(--drawer); border:1px solid var(--line);
-        border-radius:var(--r); padding:12px; box-shadow:inset 0 2px 7px rgba(31,44,34,.09)}
-.grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
-.sp{background:var(--surface); border:1px solid var(--line); border-radius:var(--r-sm);
-    padding:9px 7px 8px; text-align:center; box-shadow:var(--shadow); position:relative}
-.sp svg{width:100%; height:62px; display:block}
-/* 名前が2行になっても タイルの高さを揃える */
-.sp .spn{font-size:12.5px; font-weight:800; margin-top:5px; line-height:1.35; min-height:2.7em}
-.sp .spno{font-size:9.5px; color:var(--faint); margin-top:2px}
-.sp .flag{position:absolute; top:5px; right:5px; font-size:12px}
-.count{padding:0 18px; font-size:12.5px; color:var(--muted)}
-
-/* ---------------- 画面4：みつからない ---------------- */
-.empty{display:grid; place-items:center; gap:14px; padding:80px 34px; text-align:center}
-.empty .em{font-size:46px}
-.empty h2{font-size:20px; margin:0}
+.empty{display:grid; justify-items:center; gap:12px; text-align:center; max-width:520px}
+.empty .em{font-size:44px}
+.empty h2{font-size:21px; margin:0}
 .empty p{margin:0; color:var(--muted); font-size:14.5px; line-height:1.85}
 .empty .again{background:var(--leaf); color:var(--leaf-ink); border-radius:var(--r);
-              padding:13px 26px; font-weight:800; font-size:16px; margin-top:6px}
+              padding:13px 28px; font-weight:800; font-size:16px; margin-top:4px}
 
-/* ---------------- 注釈パネル ---------------- */
-.notes{width:390px; flex:1 1 340px; max-width:460px; display:grid; gap:14px}
+/* ================= 注釈 ================= */
+.notes{max-width:1180px; margin:0 auto; padding:26px 20px 70px;
+       display:grid; grid-template-columns:repeat(auto-fit,minmax(330px,1fr)); gap:14px; align-items:start}
 .nc{background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
     padding:16px 18px; box-shadow:var(--shadow)}
 .nc h3{margin:0 0 9px; font-size:14.5px; font-weight:800; display:flex; align-items:center; gap:8px}
@@ -291,12 +304,11 @@ rt{font-size:.52em; font-weight:600; color:var(--faint); letter-spacing:.02em}
 .nc li{margin-bottom:5px}
 .nc.flagged{border-color:var(--amber-line); background:var(--amber-soft)}
 .nc.flagged h3::before{background:var(--amber)}
-@media (max-width:900px){ .notes{max-width:412px} }
 </style>
 
 <div class="bar">
   <span class="brand">いきもの図鑑</span>
-  <span class="tag">UIプレビュー / フェーズ1</span>
+  <span class="tag">UIプレビュー / Chromebook 横画面</span>
   <div class="seg" id="screens">
     <button data-s="search" aria-pressed="true">さがす</button>
     <button data-s="loading" aria-pressed="false">さがし中</button>
@@ -305,6 +317,8 @@ rt{font-size:.52em; font-weight:600; color:var(--faint); letter-spacing:.02em}
     <button data-s="none" aria-pressed="false">みつからない</button>
   </div>
   <div class="right">
+    <button class="tog" id="r1366" aria-pressed="true">1366×768</button>
+    <button class="tog" id="r1920" aria-pressed="false">1920×1080</button>
     <button class="tog" id="theme">テーマ切替</button>
   </div>
 </div>
@@ -317,150 +331,181 @@ rt{font-size:.52em; font-weight:600; color:var(--faint); letter-spacing:.02em}
   <button class="pick" data-c="ushi" aria-pressed="false">ウシガエル<span class="st">飼育禁止</span></button>
 </div>
 
-<div class="stage">
-  <div class="phone">
-    <div class="status"><span>9:41</span><span id="stitle">さがす</span></div>
-    <div class="view" id="view">
+<div class="fitwrap" id="fitwrap"><div class="fitinner" id="fitinner">
+<div class="cb" id="cb">
 
-      <!-- ============ 画面1：さがす ============ -->
-      <section class="screen on" id="s-search">
-        <div class="hero">
+  <!-- ===== 左のナビレール ===== -->
+  <nav class="rail">
+    <svg class="mark" viewBox="0 0 100 100" aria-hidden="true">
+      <circle cx="42" cy="42" r="27" fill="none" stroke="var(--leaf)" stroke-width="8"/>
+      <circle cx="42" cy="42" r="22" fill="var(--leaf-soft)"/>
+      <path d="M62 62 86 86" stroke="var(--amber)" stroke-width="12" stroke-linecap="round"/>
+    </svg>
+    <button data-s="search" aria-pressed="true"><span class="ic">🔍</span>さがす</button>
+    <button data-s="list" aria-pressed="false"><span class="ic">📚</span>みんなの<br>ずかん</button>
+    <div class="count"><b>10</b>しゅるい<br>あつまった</div>
+  </nav>
+
+  <div class="view" id="view">
+
+    <!-- ===== さがす ===== -->
+    <section class="screen on" id="s-search">
+      <div class="searchpane">
+        <div class="sleft">
           <div class="kicker">みんなでつくる ずかん</div>
           <h1>しらべた いきものが、<br>みんなの ずかんに たまっていく。</h1>
-        </div>
-        <div class="search">
-          <input type="text" placeholder="いきものの なまえ" value="かぶとむし" aria-label="いきものの名前">
-          <button class="go">しらべる</button>
-        </div>
-        <p class="hint">ひらがなでも カタカナでも かんじでも だいじょうぶ。</p>
-
-        <div class="sect">
+          <div class="search">
+            <input type="text" id="q" placeholder="いきものの なまえ" value="かぶとむし" aria-label="いきものの名前">
+            <button class="go">しらべる</button>
+          </div>
+          <p class="hint">ひらがなでも カタカナでも かんじでも だいじょうぶ。キーボードが むずかしい ときは →</p>
           <h2>よく しらべられて いる いきもの</h2>
           <div class="quick">
             <button class="q">カブトムシ</button><button class="q">ダンゴムシ</button>
             <button class="q">アメリカザリガニ</button><button class="q">カナヘビ</button>
             <button class="q">メダカ</button><button class="q">テントウムシ</button>
-            <button class="q">カタツムリ</button>
+            <button class="q">カタツムリ</button><button class="q">アメンボ</button>
           </div>
         </div>
-
-        <div class="sect" style="padding-bottom:26px">
-          <h2>さいきん みんなが しらべた いきもの</h2>
-          <div class="recent" id="recent"></div>
-        </div>
-      </section>
-
-      <!-- ============ 画面2：さがし中 ============ -->
-      <section class="screen" id="s-loading">
-        <div class="loading">
-          <svg class="lens" viewBox="0 0 100 100" aria-hidden="true">
-            <circle cx="42" cy="42" r="27" fill="none" stroke="var(--leaf)" stroke-width="7"/>
-            <circle cx="42" cy="42" r="22" fill="var(--leaf-soft)" opacity=".65"/>
-            <path d="M62 62 L86 86" stroke="var(--amber)" stroke-width="11" stroke-linecap="round"/>
-          </svg>
-          <h2>さがして います…</h2>
-          <div class="bardots" aria-hidden="true"><i></i><i></i><i></i></div>
-          <p>はじめての いきものは、<br>20びょう くらい かかります。</p>
-          <div class="steps2">
-            <div><span class="dn">✓</span><span>みんなの ずかんを さがした</span></div>
-            <div><span class="dn">✓</span><span>ずかんの じょうほうを あつめた</span></div>
-            <div><span style="color:var(--faint)">…</span><span>しゃしんを さがして いる</span></div>
+        <aside class="sright">
+          <div class="panel">
+            <h2>ひらがな キーボード</h2>
+            <div class="kbd">
+              <div class="kg" id="kg"></div>
+              <div class="krow">
+                <button class="km" data-m="dakuten">゛ てんてん</button>
+                <button class="km" data-m="handakuten">゜ まる</button>
+                <button class="km" data-m="small">ちいさく</button>
+                <button class="km wide" data-m="back">← けす</button>
+              </div>
+            </div>
           </div>
+          <div class="panel">
+            <h2>さいきん みんなが しらべた いきもの</h2>
+            <div class="recent" id="recent"></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ===== さがし中 ===== -->
+    <section class="screen" id="s-loading">
+      <div class="center"><div class="loading">
+        <svg class="lens" viewBox="0 0 100 100" aria-hidden="true">
+          <circle cx="42" cy="42" r="27" fill="none" stroke="var(--leaf)" stroke-width="7"/>
+          <circle cx="42" cy="42" r="22" fill="var(--leaf-soft)" opacity=".65"/>
+          <path d="M62 62 86 86" stroke="var(--amber)" stroke-width="11" stroke-linecap="round"/>
+        </svg>
+        <h2>さがして います…</h2>
+        <div class="bardots" aria-hidden="true"><i></i><i></i><i></i></div>
+        <p>はじめての いきものは、20びょう くらい かかります。</p>
+        <div class="steps2">
+          <div><span class="dn">✓</span><span>みんなの ずかんを さがした</span></div>
+          <div><span class="dn">✓</span><span>ずかんの じょうほうを あつめた</span></div>
+          <div><span style="color:var(--faint)">…</span><span>しゃしんを さがして いる</span></div>
         </div>
-      </section>
+      </div></div>
+    </section>
 
-      <!-- ============ 画面3：図鑑カード ============ -->
-      <section class="screen" id="s-card"></section>
+    <!-- ===== 図鑑カード ===== -->
+    <section class="screen" id="s-card"></section>
 
-      <!-- ============ 画面4：みんなの図鑑 ============ -->
-      <section class="screen" id="s-list">
-        <div class="pad" style="padding-bottom:0">
+    <!-- ===== みんなの図鑑 ===== -->
+    <section class="screen" id="s-list">
+      <div class="listhead">
+        <div>
           <div class="eyebrow">みんなの ずかん</div>
-          <h1 style="font-size:24px; margin:6px 0 0">10しゅるい あつまった</h1>
+          <h1 id="count">10しゅるい あつまった</h1>
         </div>
         <div class="filters" id="filters"></div>
-        <p class="count" id="count" style="padding-top:12px"></p>
-        <div class="drawer"><div class="grid" id="grid"></div></div>
-      </section>
+      </div>
+      <div class="drawerwrap"><div class="drawer"><div class="grid" id="grid"></div></div></div>
+    </section>
 
-      <!-- ============ 画面5：みつからない ============ -->
-      <section class="screen" id="s-none">
-        <div class="empty">
-          <div class="em" aria-hidden="true">🔍</div>
-          <h2>その いきもの、みつからなかった</h2>
-          <p>「あああ」は いきものの なまえでは ないみたい。<br>
-             もういちど なまえを たしかめて みてね。</p>
-          <button class="again">もういちど さがす</button>
+    <!-- ===== みつからない ===== -->
+    <section class="screen" id="s-none">
+      <div class="center"><div class="empty">
+        <div class="em" aria-hidden="true">🔍</div>
+        <h2>その いきもの、みつからなかった</h2>
+        <p>「あああ」は いきものの なまえでは ないみたい。<br>
+           もういちど なまえを たしかめて みてね。</p>
+        <button class="again">もういちど さがす</button>
+        <div class="note" style="text-align:left; margin-top:14px">
+          <b>設計メモ：</b>Gemini が返す <span class="mono">is_creature</span> が偽のときの画面。
+          ここで止めることで、図鑑シートにゴミデータが入らない。入力は検索ログにだけ残る。
         </div>
-        <div class="pad" style="padding-top:0">
-          <div class="note"><b>設計メモ：</b>Gemini が返す <span class="mono">is_creature</span> が偽のときの画面。
-            ここで止めることで、図鑑シートにゴミデータが入らない。入力は検索ログにだけ残る。</div>
-        </div>
-      </section>
+      </div></div>
+    </section>
 
-    </div>
-    <div class="nav" id="nav">
-      <button data-s="search" aria-pressed="true"><span class="ic">🔍</span>さがす</button>
-      <button data-s="list" aria-pressed="false"><span class="ic">📚</span>みんなの ずかん</button>
-    </div>
   </div>
+</div>
+</div></div>
+<p class="scalenote" id="scalenote"></p>
 
-  <!-- ============ 注釈 ============ -->
-  <div class="notes">
-    <div class="nc">
-      <h3>このプレビューで見てほしいところ</h3>
-      <p>上の切替で <strong>4種の生き物</strong>を見比べてください。危険度と法規制によって、
-         <strong>カードの構成そのものが変わります</strong>。警告を小さく添えるのではなく、
-         見せてはいけない情報は<strong>存在させない</strong>という方針を形にしています。</p>
-      <ul>
-        <li><strong>カブトムシ</strong>（安全）— 4項目すべて表示</li>
-        <li><strong>スズメバチ</strong>（危険）— 「つかまえかた」が消え、「みつけたときは」に置き換わる</li>
-        <li><strong>アメリカザリガニ</strong>（条件付特定外来生物）— 飼えるが、放出禁止の警告が常時ついてまわる</li>
-        <li><strong>ウシガエル</strong>（特定外来生物）— 「つかまえかた」も「かいかた」も消える。生きた運搬も禁止のため</li>
-      </ul>
-    </div>
-    <div class="nc">
-      <h3>デザインの方針</h3>
-      <p><strong>「標本箱」</strong>をコンセプトにしました。子供向けを原色の玩具的な見た目に
-         短絡させず、本物の図鑑の手ざわり —— 方眼紙の地、標本ラベル（プレート番号）、
-         引き出しを覗くようなグリッド —— を持たせています。
-         「研究者みたいなことをしている」という感覚が、この年齢の子には効きます。</p>
-      <p>本文は<strong>丸ゴシック／UDフォント</strong>。UDフォントは子供の可読性のために
-         設計された書体で、これは制約への妥協ではなく積極的な選択です。
-         ラベルと番号だけ等幅にして、標本札の質感を出しています。</p>
-    </div>
-    <div class="nc">
-      <h3>ふりがなの実装方針</h3>
-      <p>本文は <span class="mono">｜漢字《かんじ》</span> という記法（青空文庫式）で持ち、
-         表示時に <span class="mono">&lt;ruby&gt;</span> に変換しています。
-         このプレビューでも実際にその変換で動いています。
-         Gemini にこの記法で返させれば、辞書を持たずにふりがなを実現できます。</p>
-    </div>
-    <div class="nc flagged">
-      <h3>作ってみて気づいた、構想書の修正点</h3>
-      <p>カテゴリの enum に <strong>川や池の生き物の居場所がありません</strong>。
-         現在は「うみのいきもの」しかないため、アメリカザリガニやメダカの扱いが
-         「そのほか」に落ちてしまいます。子供が最もよく捕まえる層がここです。</p>
-      <p>このプレビューでは <strong>「みずのいきもの」</strong>に変えて海・川・池をまとめました。
-         フェーズ2の実装前に、構想書 §4 のスキーマを直しておきます。</p>
-    </div>
-    <div class="nc">
-      <h3>まだ入れていないもの</h3>
-      <ul>
-        <li>写真は<strong>プロトタイプ用のイラスト</strong>です。実装では Wikipedia の実写が入り、
-            下に作者名とライセンスのクレジットが出ます（位置だけ再現しています）</li>
-        <li>読み上げボタン（フェーズ3）</li>
-        <li>「つかまえた！」の記録（フェーズ4）</li>
-      </ul>
-    </div>
+<div class="notes">
+  <div class="nc flagged">
+    <h3>Chromebook 横画面で いちばん効く制約</h3>
+    <p>GIGA標準の Chromebook は <strong>1366×768</strong>。Chrome のタブ＋ツールバー（約68px）と
+       ChromeOS のシェルフ（約48px）を引くと、アプリが実際に使えるのは
+       <strong>1366×650</strong> しかありません。</p>
+    <p><strong>「横は広いが、縦は極端に狭い」</strong>——これが全レイアウトの起点です。
+       スマホ版から素直に横に広げるのではなく、<strong>縦を食う要素を横に逃がす</strong>設計に
+       作り替えました。</p>
+  </div>
+  <div class="nc">
+    <h3>縦を空けるために変えたこと</h3>
+    <ul>
+      <li><strong>下タブ → 左レール</strong>。画面下のナビは縦を60px以上食うため、横に移した</li>
+      <li><strong>図鑑カードを左右2段組</strong>に。左＝標本プレート（図・名前・カテゴリ）は固定、
+          右＝解説だけがスクロールする。<strong>写真と名前が常に見えたまま</strong>読める</li>
+      <li><strong>4項目を2×2</strong>に。縦1列だと4回スクロールが要るが、2×2なら1画面にほぼ収まる</li>
+      <li><strong>警告の箇条書きを横並び</strong>に。縦積みだと危険情報だけで100px超を食う</li>
+      <li><strong>一覧は3列→6列</strong>（<span class="mono">auto-fill</span> で画面幅に追従）</li>
+    </ul>
+  </div>
+  <div class="nc flagged">
+    <h3>Chromebook で新たに見つかった課題：日本語入力</h3>
+    <p>スマホと違い、Chromebook には<strong>フリック入力がありません</strong>。
+       日本語を打つには IME を切り替えて<strong>ローマ字入力</strong>する必要があり、
+       ローマ字を習っていない低学年には、ここが検索そのものより高い壁になります。</p>
+    <p>そこで横画面の余白を使い、<strong>五十音のひらがなキーボード</strong>を常設しました。
+       「゛てんてん」「゜まる」「ちいさく」は直前の文字を変換する方式なので、
+       50音＋4キーだけで濁音・半濁音・拗音まで打てます。実際に動くので試してください。</p>
+  </div>
+  <div class="nc">
+    <h3>このプレビューで見てほしいところ</h3>
+    <p>上の切替で <strong>4種の生き物</strong>を見比べてください。危険度と法規制によって、
+       <strong>カードの構成そのものが変わります</strong>。</p>
+    <ul>
+      <li><strong>カブトムシ</strong>（安全）— 4項目すべて表示</li>
+      <li><strong>スズメバチ</strong>（危険）— 「つかまえかた」が消え、「みつけたときは」に置き換わる</li>
+      <li><strong>アメリカザリガニ</strong>（条件付特定外来生物）— 飼えるが、放出禁止の警告が付いてまわる</li>
+      <li><strong>ウシガエル</strong>（特定外来生物）— 「つかまえかた」も「かいかた」も消える</li>
+    </ul>
+  </div>
+  <div class="nc">
+    <h3>デザインの方針</h3>
+    <p><strong>「標本箱」</strong>をコンセプトにしました。子供向けを原色の玩具的な見た目に
+       短絡させず、本物の図鑑の手ざわり —— 方眼紙の地、標本ラベル（プレート番号）、
+       引き出しを覗くようなグリッド —— を持たせています。</p>
+    <p>本文は<strong>丸ゴシック／UDフォント</strong>。UDフォントは子供の可読性のために
+       設計された書体で、これは制約への妥協ではなく積極的な選択です。
+       ラベルと番号だけ等幅にして、標本札の質感を出しています。</p>
+  </div>
+  <div class="nc">
+    <h3>ふりがなの実装方針</h3>
+    <p>本文は <span class="mono">｜漢字《かんじ》</span> という記法（青空文庫式）で持ち、
+       表示時に <span class="mono">&lt;ruby&gt;</span> に変換しています。
+       このプレビューも実際にその変換で動いています。
+       Gemini にこの記法で返させれば、辞書を持たずにふりがなを実現できます。</p>
+    <p>図はプロトタイプ用のイラストです。実装では Wikipedia の実写が入り、
+       下に作者名とライセンスのクレジットが出ます（位置だけ再現しています）。</p>
   </div>
 </div>
 
 <script>
 /* ｜漢字《かんじ》 → <ruby>漢字<rt>かんじ</rt></ruby> */
-function rb(s){
-  return String(s).replace(/｜([^《]+)《([^》]+)》/g, '<ruby>$1<rt>$2</rt></ruby>');
-}
+function rb(s){ return String(s).replace(/｜([^《]+)《([^》]+)》/g,'<ruby>$1<rt>$2</rt></ruby>'); }
 
 /* ---------------- 生き物の図（プロトタイプ用） ---------------- */
 const ART = {
@@ -476,7 +521,6 @@ const ART = {
     <g stroke="#33240F" stroke-width="9" stroke-linecap="round" fill="none">
       <path d="M100 43 C96 29 88 21 79 15"/><path d="M100 43 C104 29 112 21 121 15"/></g>
     <ellipse cx="86" cy="116" rx="9" ry="20" fill="#5E4229" opacity=".45"/></svg>`,
-
   suzume:`<svg viewBox="0 0 200 200" aria-label="スズメバチのイラスト" role="img">
     <g fill="#BFCBD4" opacity=".5">
       <ellipse cx="64" cy="106" rx="37" ry="14" transform="rotate(-27 64 106)"/>
@@ -494,7 +538,6 @@ const ART = {
     <g fill="#26200F"><ellipse cx="91" cy="67" rx="5" ry="7"/><ellipse cx="109" cy="67" rx="5" ry="7"/></g>
     <g stroke="#26200F" stroke-width="5" stroke-linecap="round" fill="none">
       <path d="M92 56 C86 46 80 42 74 40"/><path d="M108 56 C114 46 120 42 126 40"/></g></svg>`,
-
   zari:`<svg viewBox="0 0 200 200" aria-label="アメリカザリガニのイラスト" role="img">
     <g stroke="#A6371F" stroke-width="8" stroke-linecap="round" fill="none">
       <path d="M80 92 62 78"/><path d="M120 92 138 78"/></g>
@@ -514,7 +557,6 @@ const ART = {
     <path d="M100 156 74 182 100 171 126 182Z" fill="#C4462D"/>
     <path d="M100 66 100 50" stroke="#A6371F" stroke-width="6" stroke-linecap="round"/>
     <circle cx="90" cy="72" r="5" fill="#2A1410"/><circle cx="110" cy="72" r="5" fill="#2A1410"/></svg>`,
-
   ushi:`<svg viewBox="0 0 200 200" aria-label="ウシガエルのイラスト" role="img">
     <g fill="#5E8A3C">
       <path d="M64 110 C34 114 26 142 42 160 C56 174 78 166 80 148Z"/>
@@ -528,7 +570,6 @@ const ART = {
     <path d="M78 86 Q100 98 122 86" stroke="#4E7431" stroke-width="4" fill="none" stroke-linecap="round"/>
     <g fill="#4E7431" opacity=".45"><ellipse cx="86" cy="108" rx="9" ry="7"/>
       <ellipse cx="116" cy="122" rx="8" ry="6"/><ellipse cx="98" cy="142" rx="10" ry="7"/></g></svg>`,
-
   dango:`<svg viewBox="0 0 200 200" aria-label="ダンゴムシ" role="img">
     <ellipse cx="100" cy="108" rx="52" ry="62" fill="#6E6B63"/>
     <g stroke="#4F4D47" stroke-width="4" fill="none">
@@ -536,7 +577,6 @@ const ART = {
       <path d="M54 134 Q100 122 146 134"/><path d="M60 152 Q100 142 140 152"/></g>
     <ellipse cx="100" cy="58" rx="30" ry="18" fill="#5B5952"/>
     <g stroke="#4F4D47" stroke-width="5" stroke-linecap="round"><path d="M84 46 70 32"/><path d="M116 46 130 32"/></g></svg>`,
-
   tentou:`<svg viewBox="0 0 200 200" aria-label="テントウムシ" role="img">
     <circle cx="100" cy="114" r="54" fill="#C6362B"/>
     <path d="M100 60 100 168" stroke="#2A1A16" stroke-width="5"/>
@@ -544,12 +584,10 @@ const ART = {
       <circle cx="78" cy="134" r="10"/><circle cx="122" cy="134" r="10"/><circle cx="100" cy="152" r="8"/></g>
     <ellipse cx="100" cy="60" rx="26" ry="18" fill="#2A1A16"/>
     <circle cx="90" cy="56" r="5" fill="#F0EDE4"/><circle cx="110" cy="56" r="5" fill="#F0EDE4"/></svg>`,
-
   medaka:`<svg viewBox="0 0 200 200" aria-label="メダカ" role="img">
     <path d="M52 100 C62 72 118 68 144 96 L174 72 168 100 174 128 144 104 C118 132 62 128 52 100Z" fill="#B99A4E"/>
     <path d="M100 72 114 56 122 78Z" fill="#A98C44"/><path d="M100 128 112 144 120 122Z" fill="#A98C44"/>
     <circle cx="74" cy="94" r="7" fill="#241D10"/></svg>`,
-
   katatsumuri:`<svg viewBox="0 0 200 200" aria-label="カタツムリ" role="img">
     <path d="M44 158 C36 132 60 122 92 126 L142 132 C152 150 130 160 104 160Z" fill="#C0AC85"/>
     <g stroke="#C0AC85" stroke-width="7" stroke-linecap="round" fill="none">
@@ -558,7 +596,6 @@ const ART = {
     <circle cx="120" cy="96" r="42" fill="#A9763E"/>
     <g fill="none" stroke="#7E5629" stroke-width="6">
       <circle cx="120" cy="96" r="29"/><circle cx="125" cy="101" r="17"/><circle cx="129" cy="104" r="7"/></g></svg>`,
-
   kanahebi:`<svg viewBox="0 0 200 200" aria-label="カナヘビ" role="img">
     <g stroke="#7A6A42" stroke-width="9" stroke-linecap="round" fill="none">
       <path d="M88 72 58 58"/><path d="M112 72 142 58"/><path d="M88 118 58 134"/><path d="M112 118 142 134"/></g>
@@ -566,7 +603,6 @@ const ART = {
              C92 168 88 140 88 112 C88 96 86 78 84 60 C82 46 88 34 100 34Z" fill="#7A6A42"/>
     <path d="M100 60 100 152" stroke="#5E5232" stroke-width="3"/>
     <circle cx="93" cy="46" r="4" fill="#241E12"/><circle cx="107" cy="46" r="4" fill="#241E12"/></svg>`,
-
   amenbo:`<svg viewBox="0 0 200 200" aria-label="アメンボ" role="img">
     <g stroke="#3A4034" stroke-width="4" stroke-linecap="round" fill="none">
       <path d="M96 88 C70 72 44 58 26 42"/><path d="M104 88 C130 72 156 58 174 42"/>
@@ -577,8 +613,6 @@ const ART = {
 };
 
 /* ---------------- 生き物データ ---------------- */
-/* legal: none | conditional_invasive | invasive_banned | protected
-   danger: safe | caution | danger                                     */
 const C = {
   kabuto:{
     plate:'No.001', name:'カブトムシ', reading:'かぶとむし', cat:'むし', art:'kabuto',
@@ -605,7 +639,6 @@ const C = {
                        'マットが かわいたら きりふきで しめらせる'],
              text:'｜秋《あき》には｜寿命《じゅみょう》を むかえます。さいごまで｜大切《たいせつ》に｜世話《せわ》を して あげましょう。'}
   },
-
   suzume:{
     plate:'No.014', name:'スズメバチ', reading:'すずめばち', cat:'むし', art:'suzume',
     danger:'danger', legal:'none', release:false, difficulty:'かえません',
@@ -619,7 +652,7 @@ const C = {
              text:'｜秋《あき》に なると｜巣《す》を｜守《まも》る ちからが つよく なり、'+
                   '｜近《ちか》づいた だけで おそって くる ことが あります。'},
     catching:null,
-    instead:{icon:'🚸', title:'みつけた ときは', kind:'catch',
+    instead:{icon:'🚸', title:'みつけた ときは',
              steps:['｜手《て》で はらったり、あおいだり しない',
                     'しずかに、ゆっくり その｜場《ば》を はなれる',
                     'すぐに おとなの｜人《ひと》に｜知《し》らせる'],
@@ -629,11 +662,10 @@ const C = {
           text:'｜幼虫《ようちゅう》には かんだ｜肉《にく》だんごを、おとなは｜樹液《じゅえき》を のみます。'+
                '｜畑《はたけ》の｜害虫《がいちゅう》を たべて くれる｜面《めん》も あります。'},
     keeping:null,
-    instead2:{icon:'🚫', title:'かうことは できません', kind:'keep',
+    instead2:{icon:'🚫', title:'かうことは できません',
               text:'どくが つよく、おうちで かうことは できません。'+
                    '｜図鑑《ずかん》や どうがで かんさつ しましょう。'}
   },
-
   zari:{
     plate:'No.002', name:'アメリカザリガニ', reading:'あめりかざりがに', cat:'みずのいきもの', art:'zari',
     danger:'safe', legal:'conditional_invasive', release:true, difficulty:'やさしい',
@@ -658,7 +690,6 @@ const C = {
                        'フタを する（よる のうちに にげ｜出《だ》します）'],
              text:'だっぴを すると からだが やわらかく なります。しばらく そっと して おきましょう。'}
   },
-
   ushi:{
     plate:'No.031', name:'ウシガエル', reading:'うしがえる', cat:'かえる・とかげ・へび', art:'ushi',
     danger:'safe', legal:'invasive_banned', release:true, difficulty:'かえません',
@@ -668,21 +699,20 @@ const C = {
              season:'5がつ 〜 9がつ',
              text:'｜夜《よる》に｜活動《かつどう》し、｜昼《ひる》は｜水辺《みずべ》の くさむらに かくれて います。'},
     catching:null,
-    instead:{icon:'⚖️', title:'つかまえて はこぶ ことも できません', kind:'catch',
+    instead:{icon:'⚖️', title:'つかまえて はこぶ ことも できません',
              text:'｜特定《とくてい》｜外来《がいらい》｜生物《せいぶつ》は、いきた まま はこぶ ことが '+
                   '｜法律《ほうりつ》で きんし されて います。みつけても、その｜場《ば》で かんさつ するだけに しましょう。'},
     food:{items:['｜昆虫《こんちゅう》','ザリガニ','｜小《ちい》さな｜魚《さかな》','ほかの カエル'], frequency:'—',
           text:'｜口《くち》に｜入《はい》る ものは なんでも たべて しまうため、'+
                '｜日本《にほん》に もともと いた｜生《い》き｜物《もの》が へって しまいました。'},
     keeping:null,
-    instead2:{icon:'⚖️', title:'なぜ かえないの？', kind:'keep',
+    instead2:{icon:'⚖️', title:'なぜ かえないの？',
               text:'ウシガエルは「｜特定《とくてい》｜外来《がいらい》｜生物《せいぶつ》」に えらばれて いて、'+
                    'かう ことが｜法律《ほうりつ》で きんし されて います。'+
                    '｜日本《にほん》の しぜんを｜守《まも》る ための きまりです。'}
   }
 };
 
-/* ---------------- 図鑑カードの組み立て ---------------- */
 const LEGAL_BANNER = {
   invasive_banned:{cls:'alert', ic:'⚖️', t:'ほうりつで かえません',
     d:'この｜生《い》き｜物《もの》は「｜特定《とくてい》｜外来《がいらい》｜生物《せいぶつ》」です。'+
@@ -694,16 +724,17 @@ const LEGAL_BANNER = {
     d:'｜法律《ほうりつ》で｜守《まも》られて いる｜生《い》き｜物《もの》です。'}
 };
 
+/* ---------------- 図鑑カード（左＝標本プレート／右＝解説） ---------------- */
 function card(k){
   const c = C[k];
   let h = '';
 
-  /* --- 警告バーは必ずカードより上 --- */
+  /* 警告バーは全幅・最上部。スクロールしても消えない位置に置く */
   if(c.danger === 'danger'){
     h += '<div class="banner alert"><div class="bic">⚠️</div><div>'+
          '<div class="bt">さわらないで！</div>'+
          '<div class="bd">'+rb('この｜生《い》き｜物《もの》には つよい どくが あります。')+'</div>'+
-         '<ul>'+c.dangerNotes.map(n=>'<li>'+rb(n)+'</li>').join('')+'</ul></div></div>';
+         '<ul>'+c.dangerNotes.map(n=>'<li><span>'+rb(n)+'</span></li>').join('')+'</ul></div></div>';
   }
   const lb = LEGAL_BANNER[c.legal];
   if(lb){
@@ -711,72 +742,62 @@ function card(k){
          '<div class="bt">'+rb(lb.t)+'</div><div class="bd">'+rb(lb.d)+'</div></div></div>';
   }
 
-  /* --- 図 + 標本ラベル --- */
-  h += '<div class="plate"><span class="plateno mono">'+c.plate+'</span>'+ART[c.art]+'</div>'+
-       '<p class="credit" style="padding-top:8px">'+
-       rb('｜図《ず》：プロトタイプ用イラスト　—　実装では Wikipedia の実写と、'+
-          '作者名・ライセンスの表示が ここに入ります')+'</p>';
+  /* 左：標本プレート（固定・スクロールしない） */
+  const fig =
+    '<div class="figpane"><span class="plateno mono">'+c.plate+'</span>'+
+    '<div class="art">'+ART[c.art]+'</div>'+
+    '<h1>'+c.name+'</h1><div class="rdg mono">'+c.reading+'</div>'+
+    '<div class="metarow"><span class="cat">'+c.cat+'</span>'+
+    '<span class="diff">かいやすさ：'+c.difficulty+'</span></div>'+
+    '<p class="credit">'+rb('｜図《ず》：プロトタイプ用イラスト　—　実装では Wikipedia の実写と、'+
+      '作者名・ライセンスの表示が ここに入ります')+'</p></div>';
 
-  /* --- 名前 --- */
-  h += '<div class="name"><h1>'+c.name+'</h1>'+
-       '<div class="rdg mono">'+c.reading+'</div>'+
-       '<div class="metarow"><span class="cat">'+c.cat+'</span>'+
-       '<span class="diff">かいやすさ：'+c.difficulty+'</span></div></div>'+
-       '<p class="lead">'+rb(c.lead)+'</p>';
-
-  /* --- 4項目 --- */
+  /* 右：解説（ここだけスクロールする） */
   const cards = [];
-
-  cards.push(sec('🏞','すんで いる ところ', [
-    tags(c.habitat.places),
-    kv('じき', c.habitat.season),
-    '<div style="margin-top:9px">'+rb(c.habitat.text)+'</div>'
-  ].join('')));
+  cards.push(sec('🏞','すんで いる ところ',
+    tags(c.habitat.places)+kv('じき', c.habitat.season)+
+    '<div style="margin-top:8px">'+rb(c.habitat.text)+'</div>'));
 
   if(c.catching){
-    cards.push(sec('🥅','つかまえかた', [
-      tags(c.catching.tools),
-      steps(c.catching.steps),
-      c.catching.note ? '<div class="note"><b>やくそく：</b>'+rb(c.catching.note)+'</div>' : ''
-    ].join('')));
+    cards.push(sec('🥅','つかまえかた',
+      tags(c.catching.tools)+steps(c.catching.steps)+
+      (c.catching.note ? '<div class="note"><b>やくそく：</b>'+rb(c.catching.note)+'</div>' : '')));
   }else{
     const i = c.instead;
-    cards.push(sec(i.icon, i.title, [
-      i.steps ? steps(i.steps) : '',
-      i.text ? '<div style="margin-top:9px">'+rb(i.text)+'</div>' : ''
-    ].join(''), true));
+    cards.push(sec(i.icon, i.title,
+      (i.steps ? steps(i.steps) : '')+
+      (i.text ? '<div style="margin-top:8px">'+rb(i.text)+'</div>' : ''), true));
   }
 
-  cards.push(sec('🍽','たべもの', [
-    tags(c.food.items),
-    c.food.frequency !== '—' ? kv('かいすう', c.food.frequency) : '',
-    '<div style="margin-top:9px">'+rb(c.food.text)+'</div>'
-  ].join('')));
+  cards.push(sec('🍽','たべもの',
+    tags(c.food.items)+(c.food.frequency !== '—' ? kv('かいすう', c.food.frequency) : '')+
+    '<div style="margin-top:8px">'+rb(c.food.text)+'</div>'));
 
   if(c.keeping){
-    let body = kv('いれもの', c.keeping.container) + kv('かんきょう', c.keeping.environment) +
-               '<ul style="margin:10px 0 0; padding-left:1.2em">'+
-               c.keeping.cautions.map(x=>'<li>'+rb(x)+'</li>').join('')+'</ul>'+
-               '<div style="margin-top:9px">'+rb(c.keeping.text)+'</div>';
+    let b = kv('いれもの', c.keeping.container)+kv('かんきょう', c.keeping.environment)+
+            '<ul style="margin:9px 0 0; padding-left:1.2em">'+
+            c.keeping.cautions.map(x=>'<li>'+rb(x)+'</li>').join('')+'</ul>'+
+            '<div style="margin-top:8px">'+rb(c.keeping.text)+'</div>';
     if(c.release){
-      body += '<div class="note"><b>わすれないで：</b>'+
-              rb('そとに にがしては いけません。｜法律《ほうりつ》で きまって います。')+'</div>';
+      b += '<div class="note"><b>わすれないで：</b>'+
+           rb('そとに にがしては いけません。｜法律《ほうりつ》で きまって います。')+'</div>';
     }
-    cards.push(sec('🏠','かいかた', body));
+    cards.push(sec('🏠','かいかた', b));
   }else{
     const i = c.instead2;
     cards.push(sec(i.icon, i.title, '<div>'+rb(i.text)+'</div>', true));
   }
 
-  h += '<div class="cards">'+cards.join('')+'</div>'+
-       '<p class="sources">しゅってん：環境省「日本の外来種対策」／国立環境研究所 侵入生物データベース ほか　'+
-       '<span class="mono">'+c.plate+'</span>　この図鑑にくわわった日：2026-07-28</p>';
-  return h;
+  const body = '<div class="bodypane"><p class="lead">'+rb(c.lead)+'</p>'+
+    '<div class="cards">'+cards.join('')+'</div>'+
+    '<p class="sources">しゅってん：環境省「日本の外来種対策」／国立環境研究所 侵入生物データベース ほか　'+
+    '<span class="mono">'+c.plate+'</span>　この図鑑にくわわった日：2026-07-28</p></div>';
+
+  return h + '<div class="split">'+fig+body+'</div>';
 }
-function sec(ic, title, body, blocked){
+function sec(ic,t,b,blocked){
   return '<div class="c'+(blocked?' blocked':'')+'"><div class="c-h">'+
-         '<div class="c-ic">'+ic+'</div><h2>'+rb(title)+'</h2></div>'+
-         '<div class="c-b">'+body+'</div></div>';
+         '<div class="c-ic">'+ic+'</div><h2>'+rb(t)+'</h2></div><div class="c-b">'+b+'</div></div>';
 }
 function tags(a){ return '<div class="tags">'+a.map(x=>'<span class="tag2">'+rb(x)+'</span>').join('')+'</div>'; }
 function kv(k,v){ return '<div class="kv"><span class="k">'+k+'</span><span>'+rb(v)+'</span></div>'; }
@@ -784,34 +805,30 @@ function steps(a){ return '<ol class="steps">'+a.map((x,i)=>'<li><span class="n"
 
 /* ---------------- みんなの図鑑 ---------------- */
 const LIST = [
-  {n:'カブトムシ',       no:'No.001', cat:'むし',              art:'kabuto',      isNew:true},
-  {n:'アメリカザリガニ', no:'No.002', cat:'みずのいきもの',    art:'zari',        flag:'🌏', isNew:true},
-  {n:'ダンゴムシ',       no:'No.003', cat:'むし',              art:'dango'},
-  {n:'テントウムシ',     no:'No.005', cat:'むし',              art:'tentou'},
-  {n:'メダカ',           no:'No.008', cat:'さかな',            art:'medaka'},
-  {n:'カタツムリ',       no:'No.011', cat:'そのほか',          art:'katatsumuri'},
-  {n:'スズメバチ',       no:'No.014', cat:'むし',              art:'suzume',      flag:'⚠️'},
+  {n:'カブトムシ',       no:'No.001', cat:'むし',                 art:'kabuto', isNew:true},
+  {n:'アメリカザリガニ', no:'No.002', cat:'みずのいきもの',       art:'zari', flag:'🌏', isNew:true},
+  {n:'ダンゴムシ',       no:'No.003', cat:'むし',                 art:'dango'},
+  {n:'テントウムシ',     no:'No.005', cat:'むし',                 art:'tentou'},
+  {n:'メダカ',           no:'No.008', cat:'さかな',               art:'medaka'},
+  {n:'カタツムリ',       no:'No.011', cat:'そのほか',             art:'katatsumuri'},
+  {n:'スズメバチ',       no:'No.014', cat:'むし',                 art:'suzume', flag:'⚠️'},
   {n:'カナヘビ',         no:'No.019', cat:'かえる・とかげ・へび', art:'kanahebi'},
-  {n:'アメンボ',         no:'No.024', cat:'むし',              art:'amenbo'},
-  {n:'ウシガエル',       no:'No.031', cat:'かえる・とかげ・へび', art:'ushi',      flag:'⚖️'}
+  {n:'アメンボ',         no:'No.024', cat:'むし',                 art:'amenbo'},
+  {n:'ウシガエル',       no:'No.031', cat:'かえる・とかげ・へび', art:'ushi', flag:'⚖️'}
 ];
 const CATS = ['ぜんぶ','むし','さかな','かえる・とかげ・へび','みずのいきもの','そのほか'];
 let curCat = 'ぜんぶ';
-
 function drawList(){
   document.getElementById('filters').innerHTML = CATS.map(c=>
     '<button class="f" data-f="'+c+'" aria-pressed="'+(c===curCat)+'">'+c+'</button>').join('');
   const items = LIST.filter(x=>curCat==='ぜんぶ' || x.cat===curCat);
   document.getElementById('count').textContent =
-    curCat==='ぜんぶ' ? '10しゅるい' : curCat+'：'+items.length+'しゅるい';
+    curCat==='ぜんぶ' ? '10しゅるい あつまった' : curCat+'：'+items.length+'しゅるい';
   document.getElementById('grid').innerHTML = items.map(x=>
-    '<div class="sp">'+(x.flag?'<span class="flag">'+x.flag+'</span>':'')+ART[x.art]+
-    '<div class="spn">'+x.n+'</div><div class="spno mono">'+x.no+'</div></div>').join('');
-  document.querySelectorAll('#filters .f').forEach(b=>{
-    b.onclick = ()=>{ curCat = b.dataset.f; drawList(); };
-  });
+    '<button class="sp">'+(x.flag?'<span class="flag">'+x.flag+'</span>':'')+ART[x.art]+
+    '<div class="spn">'+x.n+'</div><div class="spno mono">'+x.no+'</div></button>').join('');
+  document.querySelectorAll('#filters .f').forEach(b=>{ b.onclick=()=>{curCat=b.dataset.f; drawList();}; });
 }
-
 function drawRecent(){
   document.getElementById('recent').innerHTML = LIST.slice(0,4).map(x=>
     '<div class="r">'+ART[x.art]+'<div><div class="rn">'+x.n+
@@ -819,29 +836,60 @@ function drawRecent(){
     '<div class="rt2 mono">'+x.no+' / '+x.cat+'</div></div><span class="ra">›</span></div>').join('');
 }
 
-/* ---------------- 画面切替 ---------------- */
-const TITLES = {search:'さがす', loading:'さがしています…', card:'図鑑カード',
-                list:'みんなの ずかん', none:'みつからない'};
+/* ---------------- ひらがなキーボード ----------------
+   Chromebookにはフリック入力がなく、日本語はIME＋ローマ字入力になる。
+   ローマ字を習っていない低学年には、ここが検索より高い壁になるため、
+   横画面の余白に五十音を常設する。
+   濁点・半濁点・小文字は「直前の1文字を変換する」方式にして、
+   キー数を50＋4に抑えている。                                       */
+const KANA = [
+  ['あ','い','う','え','お'],['か','き','く','け','こ'],['さ','し','す','せ','そ'],
+  ['た','ち','つ','て','と'],['な','に','ぬ','ね','の'],['は','ひ','ふ','へ','ほ'],
+  ['ま','み','む','め','も'],['や','','ゆ','','よ'],['ら','り','る','れ','ろ'],
+  ['わ','','を','','ん']
+];
+const DAKU = {か:'が',き:'ぎ',く:'ぐ',け:'げ',こ:'ご',さ:'ざ',し:'じ',す:'ず',せ:'ぜ',そ:'ぞ',
+              た:'だ',ち:'ぢ',つ:'づ',て:'で',と:'ど',は:'ば',ひ:'び',ふ:'ぶ',へ:'べ',ほ:'ぼ'};
+const HANDAKU = {は:'ぱ',ひ:'ぴ',ふ:'ぷ',へ:'ぺ',ほ:'ぽ'};
+const SMALL = {あ:'ぁ',い:'ぃ',う:'ぅ',え:'ぇ',お:'ぉ',つ:'っ',や:'ゃ',ゆ:'ゅ',よ:'ょ'};
+
+function drawKbd(){
+  document.getElementById('kg').innerHTML = KANA.flat().map(k=>
+    k ? '<button class="k">'+k+'</button>' : '<span class="k void"></span>').join('');
+  const q = document.getElementById('q');
+  document.querySelectorAll('#kg .k').forEach(b=>{
+    if(!b.textContent) return;
+    b.onclick = ()=>{ q.value += b.textContent; q.focus(); };
+  });
+  document.querySelectorAll('.kbd .km').forEach(b=>{
+    b.onclick = ()=>{
+      const m = b.dataset.m, v = q.value, last = v.slice(-1);
+      if(m === 'back'){ q.value = v.slice(0,-1); }
+      else{
+        const map = m==='dakuten' ? DAKU : m==='handakuten' ? HANDAKU : SMALL;
+        if(map[last]) q.value = v.slice(0,-1) + map[last];
+      }
+      q.focus();
+    };
+  });
+}
+
+/* ---------------- 画面切替・表示倍率 ---------------- */
 function show(s){
   document.querySelectorAll('.screen').forEach(e=>e.classList.remove('on'));
   document.getElementById('s-'+s).classList.add('on');
-  document.getElementById('stitle').textContent = TITLES[s];
   document.querySelectorAll('#screens button').forEach(b=>
     b.setAttribute('aria-pressed', String(b.dataset.s===s)));
-  document.querySelectorAll('#nav button').forEach(b=>
+  document.querySelectorAll('.rail button').forEach(b=>
     b.setAttribute('aria-pressed', String(b.dataset.s===s || (s==='card' && b.dataset.s==='search'))));
   document.getElementById('picker').classList.toggle('on', s==='card');
-  document.getElementById('view').scrollTop = 0;
 }
-document.querySelectorAll('#screens button, #nav button').forEach(b=>{
-  b.onclick = ()=>show(b.dataset.s);
-});
+document.querySelectorAll('#screens button, .rail button').forEach(b=>{ b.onclick=()=>show(b.dataset.s); });
 document.querySelectorAll('#picker .pick').forEach(b=>{
   b.onclick = ()=>{
     document.querySelectorAll('#picker .pick').forEach(x=>x.setAttribute('aria-pressed','false'));
     b.setAttribute('aria-pressed','true');
     document.getElementById('s-card').innerHTML = card(b.dataset.c);
-    document.getElementById('view').scrollTop = 0;
   };
 });
 document.getElementById('theme').onclick = ()=>{
@@ -850,14 +898,38 @@ document.getElementById('theme').onclick = ()=>{
     (!r.getAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);
   r.setAttribute('data-theme', dark ? 'light' : 'dark');
 };
-/* 検索ボタン → さがし中 → 図鑑カード の流れを再現 */
-document.querySelector('.go').onclick = ()=>{
-  show('loading');
-  setTimeout(()=>show('card'), 1600);
+
+/* 実寸 1366x650 / 1920x960 を、見えている幅にあわせて縮小表示する */
+let RES = {w:1366, h:650, label:'1366×768'};
+function fit(){
+  const cb = document.getElementById('cb');
+  cb.style.width = RES.w+'px'; cb.style.height = RES.h+'px';
+  const wrap = document.getElementById('fitwrap');
+  const k = Math.min(1, (wrap.clientWidth - 40) / RES.w);
+  document.getElementById('fitinner').style.transform = 'scale('+k+')';
+  wrap.style.height = (RES.h * k + 26) + 'px';
+  document.getElementById('scalenote').textContent =
+    'Chromebook ' + RES.label + ' — Chrome のタブ・ツールバーと ChromeOS のシェルフを除いた、'+
+    'アプリが実際に使える ' + RES.w + '×' + RES.h + ' を ' + Math.round(k*100) + '% で表示';
+}
+document.getElementById('r1366').onclick = ()=>{
+  RES = {w:1366, h:650, label:'1366×768'};
+  document.getElementById('r1366').setAttribute('aria-pressed','true');
+  document.getElementById('r1920').setAttribute('aria-pressed','false'); fit();
 };
+document.getElementById('r1920').onclick = ()=>{
+  RES = {w:1920, h:960, label:'1920×1080'};
+  document.getElementById('r1920').setAttribute('aria-pressed','true');
+  document.getElementById('r1366').setAttribute('aria-pressed','false'); fit();
+};
+addEventListener('resize', fit);
+
+document.querySelector('.go').onclick = ()=>{ show('loading'); setTimeout(()=>show('card'), 1600); };
 document.querySelector('.again').onclick = ()=>show('search');
+document.getElementById('q').addEventListener('keydown', e=>{
+  if(e.key === 'Enter'){ show('loading'); setTimeout(()=>show('card'), 1600); }
+});
 
 document.getElementById('s-card').innerHTML = card('kabuto');
-drawList();
-drawRecent();
+drawList(); drawRecent(); drawKbd(); fit();
 </script>
