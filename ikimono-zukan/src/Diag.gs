@@ -109,6 +109,74 @@ function finishDiag_(lines) {
 }
 
 /**
+ * 登録済みの行から、ふりがなの付いていない漢字を探して直す。
+ *
+ * ふりがなの付け忘れは Gemini の指示強化と保存前の検査で塞いだが、
+ * それ以前に登録された行には漏れが残っている。ここで後追いで直す。
+ * 1回で全部やると6分の実行上限に当たるため、上限をつけて少しずつ進める。
+ */
+function refillRuby() {
+  var LIMIT = 8;
+  var rows = Repo.readAll(C.SH.ZUKAN);
+  var done = 0, more = false;
+
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+
+    // シートの列を、lookup が返すのと同じ形に組み立て直して検査する
+    var meta = safeParse_(r['危険メモ_json'], { notes: [], messages: [] });
+    var data = {
+      summary: String(r['概要'] || ''),
+      habitat: safeParse_(r['生息地_json'], {}),
+      catching: safeParse_(r['捕まえ方_json'], {}),
+      food: safeParse_(r['餌_json'], {}),
+      keeping: safeParse_(r['飼い方_json'], {}),
+      danger_notes: meta.notes || []
+    };
+    var before = JSON.stringify(data);
+
+    if (!Kana.hasBareKanji(before)) continue;
+    if (done >= LIMIT) { more = true; continue; }
+
+    try {
+      GeminiApi.ensureRuby(data);
+    } catch (e) {
+      console.warn('[ふりがな] ' + r['標準和名'] + ' の修復に失敗: ' + e);
+      continue;
+    }
+    if (JSON.stringify(data) === before) continue;   // 直せなかった
+
+    meta.notes = data.danger_notes;
+    Repo.updateById(C.SH.ZUKAN, r.creature_id, {
+      '概要': data.summary,
+      '生息地_json': JSON.stringify(data.habitat),
+      '捕まえ方_json': JSON.stringify(data.catching),
+      '餌_json': JSON.stringify(data.food),
+      '飼い方_json': JSON.stringify(data.keeping),
+      '危険メモ_json': JSON.stringify(meta)
+    });
+    done++;
+    console.log('[ふりがな] 直した: ' + r['標準和名']);
+  }
+
+  try { CacheService.getScriptCache().remove('list'); } catch (e) { /* 無ければよい */ }
+
+  var msg = 'ふりがなを直しました：' + done + 'けん\n' +
+            (more ? '残りがあります。もう一度実行してください。'
+                  : 'ふりがなの無い漢字は もう見つかりません。');
+  console.log(msg);
+  try {
+    SpreadsheetApp.getUi().alert(C.APP_NAME, msg, SpreadsheetApp.getUi().ButtonSet.OK);
+  } catch (e) { /* エディタから実行したときは UI が無い */ }
+  return msg;
+}
+
+function safeParse_(s, fallback) {
+  if (!s) return fallback;
+  try { return JSON.parse(s); } catch (e) { return fallback; }
+}
+
+/**
  * 画像IDが空のまま登録されている行に、あとから写真を入れる。
  * Gemini は呼ばないので、APIの消費なしで直せる。
  *

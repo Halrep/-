@@ -116,8 +116,9 @@ var GeminiApi = (function () {
     '　例：｜樹液《じゅえき》の｜出《で》て いる｜木《き》',
     '・熟語は1語にまとめてふりがなを付ける。1文字ずつに分けない。',
     '　○ ｜野鳥《やちょう》　× ｜野《や》｜鳥《ちょう》（表示が分断されて読みにくくなる）',
-    '・カタカナ語と、小学校1〜2年で習う漢字（山・川・木・虫・水・手・目 など）には付けなくてよい。',
-    '・生き物の名前そのものにはふりがなを付けない（reading フィールドで別に返すため）。',
+    '・例外なく、すべての漢字に付ける。山・川・木・虫 のような簡単な漢字にも必ず付ける。',
+    '　「この漢字は簡単だから」という判断はしない。ひらがなとカタカナだけの語には付けない。',
+    '・生き物の名前は本文中ではカタカナで書く（見出しのふりがなは reading フィールドで別に返す）。',
     '',
     '【正確さ】',
     '・検索で裏づけが取れないことは書かない。断定できないことは書かない。',
@@ -187,7 +188,105 @@ var GeminiApi = (function () {
     }
 
     data.sources = groundingUrls_(cand);
+
+    // ふりがなの付け忘れは指示だけでは根絶できないので、保存前に検査して直す。
+    // 漏れが無ければ何もしない（追加の呼び出しはゼロ）
+    try {
+      ensureRuby(data);
+    } catch (e) {
+      console.warn('[ふりがな] 修復に失敗（そのまま続行）: ' + e);
+    }
     return data;
+  }
+
+  /* ==================== ふりがなの修復 ==================== */
+
+  // 本文としてふりがなを検査するフィールド。
+  // 名前・別名・記事名・カテゴリは対象外（ふりがなを入れてはいけない）
+  var RUBY_FIELDS = ['summary', 'habitat', 'catching', 'food', 'keeping', 'danger_notes'];
+
+  var RUBY_SYSTEM = [
+    'あなたは日本の子供向け図鑑の校正者です。',
+    '渡された texts の各文字列について、ふりがなの付いていない漢字すべてに',
+    '｜漢字《かんじ》 という記法でふりがなを付けて返します。',
+    '・すでにふりがなの付いている箇所は変えない。',
+    '・文字の追加・削除・言い換えは一切しない。ふりがなを付ける以外は元のまま返す。',
+    '・熟語は1語にまとめて付ける。○｜野鳥《やちょう》 ×｜野《や》｜鳥《ちょう》',
+    '・texts の要素数と順番を変えない。'
+  ].join('\n');
+
+  /**
+   * data の本文フィールドを走査し、ふりがなの無い漢字が残っていれば
+   * 1回のAPI呼び出しでまとめて修復する。data を直接書き換える。
+   */
+  function ensureRuby(data) {
+    var slots = [];
+    function scan(o, k) {
+      var v = o[k];
+      if (typeof v === 'string') {
+        if (Kana.hasBareKanji(v)) slots.push({ o: o, k: k });
+      } else if (Object.prototype.toString.call(v) === '[object Array]') {
+        for (var i = 0; i < v.length; i++) {
+          if (typeof v[i] === 'string' && Kana.hasBareKanji(v[i])) slots.push({ o: v, k: i });
+        }
+      } else if (v && typeof v === 'object') {
+        for (var kk in v) scan(v, kk);
+      }
+    }
+    RUBY_FIELDS.forEach(function (k) { scan(data, k); });
+    if (!slots.length) return data;
+
+    var texts = slots.map(function (s) { return String(s.o[s.k]); });
+    console.log('[ふりがな] ' + texts.length + ' か所に付け忘れがあるので直す');
+    var fixed = addRuby(texts);
+    if (fixed) {
+      slots.forEach(function (s, i) { s.o[s.k] = fixed[i]; });
+    }
+    return data;
+  }
+
+  /**
+   * 文字列の配列にふりがなを付けて返す。
+   * 文面が変わって返ってきた要素は採用せず、元のまま残す（校正で本文を壊さない）。
+   * 失敗したら null。
+   */
+  function addRuby(texts) {
+    var body = {
+      systemInstruction: { parts: [{ text: RUBY_SYSTEM }] },
+      contents: [{
+        role: 'user',
+        parts: [{ text: JSON.stringify({ texts: texts }) }]
+      }],
+      generationConfig: {
+        temperature: 0,
+        responseMimeType: 'application/json',
+        responseJsonSchema: {
+          type: 'object',
+          required: ['texts'],
+          properties: { texts: { type: 'array', items: { type: 'string' } } }
+        }
+      }
+    };
+    try {
+      var res = request_(body);
+      var cand = (res.candidates || [])[0];
+      var text = (cand && cand.content && cand.content.parts || [])
+        .map(function (p) { return p.text || ''; }).join('');
+      var out = JSON.parse(text).texts;
+      if (!out || out.length !== texts.length) {
+        console.warn('[ふりがな] 要素数が合わないので採用しない');
+        return null;
+      }
+      return texts.map(function (orig, i) {
+        var ok = typeof out[i] === 'string' &&
+                 Kana.stripRuby(out[i]) === Kana.stripRuby(orig);
+        if (!ok) console.warn('[ふりがな] 文面が変わったので元のままにする: ' + orig);
+        return ok ? out[i] : orig;
+      });
+    } catch (e) {
+      console.warn('[ふりがな] 修復呼び出しに失敗: ' + e);
+      return null;
+    }
   }
 
   /** グラウンディングで実際に参照されたURLを取り出す */
@@ -249,6 +348,8 @@ var GeminiApi = (function () {
     lookup: lookup,
     listModels: listModels,
     schema: schema,
+    ensureRuby: ensureRuby,
+    addRuby: addRuby,
     _describeError: describeError_
   };
 })();

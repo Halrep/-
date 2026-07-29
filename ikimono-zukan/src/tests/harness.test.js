@@ -154,6 +154,15 @@ eq(Kana.stripRuby('｜樹液《じゅえき》が出る'), '樹液が出る', '�
   ok(wrong.indexOf('<ruby>') < 0, '順序を逆にすると ruby が壊れる（この順序では実装しない）');
 }
 
+console.log('\n【3b】ふりがなの付け忘れの検出（hasBareKanji）');
+ok(Kana.hasBareKanji('樹液が出る'), 'ふりがなの無い漢字を検出する');
+ok(Kana.hasBareKanji('｜樹液《じゅえき》の出る木'), 'ふりがな付きに混ざった裸の漢字も検出する');
+ok(!Kana.hasBareKanji('｜樹液《じゅえき》が でる'), '全部にふりがなが付いていれば検出しない');
+ok(!Kana.hasBareKanji('カブトムシは くぬぎに あつまる'), 'かなだけの文は検出しない');
+ok(Kana.hasBareKanji('｜日《ひ》々の観察'), '々 だけ残っても検出する');
+ok(!Kana.hasBareKanji(''), '空文字は検出しない');
+ok(!Kana.hasBareKanji(null), 'null は検出しない');
+
 /* =================== 4. 安全フィルタ =================== */
 console.log('\n【4】安全フィルタ：要注意リストが AI より強い');
 function gemini(over) {

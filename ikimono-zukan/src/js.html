@@ -19,7 +19,7 @@ function show(s){
   ids.forEach(function(k){
     document.getElementById('s-'+k).classList.toggle('on', k===s);
   });
-  document.querySelectorAll('.rail button').forEach(function(b){
+  document.querySelectorAll('.rail button[data-nav]').forEach(function(b){
     b.setAttribute('aria-pressed', String(b.dataset.nav===s || (s==='card' && b.dataset.nav==='search')));
   });
   // まちじかんの虫取りゲームは、さがし中の画面にいる間だけ動かす
@@ -476,12 +476,37 @@ document.getElementById('again').onclick = function(){
   show('search');
   document.getElementById('q').select();
 };
-document.querySelectorAll('.rail button').forEach(function(b){
+document.querySelectorAll('.rail button[data-nav]').forEach(function(b){
   b.onclick = function(){
     show(b.dataset.nav);
     if(b.dataset.nav === 'list') loadList();
   };
 });
+
+/* ---------- もじの おおきさ ----------
+   Chromebook の Chrome を前提に zoom で全体を拡大する。
+   px 指定の細部までまとめて大きくなるので、レイアウトの調整が要らない。
+   えらんだ おおきさは この端末に記憶する。既定は子供向けに「おおきい」。 */
+var FONT_STEPS = [
+  {key:'normal', zoom:1,    label:'ふつう'},
+  {key:'big',    zoom:1.15, label:'おおきい'},
+  {key:'max',    zoom:1.3,  label:'さいだい'}
+];
+function fontIndex(){
+  var k = null;
+  try { k = localStorage.getItem('zukanFont'); } catch(e){ /* 使えない環境では既定 */ }
+  for(var i=0;i<FONT_STEPS.length;i++) if(FONT_STEPS[i].key===k) return i;
+  return 1;   // 既定：おおきい
+}
+function applyFont(i){
+  document.body.style.zoom = FONT_STEPS[i].zoom;
+  document.getElementById('fontlabel').textContent = FONT_STEPS[i].label;
+  try { localStorage.setItem('zukanFont', FONT_STEPS[i].key); } catch(e){ /* 記憶できなくても動く */ }
+}
+document.getElementById('fontbtn').onclick = function(){
+  applyFont((fontIndex()+1) % FONT_STEPS.length);
+};
+applyFont(fontIndex());
 
 drawKbd();
 loadHome();

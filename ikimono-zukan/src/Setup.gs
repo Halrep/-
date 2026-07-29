@@ -16,6 +16,7 @@ function onOpen() {
     .addSeparator()
     .addItem('写真が出ないときの診断', 'diagImages')
     .addItem('写真が空の行に写真を入れ直す', 'refillImages')
+    .addItem('ふりがなの無い漢字を直す', 'refillRuby')
     .addSeparator()
     .addItem('別名索引のキャッシュを消す', 'clearCache')
     .addToUi();

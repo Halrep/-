@@ -90,6 +90,17 @@ var Kana = (function () {
   }
 
   /**
+   * ふりがなの付いていない漢字が残っているか。
+   * ｜漢字《かんじ》 の区間を取り除いたあとに漢字が残れば true。
+   * Gemini の出力検査と、登録済みの行の修復の両方で使う。
+   */
+  function hasBareKanji(s) {
+    if (s === null || s === undefined) return false;
+    var t = String(s).replace(/｜[^《｜]+《[^》]+》/g, '');
+    return /[㐀-鿿々]/.test(t);
+  }
+
+  /**
    * HTMLエスケープ。Gemini の出力をそのまま画面に流し込まないための最低限の防御。
    * ふりがな変換より前に必ず通す。
    */
@@ -105,6 +116,7 @@ var Kana = (function () {
     loosen: loosen,
     toRuby: toRuby,
     stripRuby: stripRuby,
+    hasBareKanji: hasBareKanji,
     escapeHtml: escapeHtml,
     _kataToHira: kataToHira
   };
