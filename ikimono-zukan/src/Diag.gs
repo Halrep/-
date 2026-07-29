@@ -54,14 +54,19 @@ function diagImages(name) {
   }
 
   // --- 4. 画像本体を落とせるか ---
-  var blob = null;
-  try {
-    blob = Images._download(wiki.url);
-    say('4. 画像のダウンロード … ' + (blob ? 'OK ' + blob.getBytes().length + ' バイト' : '失敗'));
-  } catch (e) {
-    say('4. 画像のダウンロード … 例外 ' + e);
+  var p = Images._probe(wiki.url);
+  say('4. 画像のダウンロード … HTTP ' + p.code +
+      (p.code === 200 ? ' / ' + p.bytes + ' バイト / ' + p.contentType
+                      : ' / ' + p.snippet));
+
+  if (p.code !== 200) {
+    say('→ Wikimedia が Google のサーバーからのダウンロードを断っています。');
+    say('　 これは直せませんが、支障はありません。画像URLをそのまま画面に渡すので、');
+    say('　 子供のブラウザが直接読みにいきます（GASの通信量も使いません）。');
+    say('　 「写真が空の行に写真を入れ直す」を実行すれば、登録済みの行にも写真が出ます。');
+    return finishDiag_(out);
   }
-  if (!blob) return finishDiag_(out);
+  var blob = p.blob;
 
   // --- 5. Drive に保存できるか（スコープと共有ポリシーの確認を兼ねる） ---
   var fileId = null;
@@ -112,8 +117,9 @@ function finishDiag_(lines) {
  */
 function refillImages() {
   var LIMIT = 15;
+  // Drive に置けなくても 画像URL があれば画面には出ているので、対象は「どちらも空」の行だけ
   var rows = Repo.readAll(C.SH.ZUKAN).filter(function (r) {
-    return !String(r['画像ID'] || '').trim();
+    return !String(r['画像ID'] || '').trim() && !String(r['画像URL'] || '').trim();
   });
 
   var done = 0, failed = [];
@@ -128,7 +134,8 @@ function refillImages() {
     }
     if (img) {
       Repo.updateById(C.SH.ZUKAN, r.creature_id, {
-        '画像ID': img.fileId,
+        '画像ID': img.fileId || '',
+        '画像URL': img.url || '',
         '画像種別': img.kind,
         '画像クレジット': img.credit
       });

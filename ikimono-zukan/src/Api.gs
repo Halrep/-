@@ -85,7 +85,8 @@ function apiSearch(input) {
       '法規制': s.legal_status || C.LEGAL.NONE,
       '放出禁止': !!s.release_warning,
       '飼育難易度': s.keeping_difficulty || C.DIFFICULTY.NORMAL,
-      '画像ID': img ? img.fileId : '',
+      '画像ID': img ? (img.fileId || '') : '',
+      '画像URL': img ? (img.url || '') : '',
       '画像種別': img ? img.kind : C.IMG.NONE,
       '画像クレジット': img ? img.credit : '',
       '出典URL': (s.sources || []).join('\n')
@@ -116,7 +117,7 @@ function apiList() {
       no: plateNo_(r['番号']),
       name: String(r['標準和名']),
       cat: String(r['カテゴリ']),
-      img: thumbUrl_(r['画像ID'], 240),
+      img: imageUrl_(r, 240),
       flag: flagOf_(r)
     };
   }).sort(function (a, b) { return a.no < b.no ? -1 : 1; });
@@ -143,7 +144,7 @@ function apiHome() {
     return {
       id: String(r.creature_id), no: plateNo_(r['番号']),
       name: String(r['標準和名']), cat: String(r['カテゴリ']),
-      img: thumbUrl_(r['画像ID'], 120), isNew: true
+      img: imageUrl_(r, 120), isNew: true
     };
   });
   var popular = all.slice().sort(function (a, b) {
@@ -197,9 +198,10 @@ function viewFromRow_(r) {
     hideKeeping: hideKeeping,
 
     image: {
-      url: thumbUrl_(r['画像ID'], 800),
-      // 画面側で別形式のURLに切り替えて取り直すために、IDそのものも渡す
+      url: imageUrl_(r, 800),
+      // 画面側で別形式のURLに切り替えて取り直すために、IDと取得元URLも渡す
       fileId: String(r['画像ID'] || ''),
+      altUrl: String(r['画像URL'] || ''),
       kind: String(r['画像種別'] || C.IMG.NONE),
       credit: String(r['画像クレジット'] || '')
     },
@@ -247,6 +249,18 @@ function thumbUrl_(fileId, size) {
   if (!fileId) return '';
   return 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(String(fileId)) +
          '&sz=w' + (size || 400);
+}
+
+/**
+ * 画面に出す画像URLを決める。
+ * Drive に保存できていればそれを使い、駄目なら取得元のURLをそのまま渡す。
+ * 後者はブラウザが直接読みにいくので、GAS の通信クォータは消費しない。
+ */
+function imageUrl_(r, size) {
+  var id = String(r['画像ID'] || '');
+  if (id) return thumbUrl_(id, size);
+  var u = String(r['画像URL'] || '');
+  return u ? Images._widen(u, size) : '';
 }
 
 /** 一覧に出す小さな印 */

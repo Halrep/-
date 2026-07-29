@@ -27,14 +27,31 @@ var Images = (function () {
   // Wikimedia は User-Agent の明示を求めている
   var UA = 'IkimonoZukan/1.0 (educational app for children; Google Apps Script)';
 
+  // 画像本体を取りにいくときのヘッダ。
+  // upload.wikimedia.org は User-Agent と Referer を見て弾くことがある。
+  var IMG_HEADERS = {
+    'User-Agent': UA,
+    'Api-User-Agent': UA,
+    'Accept': 'image/avif,image/webp,image/png,image/jpeg,image/*,*/*;q=0.8',
+    'Referer': 'https://ja.wikipedia.org/'
+  };
+
   /**
    * 生き物の写真を1枚用意する。
-   * @return {{fileId:string, kind:string, credit:string}|null}
+   *
+   * Drive への保存はあくまで最適化であって、必須ではない。
+   * Wikimedia は Google のサーバーIPからの直接ダウンロードを弾くことがあるが、
+   * そのときでも画像URL自体は有効で、子供のブラウザからは普通に読める。
+   * 保存に失敗しても URL は捨てず、画面がそれを直接読めるようにして返す。
+   * ブラウザが読みにいく分には UrlFetchApp のクォータを一切消費しない。
+   *
+   * @return {{fileId:string, url:string, kind:string, credit:string}|null}
    */
   function fetchFor(wikipediaTitle, canonicalName) {
     var found = fromWikipedia_(wikipediaTitle) ||
                 fromWikipedia_(canonicalName) ||
                 fromRest_(wikipediaTitle) ||
+                fromRest_(canonicalName) ||
                 fromCommons_(canonicalName);
 
     if (!found) {
@@ -47,16 +64,25 @@ var Images = (function () {
       return null;
     }
 
+    var fileId = '';
     try {
       var blob = download_(found.url);
-      if (!blob) return null;
-      var fileId = saveToDrive_(blob, canonicalName);
-      console.log('[画像] 保存した: ' + canonicalName + ' → ' + fileId);
-      return { fileId: fileId, kind: C.IMG.PHOTO, credit: found.credit };
+      if (blob) {
+        fileId = saveToDrive_(blob, canonicalName);
+        console.log('[画像] Drive に保存した: ' + canonicalName + ' → ' + fileId);
+      } else {
+        console.log('[画像] Drive には保存できないので、URLをそのまま使う: ' + canonicalName);
+      }
     } catch (e) {
-      console.warn('[画像] Drive への保存に失敗: ' + e);
-      return null;
+      console.warn('[画像] Drive への保存に失敗（URLはそのまま使う）: ' + e);
     }
+
+    return {
+      fileId: fileId,
+      url: found.url,
+      kind: C.IMG.PHOTO,
+      credit: found.credit
+    };
   }
 
   /* ---------- 共通の取得 ---------- */
@@ -95,9 +121,10 @@ var Images = (function () {
    */
   function fromWikipedia_(title) {
     if (!title) return null;
+    // 区切りの | は必ず %7C にする。素のままだと UrlFetchApp が弾くことがある
     var url = WIKI_API +
       '?action=query&format=json&formatversion=2&redirects=1' +
-      '&prop=pageimages|pageprops&piprop=thumbnail' +
+      '&prop=pageimages%7Cpageprops&piprop=thumbnail' +
       '&pithumbsize=' + C.IMAGE_MAX_PX +
       '&titles=' + encodeURIComponent(String(title).trim());
 
@@ -150,7 +177,7 @@ var Images = (function () {
     var url = COMMONS + '?action=query&format=json&formatversion=2&generator=search' +
       '&gsrsearch=' + encodeURIComponent('filetype:bitmap ' + name) +
       '&gsrnamespace=6&gsrlimit=1' +
-      '&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=' + C.IMAGE_MAX_PX;
+      '&prop=imageinfo&iiprop=url%7Cextmetadata&iiurlwidth=' + C.IMAGE_MAX_PX;
 
     var body = getJson_(url, 'Commons「' + name + '」');
     if (!body) return null;
@@ -222,6 +249,7 @@ var Images = (function () {
                                      d.mimeType || 'image/png', name + '.png');
         return {
           fileId: saveToDrive_(blob, name),
+          url: '',                      // 生成画像は Drive にしか存在しない
           kind: C.IMG.AI,
           credit: 'AIがかいたイラスト'
         };
@@ -245,22 +273,37 @@ var Images = (function () {
   }
 
   function download_(url) {
+    var p = probe_(url);
+    if (p.code !== 200) {
+      console.warn('[画像] ダウンロードが HTTP ' + p.code + ': ' + url +
+                   (p.snippet ? ' / ' + p.snippet : ''));
+      return null;
+    }
+    return p.blob;
+  }
+
+  /**
+   * 1回取ってきて、結果を数字で返す。診断がステータスコードを名指しできるようにする。
+   * @return {{code:number, bytes:number, contentType:string, snippet:string, blob:Blob}}
+   */
+  function probe_(url) {
     try {
       var res = UrlFetchApp.fetch(url, {
         method: 'get',
-        headers: { 'Api-User-Agent': UA },
+        headers: IMG_HEADERS,
         muteHttpExceptions: true,
         followRedirects: true
       });
       var code = res.getResponseCode();
       if (code !== 200) {
-        console.warn('[画像] ダウンロードが HTTP ' + code + ': ' + url);
-        return null;
+        return { code: code, bytes: 0, contentType: '',
+                 snippet: res.getContentText().slice(0, 200), blob: null };
       }
-      return res.getBlob();
+      var blob = res.getBlob();
+      return { code: 200, bytes: blob.getBytes().length,
+               contentType: blob.getContentType(), snippet: '', blob: blob };
     } catch (e) {
-      console.warn('[画像] ダウンロードで例外: ' + e + ' / ' + url);
-      return null;
+      return { code: -1, bytes: 0, contentType: '', snippet: String(e), blob: null };
     }
   }
 
@@ -309,6 +352,7 @@ var Images = (function () {
     _widen: widen_,
     _getJson: getJson_,
     _download: download_,
+    _probe: probe_,
     _saveToDrive: saveToDrive_,
     _fromWikipedia: fromWikipedia_,
     _fromRest: fromRest_,

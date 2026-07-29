@@ -121,7 +121,8 @@ function renderCard(d){
   /* 左：標本プレート（固定・スクロールしない） */
   var art = d.image.url
     ? '<img src="'+esc(d.image.url)+'" alt="'+esc(d.name)+'の写真" loading="lazy"' +
-      ' data-fid="'+esc(d.image.fileId||'')+'" onerror="imgRetry(this)">'
+      ' data-fid="'+esc(d.image.fileId||'')+'" data-alt="'+esc(d.image.altUrl||'')+'"' +
+      ' onerror="imgRetry(this)">'
     : '<div class="noimg"><span>🔍</span>しゃしんは まだ ありません</div>';
   var credit = d.image.url
     ? (d.image.kind === 'ai'
@@ -222,10 +223,18 @@ function renderCard(d){
    そのときだけ別形式のURLで1回だけ取り直し、それでも駄目なら
    「まだありません」に戻す。壊れた画像アイコンを子供に見せない。 */
 function imgRetry(el){
-  var id = el.getAttribute('data-fid');
-  if(id && el.getAttribute('data-retried') !== '1'){
-    el.setAttribute('data-retried','1');
+  var step = parseInt(el.getAttribute('data-step')||'0', 10);
+  var id  = el.getAttribute('data-fid');
+  var alt = el.getAttribute('data-alt');
+
+  if(step === 0 && id){
+    el.setAttribute('data-step','1');
     el.src = 'https://lh3.googleusercontent.com/d/' + encodeURIComponent(id) + '=w800';
+    return;
+  }
+  if(step <= 1 && alt){
+    el.setAttribute('data-step','2');
+    el.src = alt;
     return;
   }
   var box = el.parentNode;
