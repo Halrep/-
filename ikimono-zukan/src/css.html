@@ -236,6 +236,37 @@ rt{font-size:.52em; font-weight:600; color:var(--faint); letter-spacing:.02em}
 .steps2{display:flex; gap:22px; font-size:13px; color:var(--muted); margin-top:4px}
 .steps2 div{display:flex; gap:7px; align-items:center}
 .steps2 .dn{color:var(--leaf); font-weight:800}
+/* ---------- まちじかんの虫取りゲーム ---------- */
+/* 生き物は文字の上を流れてよい（遊びなので）。ただしタップを受けるのは虫だけで、
+   層そのものは pointer-events:none。読み込み完了の割り込みを一切妨げない */
+#s-loading{position:relative; overflow:hidden}
+.bugfield{position:absolute; inset:0; overflow:hidden; pointer-events:none; z-index:4}
+.bug{position:absolute; left:-80px; width:64px; height:64px; display:grid; place-items:center;
+     background:none; border:none; padding:0; margin:0; cursor:pointer;
+     pointer-events:auto; touch-action:manipulation; user-select:none;
+     animation:bug-ltr var(--dur,9s) linear forwards}
+.bug.rtl{left:auto; right:-80px; animation-name:bug-rtl}
+@keyframes bug-ltr{to{left:105%}}
+@keyframes bug-rtl{to{right:105%}}
+.bugface{font-size:34px; line-height:1; display:block;
+         animation:bug-bob var(--bob,3s) ease-in-out infinite}
+@keyframes bug-bob{0%,100%{transform:translateY(-7px) rotate(-5deg)}
+                   50%{transform:translateY(7px) rotate(5deg)}}
+.bug.got{animation:none}
+.bug.got .bugface{animation:bug-pop .45s ease-out forwards}
+@keyframes bug-pop{0%{transform:scale(1); opacity:1}
+                   45%{transform:scale(1.7) rotate(14deg); opacity:1}
+                   100%{transform:scale(2.4) rotate(20deg); opacity:0}}
+.bugplus{position:absolute; font-size:15px; font-weight:800; color:var(--leaf);
+         pointer-events:none; animation:bug-plus .8s ease-out forwards}
+@keyframes bug-plus{0%{transform:translateY(0); opacity:0}
+                    20%{opacity:1} 100%{transform:translateY(-34px); opacity:0}}
+.bugscore{position:absolute; left:50%; transform:translateX(-50%); bottom:14px; z-index:5;
+          pointer-events:none; font-size:13.5px; font-weight:800; color:var(--muted);
+          background:var(--surface); border:1px solid var(--leaf-line);
+          border-radius:999px; padding:7px 16px; box-shadow:var(--shadow)}
+.bugscore b{color:var(--leaf); font-size:16px}
+
 .empty{display:grid; justify-items:center; gap:12px; text-align:center; max-width:560px}
 .empty .em{font-size:44px}
 .empty h2{font-size:21px; margin:0}

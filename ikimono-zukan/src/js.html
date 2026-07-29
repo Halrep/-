@@ -22,7 +22,89 @@ function show(s){
   document.querySelectorAll('.rail button').forEach(function(b){
     b.setAttribute('aria-pressed', String(b.dataset.nav===s || (s==='card' && b.dataset.nav==='search')));
   });
+  // まちじかんの虫取りゲームは、さがし中の画面にいる間だけ動かす
+  if(s === 'loading') Bugs.start(); else Bugs.stop();
 }
+
+/* ---------- まちじかんの虫取りゲーム ----------
+   はじめての生き物は20秒ほどかかるので、その間に絵文字の生き物が
+   ふわふわ流れてくる。タップすると ✨ と いっしょに消えて、かずが増える。
+   遊びの層は pointer-events:none で、結果表示への切り替えを一切妨げない。 */
+var Bugs = (function(){
+  var POOL = ['🦋','🐞','🐝','🐛','🦗','🐌','🐸','🦎','🐟','🦀','🐢','🐜','🐠','🦐'];
+  var timer = null, score = 0;
+
+  function field(){ return document.getElementById('bugfield'); }
+
+  function start(){
+    stop();
+    score = 0; drawScore();
+    // 最初の1匹はすぐ出す（何も起きない画面だと遊びに気づけない）
+    timer = setTimeout(tick, 350);
+  }
+  function tick(){
+    spawn();
+    timer = setTimeout(tick, 650 + Math.random()*850);
+  }
+  function stop(){
+    if(timer){ clearTimeout(timer); timer = null; }
+    var f = field(); if(f) f.innerHTML = '';
+  }
+
+  function spawn(){
+    var f = field(); if(!f) return;
+    if(f.querySelectorAll('.bug').length >= 7) return;   // 出しすぎない
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'bug' + (Math.random() < .5 ? ' rtl' : '');
+    b.style.top = (6 + Math.random()*74) + '%';
+    b.style.setProperty('--dur', (7 + Math.random()*5).toFixed(1) + 's');
+    b.style.setProperty('--bob', (2.2 + Math.random()*1.6).toFixed(1) + 's');
+    b.innerHTML = '<span class="bugface">' +
+      POOL[Math.floor(Math.random()*POOL.length)] + '</span>';
+    b.addEventListener('pointerdown', function(){ caught(b); });
+    // 画面の反対側まで流れきったら消す
+    b.addEventListener('animationend', function(e){
+      if(e.target === b) b.remove();
+    });
+    f.appendChild(b);
+  }
+
+  function caught(b){
+    if(b.classList.contains('got')) return;
+    var f = field(); if(!f) return;
+    // 流すアニメを止めると位置が先頭に戻ってしまうので、今いる場所に釘で留めてから止める
+    var r = b.getBoundingClientRect(), fr = f.getBoundingClientRect();
+    b.style.left = (r.left - fr.left) + 'px';
+    b.style.top  = (r.top  - fr.top)  + 'px';
+    b.style.right = 'auto';
+    b.classList.add('got');
+
+    var face = b.querySelector('.bugface');
+    if(face) face.textContent = '✨';
+
+    var plus = document.createElement('span');
+    plus.className = 'bugplus';
+    plus.textContent = '+1';
+    plus.style.left = (r.left - fr.left + 20) + 'px';
+    plus.style.top  = (r.top  - fr.top  - 6) + 'px';
+    f.appendChild(plus);
+
+    score++; drawScore();
+    setTimeout(function(){ b.remove(); }, 500);
+    setTimeout(function(){ plus.remove(); }, 850);
+  }
+
+  function drawScore(){
+    var el = document.getElementById('bugscore');
+    if(!el) return;
+    el.innerHTML = score === 0
+      ? 'まって いる あいだに むしとり！ ながれて くる いきものを タップ！'
+      : 'つかまえた かず：<b>' + score + '</b>';
+  }
+
+  return { start: start, stop: stop };
+})();
 
 /* ---------- さがす ---------- */
 function doSearch(word){
