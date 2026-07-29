@@ -3,20 +3,29 @@
  * 写真の取得。構想書 §7 のパイプライン。
  *
  * Gemini API は写真を返さない（テキスト生成のみ）ので、ここだけ別系統になる。
- *   1. 日本語版 Wikipedia の REST API から実写を取る（APIキー不要・無料）
+ *   1. 日本語版 Wikipedia から実写を取る（APIキー不要・無料）
  *   2. 見つからなければ Wikimedia Commons を検索する
  *   3. それでも無ければ、設定が有効なときだけ AI 生成にフォールバックする
  *
  * 取得した画像は Drive に1回だけ保存し、以後は Drive から配信する。
  * UrlFetchApp の通信量クォータは 100MB/日しかなく、
  * 200KBの画像を毎回外部から取ると 500回で枯渇するため、ホットリンクはしない。
+ *
+ * 【失敗は必ず声を出すこと】
+ * 以前は HTTP 200 以外を無言で null にして返していた。
+ * その結果「ログにエラーが無いのに画像だけ出ない」という、最も追いにくい壊れ方をした。
+ * 通信の失敗はすべて console.warn にステータスコードと本文の頭を残す。
  */
 var Images = (function () {
 
-  var WIKI = 'https://ja.wikipedia.org/api/rest_v1/page/summary/';
-  var COMMONS = 'https://commons.wikimedia.org/w/api.php';
+  // MediaWiki Action API を主経路にする。
+  // REST(rest_v1) は User-Agent ポリシーの締め付けで 403 を返すことがあり、
+  // Action API のほうが Apps Script の共有IPからでも安定して通る。
+  var WIKI_API  = 'https://ja.wikipedia.org/w/api.php';
+  var WIKI_REST = 'https://ja.wikipedia.org/api/rest_v1/page/summary/';
+  var COMMONS   = 'https://commons.wikimedia.org/w/api.php';
   // Wikimedia は User-Agent の明示を求めている
-  var UA = 'IkimonoZukan/1.0 (educational app for children; GAS)';
+  var UA = 'IkimonoZukan/1.0 (educational app for children; Google Apps Script)';
 
   /**
    * 生き物の写真を1枚用意する。
@@ -25,9 +34,12 @@ var Images = (function () {
   function fetchFor(wikipediaTitle, canonicalName) {
     var found = fromWikipedia_(wikipediaTitle) ||
                 fromWikipedia_(canonicalName) ||
+                fromRest_(wikipediaTitle) ||
                 fromCommons_(canonicalName);
 
     if (!found) {
+      console.warn('[画像] 実写が見つからなかった: title=' + wikipediaTitle +
+                   ' / name=' + canonicalName);
       if (aiEnabled_()) {
         var gen = fromAi_(canonicalName);
         if (gen) return gen;
@@ -39,44 +51,92 @@ var Images = (function () {
       var blob = download_(found.url);
       if (!blob) return null;
       var fileId = saveToDrive_(blob, canonicalName);
+      console.log('[画像] 保存した: ' + canonicalName + ' → ' + fileId);
       return { fileId: fileId, kind: C.IMG.PHOTO, credit: found.credit };
     } catch (e) {
-      console.warn('画像の保存に失敗: ' + e);
+      console.warn('[画像] Drive への保存に失敗: ' + e);
       return null;
     }
   }
 
-  /* ---------- 1. Wikipedia ---------- */
+  /* ---------- 共通の取得 ---------- */
 
-  function fromWikipedia_(title) {
-    if (!title) return null;
+  /**
+   * JSON を取ってくる。200 以外は必ずログに残してから null を返す。
+   * @param {string} label ログに出す呼び出し元の名前
+   */
+  function getJson_(url, label) {
     try {
-      var res = UrlFetchApp.fetch(WIKI + encodeURIComponent(String(title).trim()), {
+      var res = UrlFetchApp.fetch(url, {
         method: 'get',
-        headers: { 'Api-User-Agent': UA },
+        headers: { 'Api-User-Agent': UA, 'Accept': 'application/json' },
         muteHttpExceptions: true,
         followRedirects: true
       });
-      if (res.getResponseCode() !== 200) return null;
-      var j = JSON.parse(res.getContentText());
-      // 曖昧さ回避ページには代表的な写真がないので弾く
-      if (j.type && j.type.indexOf('disambiguation') >= 0) return null;
-
-      // 原寸（originalimage）は数MBあることがある。
-      // サムネイルURLの幅指定を書き換えて、必要な大きさだけを取りにいく。
-      var thumb = j.thumbnail && j.thumbnail.source;
-      var src = thumb ? widen_(thumb, C.IMAGE_MAX_PX)
-                      : (j.originalimage && j.originalimage.source);
-      if (!src) return null;
-
-      return {
-        url: src,
-        credit: 'ja.wikipedia.org「' + (j.title || title) + '」より'
-      };
+      var code = res.getResponseCode();
+      var text = res.getContentText();
+      if (code !== 200) {
+        console.warn('[画像] ' + label + ' が HTTP ' + code + ' を返した: ' +
+                     text.slice(0, 200));
+        return null;
+      }
+      return JSON.parse(text);
     } catch (e) {
-      console.warn('Wikipedia 取得に失敗: ' + e);
+      console.warn('[画像] ' + label + ' で例外: ' + e);
       return null;
     }
+  }
+
+  /* ---------- 1. Wikipedia（Action API） ---------- */
+
+  /**
+   * 記事名から代表画像（pageimages）のサムネイルURLを取る。
+   * redirects=1 を付けているので「オオスズメバチ」のような別名でも本記事に飛ぶ。
+   */
+  function fromWikipedia_(title) {
+    if (!title) return null;
+    var url = WIKI_API +
+      '?action=query&format=json&formatversion=2&redirects=1' +
+      '&prop=pageimages|pageprops&piprop=thumbnail' +
+      '&pithumbsize=' + C.IMAGE_MAX_PX +
+      '&titles=' + encodeURIComponent(String(title).trim());
+
+    var body = getJson_(url, 'Wikipedia「' + title + '」');
+    if (!body) return null;
+
+    var pages = (body.query || {}).pages || [];
+    for (var i = 0; i < pages.length; i++) {
+      var p = pages[i];
+      if (p.missing) continue;
+      // 曖昧さ回避ページには代表的な写真がないので弾く
+      if (p.pageprops && p.pageprops.disambiguation !== undefined) continue;
+      var src = p.thumbnail && p.thumbnail.source;
+      if (!src) continue;
+      return {
+        url: src,
+        credit: 'ja.wikipedia.org「' + (p.title || title) + '」より'
+      };
+    }
+    console.warn('[画像] Wikipedia「' + title + '」に代表画像が無い');
+    return null;
+  }
+
+  /* ---------- 1b. Wikipedia（REST・予備） ---------- */
+
+  function fromRest_(title) {
+    if (!title) return null;
+    var j = getJson_(WIKI_REST + encodeURIComponent(String(title).trim()),
+                     'Wikipedia REST「' + title + '」');
+    if (!j) return null;
+    if (j.type && j.type.indexOf('disambiguation') >= 0) return null;
+
+    // 原寸（originalimage）は数MBあることがある。
+    // サムネイルURLの幅指定を書き換えて、必要な大きさだけを取りにいく。
+    var thumb = j.thumbnail && j.thumbnail.source;
+    var src = thumb ? widen_(thumb, C.IMAGE_MAX_PX)
+                    : (j.originalimage && j.originalimage.source);
+    if (!src) return null;
+    return { url: src, credit: 'ja.wikipedia.org「' + (j.title || title) + '」より' };
   }
 
   /* ---------- 2. Wikimedia Commons ---------- */
@@ -87,35 +147,28 @@ var Images = (function () {
    */
   function fromCommons_(name) {
     if (!name) return null;
-    try {
-      var search = COMMONS + '?action=query&format=json&generator=search' +
-        '&gsrsearch=' + encodeURIComponent('filetype:bitmap ' + name) +
-        '&gsrnamespace=6&gsrlimit=1' +
-        '&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=' + C.IMAGE_MAX_PX;
-      var res = UrlFetchApp.fetch(search, {
-        method: 'get',
-        headers: { 'Api-User-Agent': UA },
-        muteHttpExceptions: true
-      });
-      if (res.getResponseCode() !== 200) return null;
+    var url = COMMONS + '?action=query&format=json&formatversion=2&generator=search' +
+      '&gsrsearch=' + encodeURIComponent('filetype:bitmap ' + name) +
+      '&gsrnamespace=6&gsrlimit=1' +
+      '&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=' + C.IMAGE_MAX_PX;
 
-      var pages = ((JSON.parse(res.getContentText()).query || {}).pages) || {};
-      for (var k in pages) {
-        var info = (pages[k].imageinfo || [])[0];
-        if (!info) continue;
-        var meta = info.extmetadata || {};
-        var artist = stripTags_((meta.Artist || {}).value || '');
-        var license = (meta.LicenseShortName || {}).value || '';
-        return {
-          url: info.thumburl || info.url,
-          credit: [artist, license].filter(String).join(' / ') || 'Wikimedia Commons'
-        };
-      }
-      return null;
-    } catch (e) {
-      console.warn('Commons 検索に失敗: ' + e);
-      return null;
+    var body = getJson_(url, 'Commons「' + name + '」');
+    if (!body) return null;
+
+    var pages = (body.query || {}).pages || [];
+    for (var i = 0; i < pages.length; i++) {
+      var info = (pages[i].imageinfo || [])[0];
+      if (!info) continue;
+      var meta = info.extmetadata || {};
+      var artist = stripTags_((meta.Artist || {}).value || '');
+      var license = (meta.LicenseShortName || {}).value || '';
+      return {
+        url: info.thumburl || info.url,
+        credit: [artist, license].filter(String).join(' / ') || 'Wikimedia Commons'
+      };
     }
+    console.warn('[画像] Commons に「' + name + '」の画像が無い');
+    return null;
   }
 
   function stripTags_(s) {
@@ -156,7 +209,8 @@ var Images = (function () {
         muteHttpExceptions: true
       });
       if (res.getResponseCode() !== 200) {
-        console.warn('AI画像生成に失敗: HTTP ' + res.getResponseCode());
+        console.warn('[画像] AI画像生成が HTTP ' + res.getResponseCode() + ': ' +
+                     res.getContentText().slice(0, 200));
         return null;
       }
       var parts = (((JSON.parse(res.getContentText()).candidates || [])[0] || {})
@@ -174,7 +228,7 @@ var Images = (function () {
       }
       return null;
     } catch (e) {
-      console.warn('AI画像生成に失敗: ' + e);
+      console.warn('[画像] AI画像生成に失敗: ' + e);
       return null;
     }
   }
@@ -191,14 +245,23 @@ var Images = (function () {
   }
 
   function download_(url) {
-    var res = UrlFetchApp.fetch(url, {
-      method: 'get',
-      headers: { 'Api-User-Agent': UA },
-      muteHttpExceptions: true,
-      followRedirects: true
-    });
-    if (res.getResponseCode() !== 200) return null;
-    return res.getBlob();
+    try {
+      var res = UrlFetchApp.fetch(url, {
+        method: 'get',
+        headers: { 'Api-User-Agent': UA },
+        muteHttpExceptions: true,
+        followRedirects: true
+      });
+      var code = res.getResponseCode();
+      if (code !== 200) {
+        console.warn('[画像] ダウンロードが HTTP ' + code + ': ' + url);
+        return null;
+      }
+      return res.getBlob();
+    } catch (e) {
+      console.warn('[画像] ダウンロードで例外: ' + e + ' / ' + url);
+      return null;
+    }
   }
 
   /** 画像フォルダを用意して保存し、ファイルIDを返す */
@@ -216,8 +279,14 @@ var Images = (function () {
       props.setProperty(C.PROP.FOLDER_ID, folder.getId());
     }
     var file = folder.createFile(blob.setName(name + '_' + Date.now()));
-    // ウェブアプリから <img> で読めるようにする
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    // ウェブアプリから <img> で読めるようにする。
+    // 組織のポリシーで外部共有が禁じられていると例外になるので、
+    // 握りつぶさずに理由を残す（画像だけ見えない状態の主な原因になる）
+    try {
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (e) {
+      console.warn('[画像] 公開設定に失敗（組織のポリシーの可能性）: ' + e);
+    }
     return file.getId();
   }
 
@@ -229,7 +298,7 @@ var Images = (function () {
       return 'data:' + blob.getContentType() + ';base64,' +
              Utilities.base64Encode(blob.getBytes());
     } catch (e) {
-      console.warn('画像の読み出しに失敗: ' + e);
+      console.warn('[画像] 画像の読み出しに失敗: ' + e);
       return '';
     }
   }
@@ -238,7 +307,11 @@ var Images = (function () {
     fetchFor: fetchFor,
     dataUri: dataUri,
     _widen: widen_,
+    _getJson: getJson_,
+    _download: download_,
+    _saveToDrive: saveToDrive_,
     _fromWikipedia: fromWikipedia_,
+    _fromRest: fromRest_,
     _fromCommons: fromCommons_
   };
 })();

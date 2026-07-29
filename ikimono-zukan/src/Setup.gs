@@ -14,6 +14,9 @@ function onOpen() {
     .addItem('APIキーを設定', 'promptApiKey')
     .addItem('設定を確認', 'showConfig')
     .addSeparator()
+    .addItem('写真が出ないときの診断', 'diagImages')
+    .addItem('写真が空の行に写真を入れ直す', 'refillImages')
+    .addSeparator()
     .addItem('別名索引のキャッシュを消す', 'clearCache')
     .addToUi();
 }

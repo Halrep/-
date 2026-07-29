@@ -198,6 +198,8 @@ function viewFromRow_(r) {
 
     image: {
       url: thumbUrl_(r['画像ID'], 800),
+      // 画面側で別形式のURLに切り替えて取り直すために、IDそのものも渡す
+      fileId: String(r['画像ID'] || ''),
       kind: String(r['画像種別'] || C.IMG.NONE),
       credit: String(r['画像クレジット'] || '')
     },
