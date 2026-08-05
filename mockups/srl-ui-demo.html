@@ -386,6 +386,56 @@ textarea, input[type=text]{
 .star-btn[aria-pressed="true"]{opacity:1}
 .view{display:none}
 .view.on{display:block}
+
+/* 単元の出口 */
+.outcome{display:flex; gap:12px; align-items:flex-start; background:var(--primary-soft); border:1.5px solid var(--primary-line); border-radius:var(--r); padding:12px 16px; margin-bottom:14px}
+.outcome .flag{font-size:22px; flex:none}
+.outcome .lb{font-size:10.5px; font-weight:800; letter-spacing:.14em; color:var(--primary); display:block; margin-bottom:2px}
+.outcome .ol{font-weight:800; font-size:14.5px; line-height:1.6}
+.outcome .og{font-size:12px; color:var(--muted); margin-top:2px}
+/* 自己効力感 */
+.efficacy{display:flex; align-items:center; gap:14px}
+.efficacy input[type=range]{flex:1; accent-color:var(--ok); height:32px}
+.efficacy .face{font-size:26px; min-width:34px; text-align:center}
+.efficacy .lab{font-size:12px; font-weight:800; min-width:96px; text-align:right}
+/* 確認タイムのバナー */
+.checkin{position:fixed; left:50%; bottom:0; transform:translate(-50%,110%); width:min(680px,94vw); z-index:80; background:var(--surface); border:2px solid var(--accent); border-bottom:0; border-radius:14px 14px 0 0; box-shadow:0 -6px 24px rgba(35,48,58,.18); padding:14px 18px; transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+.checkin.on{transform:translate(-50%,0)}
+.checkin .ci-h{display:flex; align-items:center; gap:10px; font-weight:800; font-size:15px}
+.checkin .ci-h .em{font-size:22px}
+.checkin .ci-q{font-size:12.5px; color:var(--muted); margin:6px 0 10px}
+.checkin .ci-row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+.checkin .ci-btn{border:2px solid var(--line); background:var(--surface); border-radius:999px; padding:9px 18px; font-weight:800}
+.checkin .ci-btn.ok{border-color:var(--ok); color:var(--ok)}
+.checkin .ci-btn.adj{border-color:var(--warn); color:var(--warn)}
+.checkin .ci-memo{flex:1; min-width:160px}
+/* みんなの様子（他者参照） */
+.peer-head{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.peer-mode{font-size:11px; font-weight:800; border-radius:5px; padding:2px 8px; background:var(--surface2); color:var(--muted)}
+.peer-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px}
+.peer{border:1.5px solid var(--line); border-radius:8px; background:var(--surface); padding:8px 10px; display:flex; flex-direction:column; gap:3px; cursor:pointer; transition:border-color .15s, box-shadow .15s}
+.peer:hover{box-shadow:var(--shadow)}
+.peer.me{border-color:var(--primary); background:var(--primary-soft)}
+.peer .pn{font-weight:800; font-size:12.5px; display:flex; align-items:center; gap:6px}
+.peer .pn .no{color:var(--muted); font-size:10px; font-weight:700}
+.peer .stage{font-size:10.5px; font-weight:800; border-radius:5px; padding:1px 7px; align-self:flex-start}
+.peer .stage.s0{background:var(--idle-soft); color:var(--idle)}
+.peer .stage.s1{background:var(--busy-soft); color:var(--busy)}
+.peer .stage.s2{background:var(--ok-soft); color:var(--ok)}
+.peer .pmeta{font-size:11px; color:var(--muted)}
+.peer .picons{font-size:15px; letter-spacing:1px; min-height:18px}
+.peer .pgoal{display:none; font-size:11.5px; color:var(--ink); border-top:1px dashed var(--line); padding-top:5px; margin-top:2px}
+.peer.open .pgoal{display:block}
+/* I/You/We バー */
+.iyouwe{display:flex; flex-direction:column; gap:6px}
+.iyouwe .iw-h{font-size:10.5px; font-weight:800; letter-spacing:.12em; color:var(--muted)}
+.iyouwe .iw-bar{display:flex; height:22px; border-radius:6px; overflow:hidden; border:1px solid var(--line)}
+.iyouwe .iw-seg{display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; color:#fff}
+.iyouwe .iw-seg.I{background:var(--busy)}
+.iyouwe .iw-seg.You{background:var(--accent)}
+.iyouwe .iw-seg.We{background:var(--ok)}
+.iyouwe .iw-key{display:flex; gap:12px; font-size:11px; color:var(--muted); flex-wrap:wrap}
+.iyouwe .iw-key i{width:9px; height:9px; border-radius:2px; display:inline-block; margin-right:4px}
 </style>
 
 <div class="proto-bar">
@@ -394,7 +444,7 @@ textarea, input[type=text]{
     <button id="sw-student" aria-pressed="true">児童の画面</button>
     <button id="sw-teacher" aria-pressed="false">教師の画面</button>
   </div>
-  <span class="note">6年社会「江戸幕府と政治の安定」／データはすべてダミー・操作できます</span>
+  <span class="note">6年社会／ダミーデータ・操作できます　＋自己効力感・確認タイム・みんなの様子・I/You/We を追加</span>
 </div>
 
 <!-- ================= 児童ビュー ================= -->
@@ -420,6 +470,13 @@ textarea, input[type=text]{
 
   <!-- ① みとおす -->
   <div class="panel on" id="pn0" role="tabpanel">
+    <div class="outcome">
+      <span class="flag">🏁</span>
+      <div><span class="lb">この単元のゴール（出口）</span>
+        <div class="ol">「大名支配のしくみ新聞」を作り、幕府が安定した理由を自分の言葉で説明する</div>
+        <div class="og">単元の目標：幕府の政策から、世の中が安定したしくみを説明できる</div>
+      </div>
+    </div>
     <div class="card">
       <div class="card-h"><span class="h-badge">❓</span><h2>今日の学習課題</h2></div>
       <div class="card-b task-goal">
@@ -490,6 +547,14 @@ textarea, input[type=text]{
               <span class="ds">まよったら「ゴールの姿」を読み直して方向をたしかめる</span>
               <span class="cat">メタ認知</span>
             </button>
+          </div>
+        </div>
+        <div>
+          <h3>この計画なら「できそう」？（自己効力感）</h3>
+          <div class="efficacy">
+            <span class="face" id="eff-face">🙂</span>
+            <input type="range" min="0" max="100" value="65" id="eff" aria-label="できそう度">
+            <span class="lab"><span id="eff-v" class="num">65</span> ％できそう</span>
           </div>
         </div>
         <div style="display:flex; justify-content:flex-end">
@@ -596,6 +661,22 @@ textarea, input[type=text]{
     </div>
 
     <button class="help-btn" id="help-btn" aria-pressed="false">🆘 こまっています（先生に知らせる）</button>
+
+    <div class="card">
+      <div class="card-h"><span class="h-badge">👀</span><h2>みんなの様子（クラスの今）　<span style="font-size:11.5px;color:var(--muted);font-weight:700">タップで目標を見る</span></h2></div>
+      <div class="card-b">
+        <div class="peer-head" style="margin-bottom:8px"><span class="peer-mode">記名モード</span><span style="font-size:11.5px;color:var(--muted);font-weight:700">約20秒ごとに更新／自分と比べて学び方の参考にしよう</span></div>
+        <div class="peer-grid" id="peer-grid">
+          <div class="peer me"><div class="pn"><span class="no">1</span>あなた</div><span class="stage s1">とりくみ中 1/4</span><div class="pmeta">🧑‍🤝‍🧑 ペア</div><div class="picons">🗺🗣</div><div class="pgoal">集中して ／ 白地図に色分け＋説明文3文</div></div>
+          <div class="peer"><div class="pn"><span class="no">2</span>石田</div><span class="stage s2">できた 4/4</span><div class="pmeta">🧑 ひとり</div><div class="picons">📝🎯</div><div class="pgoal">ねばり強く ／ しくみ図を完成させる</div></div>
+          <div class="peer"><div class="pn"><span class="no">3</span>上野</div><span class="stage s1">とりくみ中 2/4</span><div class="pmeta">👥 グループ</div><div class="picons">🗣</div><div class="pgoal">協力して ／ 年表から3つ見つける</div></div>
+          <div class="peer"><div class="pn"><span class="no">5</span>大田</div><span class="stage s1">とりくみ中 3/4</span><div class="pmeta">🧑‍🤝‍🧑 ペア</div><div class="picons">🗺🗣🎯</div><div class="pgoal">資料をじっくり ／ 新聞の下書きを作る</div></div>
+          <div class="peer"><div class="pn"><span class="no">7</span>木村</div><span class="stage s0">これから 0/4</span><div class="pmeta">— </div><div class="picons"><span style="font-size:11.5px;color:var(--muted);font-weight:700">工夫はまだ</span></div><div class="pgoal"><span style="font-size:11.5px;color:var(--muted);font-weight:700">目標はまだ</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="center" style="margin-top:4px"><button class="btn ghost" id="ci-demo">⏰（デモ）確認タイムを出す</button></div>
   </div>
 
   <!-- ③ ふりかえる -->
@@ -687,6 +768,17 @@ textarea, input[type=text]{
   </div>
 </div>
 
+<!-- 確認タイムのバナー（児童・デモ） -->
+<div class="checkin" id="checkin" role="dialog" aria-label="確認タイム">
+  <div class="ci-h"><span class="em">⏰</span><span>確認タイム（10分経過）</span></div>
+  <div class="ci-q">目標とずれてないかな？　残りの時間で終わりそう？　いまの調子をえらんでね。</div>
+  <div class="ci-row">
+    <button class="ci-btn ok" id="ci-ok">👍 順調！このまま続ける</button>
+    <button class="ci-btn adj" id="ci-adj">🔧 ちょっとズレてる（調整する）</button>
+    <input type="text" class="ci-memo" id="ci-memo" placeholder="ひとことメモ（任意）">
+  </div>
+</div>
+
 <!-- ================= 教師ビュー ================= -->
 <div class="app view" id="view-teacher">
 
@@ -718,6 +810,18 @@ textarea, input[type=text]{
             <span style="margin-left:auto; font-size:11.5px; color:var(--muted)">タイルをタップで詳細</span>
           </div>
         </div>
+        <div class="card" style="margin-bottom:10px"><div class="card-b" style="padding:12px 16px">
+          <div class="iyouwe">
+            <div class="iw-h">調整層バランス（I / You / We）</div>
+            <div class="iw-bar" id="iw-bar"></div>
+            <div class="iw-key">
+              <span><i style="background:var(--busy)"></i>I 一人で調整</span>
+              <span><i style="background:var(--accent)"></i>You ペアで共調整</span>
+              <span><i style="background:var(--ok)"></i>We 集団で調整</span>
+              <span id="iw-none" class="muted"></span>
+            </div>
+          </div>
+        </div></div>
         <div class="mon-grid" id="mon-grid"></div>
       </div>
 
@@ -760,6 +864,14 @@ textarea, input[type=text]{
             <textarea rows="2">参勤交代や武家諸法度などの幕府の政策を資料から読み取り、大名支配のしくみを自分の言葉で説明できる。</textarea>
           </div>
           <div>
+            <h3>単元の出口（成果物イメージ）</h3>
+            <textarea rows="2">「大名支配のしくみ新聞」を作り、幕府が安定した理由を自分の言葉で説明する</textarea>
+          </div>
+          <div>
+            <h3>確認タイムの間隔（分・0で無効）</h3>
+            <input type="text" value="10" style="max-width:120px">
+          </div>
+          <div>
             <h3>裁量レベル</h3>
             <div class="chips" data-single>
               <button class="chip" aria-pressed="false"><span class="cx">✓</span>1 指定調整型</button>
@@ -777,6 +889,14 @@ textarea, input[type=text]{
           <div class="sw-row"><div><div class="lb">資料・ツール</div><div class="sub">教科書／資料集／NHK for School／白地図</div></div><button class="switch" aria-pressed="true" aria-label="資料を開放"></button></div>
           <div class="sw-row"><div><div class="lb">順序</div><div class="sub">調べてから書く／構想してから調べる</div></div><button class="switch" aria-pressed="true" aria-label="順序を開放"></button></div>
           <div class="sw-row"><div><div class="lb">場所</div><div class="sub">自席／学びスペース（今回は閉じる）</div></div><button class="switch" aria-pressed="false" aria-label="場所を開放"></button></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><span class="h-badge">👀</span><h2>実行中の他者参照（みんなの様子）</h2></div>
+        <div class="card-b">
+          <div class="sw-row"><div><div class="lb">他者参照を許可</div><div class="sub">やってみる中に、他児の目標・工夫・進み具合を見られる（🆘や無操作は非表示）</div></div><button class="switch" aria-pressed="true" aria-label="他者参照を許可"></button></div>
+          <div class="sw-row"><div><div class="lb">名前を伏せる（匿名）</div><div class="sub">オンにすると「ともだち A / B …」で表示</div></div><button class="switch" aria-pressed="false" aria-label="匿名にする"></button></div>
         </div>
       </div>
 
@@ -929,6 +1049,23 @@ textarea, input[type=text]{
   var ach = $("#ach");
   ach.addEventListener("input", function(){ $("#ach-v").textContent = ach.value });
 
+  /* 自己効力感スライダー */
+  function effFace(v){ return v>=80?'😄':v>=60?'🙂':v>=40?'😐':v>=20?'😟':'😞'; }
+  var eff = $("#eff");
+  if(eff) eff.addEventListener("input", function(){ $("#eff-v").textContent = eff.value; $("#eff-face").textContent = effFace(+eff.value); });
+
+  /* 確認タイム（デモ） */
+  $("#ci-demo") && $("#ci-demo").addEventListener("click", function(){ $("#checkin").classList.add("on"); });
+  function closeCheckin(msg){ $("#checkin").classList.remove("on"); toast(msg); }
+  $("#ci-ok") && $("#ci-ok").addEventListener("click", function(){ closeCheckin("いい調子！記録したよ（デモ）"); });
+  $("#ci-adj") && $("#ci-adj").addEventListener("click", function(){ closeCheckin("調整して続けよう。記録したよ（デモ）"); });
+
+  /* みんなの様子: タップで目標を展開 */
+  document.addEventListener("click", function(e){
+    var peer = e.target.closest(".peer");
+    if(peer) peer.classList.toggle("open");
+  });
+
   /* ---------- 教師: タブ ---------- */
   $$(".t-tab").forEach(function(t){
     t.addEventListener("click", function(){
@@ -958,6 +1095,8 @@ textarea, input[type=text]{
     return {no:i+1, name:nm, prog:prog, st:st, form:pick(forms),
             be:pick(bes), doGoal:"白地図＋説明文"+(2+Math.floor(rnd()*2))+"文",
             regs:[pick(strats),pick(strats)].filter(function(v,ix,a){return a.indexOf(v)===ix}),
+            eff:30+Math.floor(rnd()*70),
+            checks:(prog>=2?[{m:10,s:"順調"},{m:20,s:(prog>=3?"順調":"調整する")}]:(prog>=1?[{m:10,s:"順調"}]:[])),
             idleMin:Math.floor(rnd()*9)};
   });
   /* シナリオ: 困り2名・無操作1名・未着手1名 */
@@ -985,6 +1124,14 @@ textarea, input[type=text]{
   $("#c-help").textContent = count("help"); $("#c-idle").textContent = count("idle");
   $("#c-none").textContent = count("none");
 
+  /* I/You/We バー */
+  (function(){
+    var I=0,You=0,We=0;
+    students.forEach(function(s){ if(s.form.indexOf("ひとり")>=0)I++; else if(s.form.indexOf("ペア")>=0)You++; else We++; });
+    var seg=function(cls,n){ return n>0?'<div class="iw-seg '+cls+'" style="flex:'+n+'">'+n+'</div>':''; };
+    $("#iw-bar").innerHTML = seg("I",I)+seg("You",You)+seg("We",We);
+  })();
+
   function select(ix, tile){
     $$(".tile").forEach(function(t){t.classList.remove("sel")});
     tile.classList.add("sel");
@@ -999,6 +1146,9 @@ textarea, input[type=text]{
       (s.st==="help" ? '<div style="background:var(--danger-soft); color:var(--danger); font-weight:800; border-radius:8px; padding:8px 12px">🆘 たすけてサインが出ています（2分前）</div>' : '')+
       (s.st==="idle" ? '<div style="background:var(--warn-soft); color:var(--warn); font-weight:800; border-radius:8px; padding:8px 12px">⏳ '+s.idleMin+'分間 操作がありません</div>' : '')+
       '<div class="d-row"><b>目標（BE / DO）</b>'+s.be+'取り組む ／ '+s.doGoal+'</div>'+
+      '<div class="d-row"><b>できそう度（自己効力感）</b><span class="bar-mini"><i style="width:'+s.eff+'%"></i></span><span class="num">'+s.eff+'</span> ％</div>'+
+      (s.checks.length ? '<div class="d-row"><b>確認タイム</b><span class="d-chips">'+
+        s.checks.map(function(c){var col=c.s==="調整する"?"var(--warn)":"var(--ok)";return '<span class="d-chip" style="color:'+col+'">'+c.m+'分:'+c.s+'</span>';}).join("")+'</span></div>' : '')+
       '<div class="d-row"><b>工夫カード（REGULATE）</b><span class="d-chips">'+
         s.regs.map(function(r){return '<span class="d-chip acc">'+r+'</span>'}).join("")+'</span></div>'+
       '<div class="d-row"><b>えらんだ学び方</b>'+s.form+' ・ 教科書＋資料集</div>'+
