@@ -72,6 +72,14 @@
         <div class="card-b steps" id="steps"></div>
       </div>
       <button class="help-btn" id="help-btn" aria-pressed="false">🆘 こまっています（先生に知らせる）</button>
+
+      <div class="card" id="peer-card" style="display:none">
+        <div class="card-h"><span class="h-badge">👀</span><h2>みんなの様子（クラスの今）　<span class="sub-h">タップで目標を見る</span></h2></div>
+        <div class="card-b">
+          <div class="peer-head" style="margin-bottom:8px"><span class="peer-mode" id="peer-mode"></span><span class="sub-h">約20秒ごとに更新／自分と比べて学び方の参考にしよう</span></div>
+          <div class="peer-grid" id="peer-grid"></div>
+        </div>
+      </div>
     </div>
 
     <!-- ③ ふりかえる -->
@@ -344,14 +352,49 @@ function loadPortfolio(){
   });
 }
 
+/* ---- 実行中の他者参照（みんなの様子） ---- */
+var peerTimer = null;
+function startPeers(){
+  if(!S || !S.lesson || !S.lesson.peerRef){ $('#peer-card').style.display='none'; return; }
+  $('#peer-card').style.display='';
+  pollPeers();
+  if(peerTimer) clearInterval(peerTimer);
+  peerTimer = setInterval(pollPeers, 20000);
+}
+function stopPeers(){ if(peerTimer){ clearInterval(peerTimer); peerTimer=null; } }
+function pollPeers(){
+  callServer('student_getPeers').then(function(res){
+    if(!res.enabled){ $('#peer-card').style.display='none'; return; }
+    $('#peer-card').style.display='';
+    $('#peer-mode').textContent = res.anon ? '匿名モード' : '記名モード';
+    renderPeers(res.cards);
+  }).catch(function(){});
+}
+function renderPeers(cards){
+  var stageCls = {'これから':'s0','とりくみ中':'s1','できた':'s2'};
+  $('#peer-grid').innerHTML = cards.map(function(c){
+    var goal = (c.be||'') + (c.doText? (' ／ '+c.doText) : '');
+    return '<div class="peer'+(c.isMe?' me':'')+'">'+
+      '<div class="pn"><span class="no num">'+esc(c.number)+'</span>'+esc(c.name)+'</div>'+
+      '<span class="stage '+(stageCls[c.stage]||'s0')+'">'+esc(c.stage)+' '+c.doneCount+'/'+c.total+'</span>'+
+      '<div class="pmeta">'+esc(c.form||'—')+'</div>'+
+      '<div class="picons">'+(c.usedIcons.join('')||'<span class="sub-h">工夫はまだ</span>')+'</div>'+
+      '<div class="pgoal">'+(goal? esc(goal) : '<span class="sub-h">目標はまだ</span>')+'</div>'+
+    '</div>';
+  }).join('') || '<div class="empty">まだだれも始めていません。</div>';
+}
+
 /* ---- イベント ---- */
 document.addEventListener('click', function(e){
+  var peer = e.target.closest('.peer');
+  if(peer){ peer.classList.toggle('open'); return; }
+
   var tab = e.target.closest('.big-tab');
   if(tab){
     var i = tab.dataset.tab;
     $$('.big-tab').forEach(function(t){ t.setAttribute('aria-selected', t===tab); });
     $$('.panel').forEach(function(p,j){ p.classList.toggle('on', String(j)===i); });
-    if(i==='1') renderUseCards();
+    if(i==='1'){ renderUseCards(); startPeers(); } else { stopPeers(); }
     return;
   }
 

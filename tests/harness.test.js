@@ -290,6 +290,32 @@ ok(monR.regulation.I === 1, 'I（ひとり）が1名');
 ok(monR.regulation.We === 1, 'We（グループ）が1名');
 ok(monR.regulation.none === 2, '学習形態 未選択が2名');
 
+console.log('\n【18】実行中の他者参照（みんなの様子）');
+asUser('a@school.jp');
+const peers = call('student_getPeers');
+ok(peers.enabled === true, 'デモは他者参照が有効');
+ok(peers.cards.length === 4, 'クラス4名分のカード');
+const meCard = peers.cards.find(c=>c.isMe);
+ok(meCard && meCard.name === 'あなた', '自分は「あなた」と表示');
+const aCardPeer = peers.cards.find(c=>c.number==='1');
+ok(aCardPeer.usedIcons.length >= 1, 'Aの使っている工夫アイコンが見える');
+ok(aCardPeer.stage === 'できた', 'Aの段階は できた（全完了）');
+// ネガティブ情報を漏らさない：Bはこまった中だが、他者参照に help/idle フィールドは無い
+const bCardPeer = peers.cards.find(c=>c.number==='2');
+ok(bCardPeer.helpOn === undefined && bCardPeer.status === undefined, 'こまった/無操作は他児に見せない');
+
+console.log('\n【19】記名/匿名の切替と無効化（教師）');
+asUser('teacher@school.jp');
+call('teacher_setPeerRef', lessonId, true, true);   // 匿名ON
+asUser('b@school.jp');
+const peersAnon = call('student_getPeers');
+const other = peersAnon.cards.find(c=>!c.isMe);
+ok(peersAnon.anon === true && other.name.indexOf('ともだち') === 0, '匿名モードで氏名が伏せられる');
+asUser('teacher@school.jp');
+call('teacher_setPeerRef', lessonId, false, false);  // 無効化
+asUser('b@school.jp');
+ok(call('student_getPeers').enabled === false, '教師が無効化すると他者参照が閉じる');
+
 /* =================== 結果 =================== */
 console.log('\n========================================');
 console.log('  PASS: '+pass+'   FAIL: '+fail);

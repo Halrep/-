@@ -91,7 +91,7 @@ function seedDemoUnitIfEmpty_() {
     [lessonId, unitId, 3, '大名を従わせた方法を資料から読み取る',
      '江戸幕府は、どのようにして大名を従わせ、世の中を安定させたのだろう。',
      '参勤交代や武家諸法度などの幕府の政策を資料から読み取り、大名支配のしくみを自分の言葉で説明できる。',
-     2, checklist, C.LESSON_STATE.DRAFT, Repo.now(), 10]));
+     2, checklist, C.LESSON_STATE.DRAFT, Repo.now(), 10, 'TRUE', '記名']));
 
   // 開放する選択肢カテゴリ（場所だけ閉じる）
   [['学習形態', 'TRUE'], ['ツール', 'TRUE'], ['順序', 'TRUE'], ['場所', 'FALSE']].forEach(function (c) {

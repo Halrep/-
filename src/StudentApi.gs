@@ -94,7 +94,9 @@ function student_getState() {
       task: lesson['学習課題'],
       goal: lesson['ゴール'],
       discretion: lesson['裁量レベル'],
-      checkInterval: Number(lesson['確認タイム間隔']) || 0  // ④ 確認タイムの間隔（分）
+      checkInterval: Number(lesson['確認タイム間隔']) || 0,  // ④ 確認タイムの間隔（分）
+      peerRef: truthy_(lesson['他者参照']),                 // 他者参照が有効か
+      peerAnon: lesson['他者参照モード'] === '匿名'          // 匿名表示か
     },
     resources: resources,
     choices: choices,
@@ -231,6 +233,66 @@ function student_saveReflection(payload) {
     '更新時刻': now
   });
   return { ok: true };
+}
+
+/**
+ * 実行中の他者参照：クラスの「今の途中経過」を返す（見通す→やってみるの鏡）。
+ * 前向きな情報だけ（目標・使っている工夫・進み具合・学習形態）。
+ * こまった/無操作などのネガティブ状態は他児に見せない。
+ * 教師が本時で無効にしていれば enabled:false。匿名モードでは氏名を伏せる。
+ */
+function student_getPeers() {
+  var ctx = requireUser_();
+  var uid = ctx.user.userId;
+  var lesson = currentLesson_();
+  if (!lesson) return { ok: true, enabled: false };
+  if (!truthy_(lesson['他者参照'])) return { ok: true, enabled: false };
+
+  var anon = lesson['他者参照モード'] === '匿名';
+  var lessonId = lesson['lesson_id'];
+  var strat = getStrategiesMap_();
+  var checklistLen = parseChecklist_(lesson['進度チェック項目']).length;
+
+  var students = Repo.readAll(C.SH.USERS).filter(function (u) { return u['役割'] === C.ROLE.STUDENT; });
+  var goals = indexBy_(Repo.where(C.SH.GOAL, { lesson_id: lessonId }), 'user_id');
+  var progByUser = groupBy_(Repo.where(C.SH.PROG, { lesson_id: lessonId }), 'user_id');
+  var selByUser = groupBy_(Repo.where(C.SH.SEL, { lesson_id: lessonId }), 'user_id');
+  var useByUser = groupBy_(Repo.where(C.SH.SUSE, { lesson_id: lessonId }), 'user_id');
+
+  function iconsOf(ids) {
+    return (ids || []).map(function (id) { return strat[id] ? strat[id]['アイコン'] : ''; }).filter(Boolean);
+  }
+
+  students.sort(function (a, b) { return Number(a['出席番号']) - Number(b['出席番号']); });
+  var labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+  var cards = students.map(function (u, i) {
+    var pid = u['user_id'];
+    var g = goals[pid];
+    var progs = progByUser[pid] || [];
+    var doneCount = progs.filter(function (p) { return Number(p['状態']) === C.PROGRESS.DONE; }).length;
+    var started = !!g || progs.some(function (p) { return Number(p['状態']) > 0; }) || (selByUser[pid] || []).length > 0;
+    var stage = (checklistLen > 0 && doneCount >= checklistLen) ? 'できた' : (started ? 'とりくみ中' : 'これから');
+
+    var usedIds = (useByUser[pid] || []).filter(function (x) { return truthy_(x['状態']); }).map(function (x) { return x['strategy_id']; });
+    var isMe = pid === uid;
+    var name = isMe ? 'あなた' : (anon ? ('ともだち ' + labels[i]) : (u['表示名'] || u['氏名']));
+
+    return {
+      isMe: isMe,
+      name: name,
+      number: u['出席番号'],
+      form: latestOf_(selByUser[pid] || [], '学習形態') || '',
+      stage: stage,
+      doneCount: doneCount,
+      total: checklistLen,
+      usedIcons: iconsOf(usedIds),
+      be: g ? g['Be'] : '',
+      doText: g ? g['Do'] : ''
+    };
+  });
+
+  return { ok: true, enabled: true, anon: anon, cards: cards };
 }
 
 /** ポートフォリオ：同じ単元での自分の過去の振り返り＋先生からのコメント */

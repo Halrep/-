@@ -234,6 +234,12 @@ function renderDesign(d){
       '</div></div>'+
     '</div></div>'+
     '<div class="card"><div class="card-h"><span class="h-badge">🎛</span><h2>児童に開放する選択肢</h2></div><div class="card-b">'+choiceRows+'</div></div>'+
+    '<div class="card"><div class="card-h"><span class="h-badge">👀</span><h2>実行中の他者参照（みんなの様子）</h2></div><div class="card-b">'+
+      '<div class="sw-row"><div><div class="lb">他者参照を許可</div><div class="sb2">やってみる中に、他児の目標・工夫・進み具合を見られる（🆘や無操作は非表示）</div></div>'+
+        '<button class="switch" id="pref-on" aria-pressed="'+d.lesson.peerRef+'"></button></div>'+
+      '<div class="sw-row"><div><div class="lb">名前を伏せる（匿名）</div><div class="sb2">オンにすると「ともだち A / B …」で表示</div></div>'+
+        '<button class="switch" id="pref-anon" aria-pressed="'+d.lesson.peerAnon+'"></button></div>'+
+    '</div></div>'+
     '<div class="card" style="grid-column:1/-1"><div class="card-h"><span class="h-badge">📎</span><h2>本時の資料（児童の「資料コーナー」に表示）</h2></div><div class="card-b res-list">'+resList+'</div></div>'+
     '<div class="card" style="grid-column:1/-1"><div class="card-h"><span class="h-badge">🃏</span><h2>おすすめとして紐づける方略カード</h2></div><div class="card-b"><div class="chips">'+stratChips+'</div></div></div>';
 }
@@ -254,6 +260,14 @@ var saveLessonFieldDebounced = debounce(function(lid, field, val){
 document.addEventListener('click', function(e){
   var sw = e.target.closest('.switch[data-choice]');
   if(sw){ var on = sw.getAttribute('aria-pressed')!=='true'; sw.setAttribute('aria-pressed', String(on)); save('teacher_setChoice', currentLessonId(), sw.dataset.choice, on); return; }
+
+  if(e.target.id==='pref-on' || e.target.id==='pref-anon'){
+    var t = e.target; t.setAttribute('aria-pressed', String(t.getAttribute('aria-pressed')!=='true'));
+    var refOn = $('#pref-on').getAttribute('aria-pressed')==='true';
+    var anon = $('#pref-anon').getAttribute('aria-pressed')==='true';
+    save('teacher_setPeerRef', currentLessonId(), refOn, anon);
+    return;
+  }
 
   var disc = e.target.closest('[data-disc]');
   if(disc){ $$('#discretion .chip').forEach(function(x){ x.setAttribute('aria-pressed','false'); }); disc.setAttribute('aria-pressed','true'); save('teacher_updateLesson', currentLessonId(), {'裁量レベル': Number(disc.dataset.disc)}); return; }

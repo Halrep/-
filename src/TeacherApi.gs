@@ -211,6 +211,8 @@ function teacher_getDesign(lessonId) {
       discretion: String(lesson['裁量レベル']),
       checklist: lesson['進度チェック項目'],
       checkInterval: Number(lesson['確認タイム間隔']) || 0,
+      peerRef: truthy_(lesson['他者参照']),
+      peerAnon: lesson['他者参照モード'] === '匿名',
       state: lesson['状態']
     },
     openCats: openCats,
@@ -230,6 +232,17 @@ function teacher_updateLesson(lessonId, patch) {
   allowed.forEach(function (k) { if (patch.hasOwnProperty(k)) clean[k] = patch[k]; });
   clean['更新時刻'] = Repo.now();
   Repo.updateByKey(C.SH.LESSON, 'lesson_id', lessonId, clean);
+  return { ok: true };
+}
+
+/** 実行中の他者参照の有効化と、記名/匿名モードの設定 */
+function teacher_setPeerRef(lessonId, on, anon) {
+  requireTeacher_();
+  Repo.updateByKey(C.SH.LESSON, 'lesson_id', lessonId, {
+    '他者参照': on ? 'TRUE' : 'FALSE',
+    '他者参照モード': anon ? '匿名' : '記名',
+    '更新時刻': Repo.now()
+  });
   return { ok: true };
 }
 
