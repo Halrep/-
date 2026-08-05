@@ -61,7 +61,7 @@ GASのグローバル（SpreadsheetApp / LockService / Session / Utilities …�
 通しで検証できます（Googleへのデプロイ不要）。
 
 ```bash
-node src/tests/harness.test.js
+node tests/harness.test.js
 ```
 
 セットアップ・ロール判定・目標/選択（履歴）/進度/方略利用・モニタの状態判定（done/help/busy/none/idle）・

@@ -1,0 +1,11 @@
+# clasp が Apps Script プロジェクトに push しないもの。
+# rootDir は ./src を想定（.clasp.json 参照）。src配下のGAS/HTMLのみを対象にする。
+**/tests/**
+**/*.test.js
+**/node_modules/**
+docs/**
+mockups/**
+tests/**
+.git/**
+.claspignore
+README.md

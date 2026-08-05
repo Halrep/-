@@ -6,7 +6,7 @@ const fs = require('fs');
 const vm = require('vm');
 const path = require('path');
 
-const SRC = '/home/user/-/src';
+const SRC = path.join(__dirname, '..', 'src');
 const GS_ORDER = ['Constants.gs','Repo.gs','Auth.gs','Code.gs','Setup.gs','StudentApi.gs','TeacherApi.gs'];
 
 /* ---------- インメモリ・スプレッドシート ---------- */
