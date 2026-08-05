@@ -387,6 +387,31 @@ textarea, input[type=text]{
 .view{display:none}
 .view.on{display:block}
 
+/* 課題中心レイアウト（やってみる） */
+.task-hero{border-left:5px solid var(--primary); margin-bottom:14px}
+.task-hero .tq{font-size:19px; font-weight:800; line-height:1.7; text-wrap:balance; margin:4px 0 0}
+.task-hero .hgoal{margin-top:10px; background:var(--accent-soft); border:1.5px solid var(--accent); border-radius:8px; padding:8px 12px; font-size:12.5px}
+.task-hero .hgoal b{color:var(--accent); font-size:10.5px; letter-spacing:.14em; margin-right:6px}
+.steps-nav{display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; margin-bottom:12px}
+.snav{flex:none; width:170px; border:2px solid var(--line); background:var(--surface); border-radius:10px; padding:8px 12px; text-align:left; display:flex; flex-direction:column; gap:2px; transition:border-color .15s, background .15s}
+.snav[aria-selected="true"]{border-color:var(--primary); background:var(--primary-soft)}
+.snav .sn-n{font-size:11px; font-weight:800; color:var(--muted)}
+.snav .sn-t{font-size:12.5px; font-weight:700; line-height:1.4}
+.snav .sn-s{font-size:10.5px; font-weight:800; border-radius:5px; padding:1px 7px; align-self:flex-start; margin-top:3px}
+.sn-s.s0{background:var(--idle-soft); color:var(--idle)}
+.sn-s.s1{background:var(--busy-soft); color:var(--busy)}
+.sn-s.s2{background:var(--ok-soft); color:var(--ok)}
+.tcard .card-h{align-items:flex-start}
+.tcard .tmins{margin-left:auto; font-size:11.5px; color:var(--muted); font-weight:700; white-space:nowrap}
+.tsec{border-top:1px dashed var(--line); padding-top:12px; margin-top:12px}
+.tsec.first{border-top:0; padding-top:0; margin-top:0}
+.tstate{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+.tstate .now{font-size:12px; font-weight:800; border-radius:6px; padding:4px 12px}
+.tstate .now.s0{background:var(--idle-soft); color:var(--idle)}
+.tstate .now.s1{background:var(--busy-soft); color:var(--busy)}
+.tstate .now.s2{background:var(--ok-soft); color:var(--ok)}
+.always-res{display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:12px; color:var(--muted)}
+
 /* 単元の出口 */
 .outcome{display:flex; gap:12px; align-items:flex-start; background:var(--primary-soft); border:1.5px solid var(--primary-line); border-radius:var(--r); padding:12px 16px; margin-bottom:14px}
 .outcome .flag{font-size:22px; flex:none}
@@ -564,99 +589,26 @@ textarea, input[type=text]{
     </div>
   </div>
 
-  <!-- ② やってみる -->
+  <!-- ② やってみる（学習課題が中心） -->
   <div class="panel" id="pn1" role="tabpanel">
-    <div class="card">
-      <div class="card-h"><span class="h-badge">🧭</span><h2>学び方をえらぼう　<span style="font-size:11.5px;color:var(--muted);font-weight:700">とちゅうで変えてもOK（変えた記録も残ります）</span></h2></div>
-      <div class="card-b" style="display:flex; flex-direction:column; gap:14px">
-        <div class="choice-row">
-          <h3>だれと</h3>
-          <div class="choice-cards" data-single>
-            <button class="ccard" aria-pressed="false"><span class="ic">🧑</span><span class="lb">ひとりで</span></button>
-            <button class="ccard" aria-pressed="true"><span class="ic">🧑‍🤝‍🧑</span><span class="lb">ペアで</span></button>
-            <button class="ccard" aria-pressed="false"><span class="ic">👥</span><span class="lb">グループで</span></button>
-          </div>
-        </div>
-        <div class="choice-row">
-          <h3>何を使って（いくつでも）</h3>
-          <div class="choice-cards">
-            <button class="ccard" aria-pressed="true"><span class="ic">📖</span><span class="lb">教科書</span></button>
-            <button class="ccard" aria-pressed="true"><span class="ic">📚</span><span class="lb">資料集</span></button>
-            <button class="ccard" aria-pressed="false"><span class="ic">🎬</span><span class="lb">NHK for School</span></button>
-            <button class="ccard" aria-pressed="false"><span class="ic">🗺</span><span class="lb">白地図</span></button>
-          </div>
-        </div>
-        <div class="choice-row">
-          <h3>どの順番で</h3>
-          <div class="choice-cards" data-single>
-            <button class="ccard" aria-pressed="true"><span class="ic">🔎</span><span class="lb">資料を調べてから まとめる</span></button>
-            <button class="ccard" aria-pressed="false"><span class="ic">✍️</span><span class="lb">まとめの形を決めてから 調べる</span></button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-h"><span class="h-badge">📎</span><h2>きょうの資料コーナー　<span style="font-size:11.5px;color:var(--muted);font-weight:700">先生が用意した資料はここから</span></h2></div>
-      <div class="card-b res-list">
-        <div class="res-row">
-          <span class="ic">📖</span>
-          <div><div class="ti">教科書 p.96–99「幕府の政治」</div><div class="sub">机の上に用意しよう</div></div>
-          <span class="rtag">手もとの資料</span>
-        </div>
-        <div class="res-row">
-          <span class="ic">📚</span>
-          <div><div class="ti">資料集 p.42–45「参勤交代の道のり」</div><div class="sub">大名行列の絵と地図がのっています</div></div>
-          <span class="rtag">手もとの資料</span>
-        </div>
-        <div class="res-row">
-          <span class="ic">🎬</span>
-          <div><div class="ti">NHK for School「参勤交代」</div><div class="sub">動画 6:32 ・ イヤホンを使おう</div></div>
-          <span class="rtag link">動画</span>
-          <button class="open-btn" data-toast="動画をひらきます（デモ）">ひらく</button>
-        </div>
-        <div class="res-row">
-          <span class="ic">🗺</span>
-          <div><div class="ti">白地図「大名の配置（1664年）」</div><div class="sub">自分用のコピーが作られます</div></div>
-          <span class="rtag link">スライド</span>
-          <button class="open-btn" data-toast="白地図をひらきます（デモ）">ひらく</button>
-        </div>
-        <div class="res-row">
-          <span class="ic">🔗</span>
-          <div><div class="ti">「武家諸法度」現代語やく</div><div class="sub">むずかしい言葉のいいかえ付き</div></div>
-          <span class="rtag link">ドキュメント</span>
-          <button class="open-btn" data-toast="資料をひらきます（デモ）">ひらく</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-h"><span class="h-badge">🃏</span><h2>えらんだ工夫カード　<span style="font-size:11.5px;color:var(--muted);font-weight:700">使ったらタップ</span></h2></div>
+    <div class="card task-hero">
       <div class="card-b">
-        <div class="strat-grid">
-          <button class="strat exec" aria-pressed="false" data-use>
-            <span class="ic">🗺</span><span class="nm">まず全体、つぎに細かく</span>
-            <span class="used">✔ つかった！</span>
-          </button>
-          <button class="strat exec" aria-pressed="false" data-use>
-            <span class="ic">🗣</span><span class="nm">友だちに説明してみる</span>
-            <span class="used">✔ つかった！</span>
-          </button>
-          <button class="strat exec" aria-pressed="false" data-use>
-            <span class="ic">🙋</span><span class="nm">たすけてサイン</span>
-            <span class="used">✔ つかった！</span>
-          </button>
-        </div>
+        <span class="eyebrow">きょうの学習課題</span>
+        <p class="tq">江戸幕府は、どのようにして大名を従わせ、世の中を安定させたのだろう。</p>
+        <div class="hgoal"><b>ゴール</b>参勤交代や武家諸法度などの幕府の政策を資料から読み取り、大名支配のしくみを自分の言葉で説明できる。</div>
       </div>
     </div>
 
+    <h3 style="margin-bottom:6px">取り組む課題（タップで切りかえ）</h3>
+    <div class="steps-nav" id="steps-nav" role="tablist"></div>
+    <div id="task-panel"></div>
+
     <div class="card">
-      <div class="card-h"><span class="h-badge">✅</span><h2>進みぐあいチェック　<span style="font-size:11.5px;color:var(--muted);font-weight:700">タップで 未着手 → 取組中 → 完了</span></h2></div>
-      <div class="card-b steps" id="steps">
-        <button class="step" data-s="2"><span class="st">完了</span><span class="tx">① 資料から幕府の政策を2つ以上見つける</span><span class="hint">めやす 10分</span></button>
-        <button class="step" data-s="1"><span class="st">取組中</span><span class="tx">② 白地図に大名の配置を整理する</span><span class="hint">めやす 15分</span></button>
-        <button class="step" data-s="0"><span class="st">未着手</span><span class="tx">③ 「なぜ安定したか」の説明文を書く</span><span class="hint">めやす 10分</span></button>
-        <button class="step" data-s="0"><span class="st">未着手</span><span class="tx">④ ペアで説明し合い、直す</span><span class="hint">めやす 5分</span></button>
+      <div class="card-b always-res">
+        <span style="font-weight:800; color:var(--ink)">いつでも使える資料：</span>
+        <span class="d-chip">📖 教科書 p.96–99</span>
+        <span class="d-chip">📚 資料集 p.42–45</span>
+        <button class="open-btn" data-toast="「武家諸法度」現代語やくをひらきます（デモ）">🔗 武家諸法度 現代語やく</button>
       </div>
     </div>
 
@@ -1026,15 +978,118 @@ textarea, input[type=text]{
     }
   });
 
-  /* 進度ステップ: 3状態サイクル */
+  /* ---------- 課題中心の「やってみる」 ---------- */
   var stLabel = ["未着手","取組中","完了"];
-  $$("#steps .step").forEach(function(s){
-    s.addEventListener("click", function(){
-      var v = (parseInt(s.getAttribute("data-s"),10)+1)%3;
-      s.setAttribute("data-s", v);
-      $(".st",s).textContent = stLabel[v];
-      toast("進みぐあいを「"+stLabel[v]+"」にしました");
-    });
+
+  // 学習課題ごとに：取り組み方（だれと／何を使って）・その課題の資料・つかう工夫
+  var TASKS = [
+    { n:"①", title:"資料から幕府の政策を2つ以上見つける", mins:10, status:2,
+      who:"ペアで", tools:["教科書","資料集"],
+      res:[
+        {ic:"📖", ti:"教科書 p.96–99「幕府の政治」", sub:"机の上に用意しよう", tag:"手もとの資料"},
+        {ic:"🎬", ti:"NHK for School「参勤交代」", sub:"動画 6:32 ・ イヤホンを使おう", tag:"動画", link:1}
+      ],
+      strat:[{ic:"🗺", nm:"まず全体、つぎに細かく"}, {ic:"📝", nm:"キーワードメモ"}] },
+    { n:"②", title:"白地図に大名の配置を整理する", mins:15, status:1,
+      who:"ペアで", tools:["白地図","資料集"],
+      res:[
+        {ic:"🗺", ti:"白地図「大名の配置（1664年）」", sub:"自分用のコピーが作られます", tag:"スライド", link:1},
+        {ic:"📚", ti:"資料集 p.42–45「参勤交代の道のり」", sub:"大名行列の絵と地図がのっています", tag:"手もとの資料"}
+      ],
+      strat:[{ic:"🗺", nm:"まず全体、つぎに細かく"}] },
+    { n:"③", title:"「なぜ安定したか」の説明文を書く", mins:10, status:0,
+      who:"ひとりで", tools:["教科書"],
+      res:[
+        {ic:"🔗", ti:"「武家諸法度」現代語やく", sub:"むずかしい言葉のいいかえ付き", tag:"ドキュメント", link:1}
+      ],
+      strat:[{ic:"📝", nm:"キーワードメモ"}, {ic:"🎯", nm:"ゴールを見返す"}] },
+    { n:"④", title:"ペアで説明し合い、直す", mins:5, status:0,
+      who:"ペアで", tools:[],
+      res:[],
+      strat:[{ic:"🗣", nm:"友だちに説明してみる"}, {ic:"🙋", nm:"たすけてサイン"}] }
+  ];
+  var WHO = [["🧑","ひとりで"],["🧑‍🤝‍🧑","ペアで"],["👥","グループで"]];
+  var TOOLS = [["📖","教科書"],["📚","資料集"],["🎬","NHK for School"],["🗺","白地図"]];
+  var curTask = 1;   // ②を取組中として開いておく
+
+  function renderNav(){
+    $("#steps-nav").innerHTML = TASKS.map(function(t,i){
+      return '<button class="snav" role="tab" data-i="'+i+'" aria-selected="'+(i===curTask)+'">'+
+        '<span class="sn-n">課題 '+t.n+'</span>'+
+        '<span class="sn-t">'+t.title+'</span>'+
+        '<span class="sn-s s'+t.status+'">'+stLabel[t.status]+'</span></button>';
+    }).join("");
+  }
+
+  function renderTask(){
+    var t = TASKS[curTask];
+    var whoCards = WHO.map(function(w){
+      return '<button class="ccard" aria-pressed="'+(t.who===w[1])+'"><span class="ic">'+w[0]+'</span><span class="lb">'+w[1]+'</span></button>';
+    }).join("");
+    var toolCards = TOOLS.map(function(w){
+      return '<button class="ccard" aria-pressed="'+(t.tools.indexOf(w[1])>=0)+'"><span class="ic">'+w[0]+'</span><span class="lb">'+w[1]+'</span></button>';
+    }).join("");
+    var resRows = t.res.length ? t.res.map(function(r){
+      return '<div class="res-row"><span class="ic">'+r.ic+'</span>'+
+        '<div><div class="ti">'+r.ti+'</div><div class="sub">'+r.sub+'</div></div>'+
+        '<span class="rtag'+(r.link?" link":"")+'">'+r.tag+'</span>'+
+        (r.link?'<button class="open-btn" data-toast="'+r.ti+' をひらきます（デモ）">ひらく</button>':'')+'</div>';
+    }).join("") : '<div class="empty">この課題に紐づいた資料はありません（下の「いつでも使える資料」を使おう）</div>';
+    t.used = t.used || {};
+    var stratCards = t.strat.map(function(s){
+      return '<button class="strat exec" aria-pressed="'+(!!t.used[s.nm])+'" data-use><span class="ic">'+s.ic+'</span>'+
+        '<span class="nm">'+s.nm+'</span><span class="used">✔ つかった！</span></button>';
+    }).join("");
+
+    $("#task-panel").innerHTML =
+      '<div class="card tcard">'+
+        '<div class="card-h"><span class="h-badge">'+t.n+'</span><h2>'+t.title+'</h2><span class="tmins">めやす '+t.mins+'分</span></div>'+
+        '<div class="card-b">'+
+          '<div class="tsec first"><h3>この課題の取り組み方をえらぶ</h3>'+
+            '<div class="choice-row" style="margin-bottom:10px"><h3 style="font-size:12px">だれと</h3><div class="choice-cards" data-single>'+whoCards+'</div></div>'+
+            '<div class="choice-row"><h3 style="font-size:12px">何を使って（いくつでも）</h3><div class="choice-cards">'+toolCards+'</div></div>'+
+          '</div>'+
+          '<div class="tsec"><h3>この課題でつかう資料</h3><div class="res-list">'+resRows+'</div></div>'+
+          '<div class="tsec"><h3>この課題でつかう工夫　<span style="font-weight:700;color:var(--muted);font-size:11.5px">使ったらタップ</span></h3><div class="strat-grid">'+stratCards+'</div></div>'+
+          '<div class="tsec tstate">'+
+            '<span class="now s'+t.status+'">いま：'+stLabel[t.status]+'</span>'+
+            '<button class="btn ghost" data-status="1">▶ 取りかかる</button>'+
+            '<button class="btn" data-status="2">✔ できた！</button>'+
+            (curTask < TASKS.length-1 ? '<button class="btn ghost" id="next-task">次の課題へ →</button>' : '')+
+          '</div>'+
+        '</div>'+
+      '</div>';
+  }
+
+  function renderExec(){ renderNav(); renderTask(); }
+  renderExec();
+
+  document.addEventListener("click", function(e){
+    // 選択・工夫の状態を課題ごとに保持（再描画で消えないように）
+    var panel = e.target.closest("#task-panel");
+    if(panel){
+      var t = TASKS[curTask];
+      var rows = $$(".choice-row", panel);
+      if(rows.length === 2){
+        var w = $(".ccard[aria-pressed='true']", rows[0]);
+        t.who = w ? $(".lb", w).textContent : "";
+        t.tools = $$(".ccard[aria-pressed='true']", rows[1]).map(function(c){ return $(".lb",c).textContent; });
+      }
+      t.used = {};
+      $$(".strat.exec", panel).forEach(function(s){
+        if(s.getAttribute("aria-pressed")==="true") t.used[$(".nm",s).textContent] = true;
+      });
+    }
+
+    var nav = e.target.closest(".snav");
+    if(nav){ curTask = +nav.dataset.i; renderExec(); return; }
+    var stBtn = e.target.closest("[data-status]");
+    if(stBtn){
+      TASKS[curTask].status = +stBtn.dataset.status;
+      toast("課題"+TASKS[curTask].n+"を「"+stLabel[TASKS[curTask].status]+"」にしました");
+      renderExec(); return;
+    }
+    if(e.target.id === "next-task"){ curTask = Math.min(curTask+1, TASKS.length-1); renderExec(); return; }
   });
 
   /* こまったボタン */
