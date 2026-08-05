@@ -22,6 +22,11 @@
 
     <!-- ① みとおす -->
     <div class="panel on" id="pn0" role="tabpanel">
+      <div class="outcome" id="s-outcome" style="display:none">
+        <span class="flag">🏁</span>
+        <div><span class="lb">この単元のゴール（出口）</span>
+          <div class="ol" id="s-outcome-l"></div><div class="og" id="s-outcome-g"></div></div>
+      </div>
       <div class="card">
         <div class="card-h"><span class="h-badge">❓</span><h2>今日の学習課題</h2></div>
         <div class="card-b task-goal">
@@ -36,6 +41,13 @@
           <div><h3>Be ─ どんな姿で取り組む？（タップでえらぶ）</h3><div class="chips" id="be-chips"></div></div>
           <div><h3>Do ─ 何をどこまでやる？（成果物・量）</h3><input type="text" id="do-input" placeholder="例：白地図に大名の配置をまとめて、説明文を3文以上書く"></div>
           <div><h3>Regulate ─ どんな工夫（方略）を使う？　<span class="star-rec">★</span>は先生のおすすめ</h3><div class="strat-grid" id="reg-grid"></div></div>
+          <div><h3>この計画なら「できそう」？（自己効力感）</h3>
+            <div class="efficacy">
+              <span class="face" id="eff-face">🙂</span>
+              <input type="range" min="0" max="100" value="60" id="eff" aria-label="できそう度">
+              <span class="lab"><span id="eff-v" class="num">60</span> ％できそう</span>
+            </div>
+          </div>
           <div class="row-end"><button class="btn" id="goal-save">この目標で始める</button></div>
         </div>
       </div>
@@ -98,6 +110,17 @@
   </div>
 </div>
 
+<!-- ④ 確認タイム -->
+<div class="checkin" id="checkin" role="dialog" aria-label="確認タイム">
+  <div class="ci-h"><span class="em">⏰</span><span id="ci-title">確認タイム</span></div>
+  <div class="ci-q">目標とずれてないかな？　残りの時間で終わりそう？　いまの調子をえらんでね。</div>
+  <div class="ci-row">
+    <button class="ci-btn ok" id="ci-ok">👍 順調！このまま続ける</button>
+    <button class="ci-btn adj" id="ci-adj">🔧 ちょっとズレてる（調整する）</button>
+    <input type="text" class="ci-memo" id="ci-memo" placeholder="ひとことメモ（任意）">
+  </div>
+</div>
+
 <script>
 var BE_CHIPS = ['集中して','ねばり強く','協力して','資料をじっくり読んで','自分の考えをもって'];
 var ATTR_GOOD = ['やり方（工夫）がよかった','集中できた','友だちと協力できた','時間の使い方がよかった'];
@@ -116,9 +139,13 @@ var reg = [];                 // 選択中の Regulate 方略ID
 function saveGoal(){
   var be = $$('#be-chips .chip[aria-pressed="true"]').map(function(b){ return b.dataset.v; }).join('・');
   var doText = $('#do-input').value;
-  save('student_saveGoal', be, doText, reg);
+  var efficacy = Number($('#eff').value);
+  save('student_saveGoal', be, doText, reg, efficacy);
 }
 var saveGoalDebounced = debounce(saveGoal, 700);
+
+// 自己効力感スライダーの顔文字
+function effFace(v){ return v>=80?'😄':v>=60?'🙂':v>=40?'😐':v>=20?'😟':'😞'; }
 
 function saveReflection(silent){
   var payload = {
@@ -148,6 +175,13 @@ function render(){
   $('#h-name').textContent = L.period + ' / ' + L.total + ' 時間目 ・ ' + S.me.displayName + ' さん';
   $('#content').classList.remove('hidden');
 
+  // ① 単元の出口（成果物）
+  if(L.outcome || L.unitGoal){
+    $('#s-outcome').style.display = 'flex';
+    $('#s-outcome-l').textContent = L.outcome || L.unitGoal;
+    $('#s-outcome-g').textContent = L.outcome && L.unitGoal ? ('単元の目標：' + L.unitGoal) : '';
+  } else { $('#s-outcome').style.display = 'none'; }
+
   // ① 課題・ゴール・資料サマリ
   $('#s-task').textContent = L.task;
   $('#s-goal').textContent = L.goal;
@@ -162,6 +196,10 @@ function render(){
 
   // Do
   $('#do-input').value = S.my.goal ? (S.my.goal.doText||'') : '';
+
+  // ② 自己効力感
+  var effVal = (S.my.goal && S.my.goal.efficacy != null) ? S.my.goal.efficacy : 60;
+  $('#eff').value = effVal; $('#eff-v').textContent = effVal; $('#eff-face').textContent = effFace(effVal);
 
   // Regulate カード（おすすめを先頭に）
   reg = S.my.goal ? (S.my.goal.regulate||[]).slice() : [];
@@ -200,6 +238,31 @@ function render(){
   $('#nextplan').value = r ? (r.nextPlan||'') : '';
 
   loadPortfolio();
+  startCheckin();   // ④ 確認タイムのタイマー開始
+}
+
+/* ④ 確認タイム：checkInterval 分ごとにバナーを出す */
+var checkinTimer = null, checkinCount = 0;
+function startCheckin(){
+  if(checkinTimer) clearInterval(checkinTimer);
+  var min = S.lesson && S.lesson.checkInterval;
+  if(!min || min < 1) return;                 // 0なら無効
+  checkinCount = (S.my.checkpoints||[]).length;
+  checkinTimer = setInterval(function(){ showCheckin(min); }, min*60000);
+}
+function showCheckin(intervalMin){
+  checkinCount++;
+  var elapsed = intervalMin * checkinCount;
+  $('#ci-title').textContent = '確認タイム（' + elapsed + '分経過）';
+  $('#checkin').dataset.elapsed = elapsed;
+  $('#ci-memo').value = '';
+  $('#checkin').classList.add('on');
+}
+function closeCheckin(status){
+  var elapsed = Number($('#checkin').dataset.elapsed || 0);
+  save('student_saveCheckpoint', elapsed, status, $('#ci-memo').value);
+  $('#checkin').classList.remove('on');
+  toast(status==='順調' ? 'いい調子！記録したよ' : '調整して続けよう。記録したよ');
 }
 
 function chipHtml(t, on){ return '<button class="chip" data-v="'+esc(t)+'" aria-pressed="'+(on?'true':'false')+'"><span class="cx">✓</span>'+esc(t)+'</button>'; }
@@ -340,6 +403,9 @@ document.addEventListener('click', function(e){
 
   if(e.target.closest('#goal-save')){ saveGoal(); toast('目標を先生に送りました'); return; }
   if(e.target.closest('#refl-save')){ saveReflection().then(function(){ toast('ふりかえりを記録しました'); loadPortfolio(); }); return; }
+
+  if(e.target.closest('#ci-ok')){ closeCheckin('順調'); return; }
+  if(e.target.closest('#ci-adj')){ closeCheckin('調整する'); return; }
 });
 
 function toggle(el){ el.setAttribute('aria-pressed', el.getAttribute('aria-pressed')==='true' ? 'false' : 'true'); }
@@ -348,6 +414,7 @@ $('#do-input') && $('#do-input').addEventListener('input', saveGoalDebounced);
 document.addEventListener('input', function(e){
   if(e.target.id==='ach'){ $('#ach-v').textContent = e.target.value; saveReflDebounced(); }
   if(e.target.id==='selfeval' || e.target.id==='nextplan'){ saveReflDebounced(); }
+  if(e.target.id==='eff'){ $('#eff-v').textContent = e.target.value; $('#eff-face').textContent = effFace(Number(e.target.value)); saveGoalDebounced(); }
 });
 
 /* 起動 */

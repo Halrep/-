@@ -36,6 +36,7 @@ var C = {
     PROG:    '進度',
     SUSE:    '方略利用',
     HELP:    '援助要請',
+    CHECK:   '確認タイム',
     REFL:    '振り返り',
     FB:      'フィードバック'
   }
@@ -46,16 +47,17 @@ C.HEADERS = {};
 C.HEADERS[C.SH.USERS]   = ['user_id', '氏名', '表示名', '出席番号', '役割', 'email'];
 C.HEADERS[C.SH.STRAT]   = ['strategy_id', '分類', 'カード名', '説明', 'アイコン', '推奨フェーズ'];
 C.HEADERS[C.SH.PRESET]  = ['preset_id', 'カテゴリ', 'ラベル', 'アイコン', '複数選択可'];
-C.HEADERS[C.SH.UNIT]    = ['unit_id', '教科', '学年', '単元名', '単元目標', '総時数', '状態'];
-C.HEADERS[C.SH.LESSON]  = ['lesson_id', 'unit_id', '時数', '本時の目標', '学習課題', 'ゴール', '裁量レベル', '進度チェック項目', '状態', '更新時刻'];
+C.HEADERS[C.SH.UNIT]    = ['unit_id', '教科', '学年', '単元名', '単元目標', '総時数', '状態', '成果物イメージ'];
+C.HEADERS[C.SH.LESSON]  = ['lesson_id', 'unit_id', '時数', '本時の目標', '学習課題', 'ゴール', '裁量レベル', '進度チェック項目', '状態', '更新時刻', '確認タイム間隔'];
 C.HEADERS[C.SH.LCHOICE] = ['lesson_id', 'カテゴリ', '開放'];
 C.HEADERS[C.SH.LSTRAT]  = ['lesson_id', 'strategy_id', '教師の一言'];
 C.HEADERS[C.SH.LRES]    = ['resource_id', 'lesson_id', 'アイコン', 'タイトル', '補足', '種別', 'URL'];
-C.HEADERS[C.SH.GOAL]    = ['goal_id', 'lesson_id', 'user_id', 'Be', 'Do', 'Regulate', '作成時刻', '更新時刻'];
+C.HEADERS[C.SH.GOAL]    = ['goal_id', 'lesson_id', 'user_id', 'Be', 'Do', 'Regulate', '自己効力感', '作成時刻', '更新時刻'];
 C.HEADERS[C.SH.SEL]     = ['selection_id', 'lesson_id', 'user_id', 'カテゴリ', '選んだ値', '変更前の値', '選択時刻'];
 C.HEADERS[C.SH.PROG]    = ['progress_id', 'lesson_id', 'user_id', '項目index', '項目名', '状態', '更新時刻'];
 C.HEADERS[C.SH.SUSE]    = ['use_id', 'lesson_id', 'user_id', 'strategy_id', '状態', '更新時刻'];
 C.HEADERS[C.SH.HELP]    = ['help_id', 'lesson_id', 'user_id', '状態', '更新時刻'];
+C.HEADERS[C.SH.CHECK]   = ['check_id', 'lesson_id', 'user_id', '経過分', '状態', 'メモ', '時刻'];
 C.HEADERS[C.SH.REFL]    = ['reflection_id', 'lesson_id', 'user_id', '達成度', '自己評価', '原因帰属良', '原因帰属難', '気持ち', '次への適用', '共有', '記録時刻', '更新時刻'];
 C.HEADERS[C.SH.FB]      = ['feedback_id', 'lesson_id', 'from_user_id', 'to_user_id', 'コメント', '既読', '送信時刻'];
 
@@ -63,5 +65,5 @@ C.HEADERS[C.SH.FB]      = ['feedback_id', 'lesson_id', 'from_user_id', 'to_user_
 C.SHEET_ORDER = [
   C.SH.USERS, C.SH.STRAT, C.SH.PRESET,
   C.SH.UNIT, C.SH.LESSON, C.SH.LCHOICE, C.SH.LSTRAT, C.SH.LRES,
-  C.SH.GOAL, C.SH.SEL, C.SH.PROG, C.SH.SUSE, C.SH.HELP, C.SH.REFL, C.SH.FB
+  C.SH.GOAL, C.SH.SEL, C.SH.PROG, C.SH.SUSE, C.SH.HELP, C.SH.CHECK, C.SH.REFL, C.SH.FB
 ];

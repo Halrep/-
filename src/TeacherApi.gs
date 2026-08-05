@@ -89,12 +89,23 @@ function teacher_getMonitor() {
   var counts = { busy: 0, done: 0, help: 0, idle: 0, none: 0 };
   tiles.forEach(function (t) { counts[t.status]++; });
 
+  // ③ 調整層 I/You/We（学習形態の最新選択から集計）
+  var regulation = { I: 0, You: 0, We: 0, none: 0 };
+  students.forEach(function (u) {
+    var form = latestOf_(selByUser[u['user_id']] || [], '学習形態');
+    if (form === 'ひとりで') regulation.I++;
+    else if (form === 'ペアで') regulation.You++;
+    else if (form === 'グループで') regulation.We++;
+    else regulation.none++;
+  });
+
   return {
     ok: true,
     hasLesson: true,
     serverMs: now,
     meta: lessonMeta_(lesson),
     counts: counts,
+    regulation: regulation,
     tiles: tiles
   };
 }
@@ -116,6 +127,9 @@ function teacher_getStudentDetail(userId) {
     return { name: n, status: progMap[String(i)] || 0 };
   });
   var help = firstWhere_(C.SH.HELP, { lesson_id: lessonId, user_id: userId });
+  var checks = Repo.where(C.SH.CHECK, { lesson_id: lessonId, user_id: userId }).map(function (c) {
+    return { elapsedMin: c['経過分'], status: c['状態'], memo: c['メモ'] };
+  });
 
   var regulateNames = g ? splitCsv_(g['Regulate']).map(function (id) {
     return strat[id] ? (strat[id]['アイコン'] + ' ' + strat[id]['カード名']) : id;
@@ -133,11 +147,12 @@ function teacher_getStudentDetail(userId) {
     name: u ? (u['表示名'] || u['氏名']) : userId,
     number: u ? u['出席番号'] : '',
     help: help ? truthy_(help['状態']) : false,
-    goal: g ? { be: g['Be'], doText: g['Do'] } : null,
+    goal: g ? { be: g['Be'], doText: g['Do'], efficacy: (g['自己効力感'] === '' ? null : Number(g['自己効力感'])) } : null,
     regulateNames: regulateNames,
     usedNames: usedNames,
     selections: sels,
-    checklist: checklist
+    checklist: checklist,
+    checkpoints: checks
   };
 }
 
@@ -195,6 +210,7 @@ function teacher_getDesign(lessonId) {
       goal: lesson['ゴール'],
       discretion: String(lesson['裁量レベル']),
       checklist: lesson['進度チェック項目'],
+      checkInterval: Number(lesson['確認タイム間隔']) || 0,
       state: lesson['状態']
     },
     openCats: openCats,
@@ -209,7 +225,7 @@ function teacher_getDesign(lessonId) {
 /** 本時の中核フィールドを更新 */
 function teacher_updateLesson(lessonId, patch) {
   requireTeacher_();
-  var allowed = ['本時の目標', '学習課題', 'ゴール', '裁量レベル', '進度チェック項目'];
+  var allowed = ['本時の目標', '学習課題', 'ゴール', '裁量レベル', '進度チェック項目', '確認タイム間隔'];
   var clean = {};
   allowed.forEach(function (k) { if (patch.hasOwnProperty(k)) clean[k] = patch[k]; });
   clean['更新時刻'] = Repo.now();

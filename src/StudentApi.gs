@@ -73,6 +73,11 @@ function student_getState() {
     return { index: i, name: name, status: progMap[String(i)] || 0 };
   });
 
+  // ④ 確認タイム：これまでの自己確認の記録
+  var myChecks = Repo.where(C.SH.CHECK, { lesson_id: lessonId, user_id: uid }).map(function (c) {
+    return { elapsedMin: c['経過分'], status: c['状態'], memo: c['メモ'], atMs: toMs_(c['時刻']) };
+  }).sort(function (a, b) { return a.atMs - b.atMs; });
+
   return {
     ok: true,
     hasLesson: true,
@@ -82,11 +87,14 @@ function student_getState() {
       subject: unit ? unit['教科'] : '',
       grade: unit ? unit['学年'] : '',
       unitName: unit ? unit['単元名'] : '',
+      unitGoal: unit ? unit['単元目標'] : '',           // ① 単元の目標
+      outcome: unit ? unit['成果物イメージ'] : '',       // ① 単元の「出口」＝作り出すもの
       period: lesson['時数'],
       total: unit ? unit['総時数'] : '',
       task: lesson['学習課題'],
       goal: lesson['ゴール'],
-      discretion: lesson['裁量レベル']
+      discretion: lesson['裁量レベル'],
+      checkInterval: Number(lesson['確認タイム間隔']) || 0  // ④ 確認タイムの間隔（分）
     },
     resources: resources,
     choices: choices,
@@ -94,17 +102,21 @@ function student_getState() {
     allStrategies: allStrat,
     checklist: checklist,
     my: {
-      goal: myGoal ? { be: myGoal['Be'], doText: myGoal['Do'], regulate: splitCsv_(myGoal['Regulate']) } : null,
+      goal: myGoal ? {
+        be: myGoal['Be'], doText: myGoal['Do'], regulate: splitCsv_(myGoal['Regulate']),
+        efficacy: myGoal['自己効力感'] === '' ? null : Number(myGoal['自己効力感'])  // ② 自己効力感
+      } : null,
       selections: mySelections,          // {カテゴリ: 値 or [値...]}
       strategyUse: myUse,                // {strategyId: bool}
       help: myHelp ? truthy_(myHelp['状態']) : false,
+      checkpoints: myChecks,             // ④ これまでの確認タイム
       reflection: myRefl ? reflToObj_(myRefl) : null
     }
   };
 }
 
-/** 目標を保存（見通すフェーズ）。1児童1レコードで upsert */
-function student_saveGoal(be, doText, regulateIds) {
+/** 目標を保存（見通すフェーズ）。1児童1レコードで upsert。efficacy=自己効力感(0-100)は任意 */
+function student_saveGoal(be, doText, regulateIds, efficacy) {
   var ctx = requireUser_();
   var lesson = requireCurrentLesson_();
   var now = Repo.now();
@@ -115,8 +127,25 @@ function student_saveGoal(be, doText, regulateIds) {
     Be: be || '',
     Do: doText || '',
     Regulate: (regulateIds || []).join(','),
+    '自己効力感': (efficacy === undefined || efficacy === null) ? (existing ? existing['自己効力感'] : '') : efficacy,
     '作成時刻': existing ? existing['作成時刻'] : now,
     '更新時刻': now
+  });
+  return { ok: true };
+}
+
+/** ④ 確認タイムの記録（実行中の自己確認）。経過分・状態(順調/調整する)・任意メモ */
+function student_saveCheckpoint(elapsedMin, status, memo) {
+  var ctx = requireUser_();
+  var lesson = requireCurrentLesson_();
+  Repo.append(C.SH.CHECK, {
+    check_id: Repo.uuid(),
+    lesson_id: lesson['lesson_id'],
+    user_id: ctx.user.userId,
+    '経過分': elapsedMin,
+    '状態': status,       // '順調' | '調整する'
+    'メモ': memo || '',
+    '時刻': Repo.now()
   });
   return { ok: true };
 }

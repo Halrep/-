@@ -127,7 +127,7 @@ function sheetRows(name){ // 見出しキーのオブジェクト配列
 console.log('\n【1】初期セットアップ');
 call('setupSheets');
 const names = Object.keys(ss._sheets);
-ok(names.length === 15, 'シートが15枚生成された（実際: '+names.length+'）');
+ok(names.length === 16, 'シートが16枚生成された（実際: '+names.length+'）');
 ok(sheetRows('方略マスタ').length === 6, '方略マスタに6枚のサンプル');
 ok(sheetRows('選択肢マスタ').length === 11, '選択肢マスタに11件');
 ok(sheetRows('単元').length === 1, 'デモ単元が1件');
@@ -257,6 +257,38 @@ call('teacher_setChoice', lessonId, '場所', true);
 asUser('c@school.jp');
 const stc = call('student_getState');
 ok(stc.choices.length === 4, '場所を開放すると児童の選択カテゴリが4つに増える');
+
+console.log('\n【14】①単元の出口の可視化');
+asUser('a@school.jp');
+const stA = call('student_getState');
+ok(!!stA.lesson.unitGoal, '児童に単元目標が渡る');
+ok(stA.lesson.outcome.indexOf('新聞') >= 0, '児童に成果物イメージ（出口）が渡る');
+
+console.log('\n【15】②自己効力感の保存・復元');
+call('student_saveGoal', '集中して', '白地図＋説明文', ['S01'], 75);
+const stEff = call('student_getState');
+ok(stEff.my.goal.efficacy === 75, '自己効力感75が保存・復元される');
+
+console.log('\n【16】④確認タイムの記録');
+ok(stEff.lesson.checkInterval === 10, '確認タイム間隔10分が児童に渡る');
+call('student_saveCheckpoint', 10, '順調', 'いい調子');
+call('student_saveCheckpoint', 20, '調整する', '時間がたりない');
+const stChk = call('student_getState');
+ok(stChk.my.checkpoints.length === 2, '確認タイムが2件記録される');
+ok(stChk.my.checkpoints[1].status === '調整する', '2件目の状態が調整する');
+asUser('teacher@school.jp');
+const detEff = call('teacher_getStudentDetail', 'U01');
+ok(detEff.goal.efficacy === 75, '教師詳細に自己効力感が出る');
+ok(detEff.checkpoints.length === 2, '教師詳細に確認タイム2件が出る');
+
+console.log('\n【17】③ I/You/We の集計');
+// A=ひとりで（【6】で変更済）, B/C/D=学習形態未選択 → I=1, none=3。Cにグループ選択を足す
+asUser('c@school.jp'); call('student_saveSelection', '学習形態', 'グループで');
+asUser('teacher@school.jp');
+const monR = call('teacher_getMonitor');
+ok(monR.regulation.I === 1, 'I（ひとり）が1名');
+ok(monR.regulation.We === 1, 'We（グループ）が1名');
+ok(monR.regulation.none === 2, '学習形態 未選択が2名');
 
 /* =================== 結果 =================== */
 console.log('\n========================================');

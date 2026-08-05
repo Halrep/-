@@ -32,6 +32,18 @@
           </div>
           <span style="margin-left:auto; font-size:11.5px; color:var(--muted)" id="mon-updated"></span>
         </div></div>
+        <div class="card" style="margin-bottom:10px"><div class="card-b" style="padding:12px 16px">
+          <div class="iyouwe">
+            <div class="iw-h">調整層バランス（I / You / We）</div>
+            <div class="iw-bar" id="iw-bar"></div>
+            <div class="iw-key">
+              <span><i style="background:var(--busy)"></i>I 一人で調整</span>
+              <span><i style="background:var(--accent)"></i>You ペアで共調整</span>
+              <span><i style="background:var(--ok)"></i>We 集団で調整</span>
+              <span id="iw-none" class="muted"></span>
+            </div>
+          </div>
+        </div></div>
         <div class="mon-grid" id="mon-grid"></div>
       </div>
       <div class="card detail" id="detail">
@@ -94,8 +106,18 @@ function pollMonitor(){
     $('#c-busy').textContent = res.counts.busy; $('#c-done').textContent = res.counts.done;
     $('#c-help').textContent = res.counts.help; $('#c-idle').textContent = res.counts.idle; $('#c-none').textContent = res.counts.none;
     $('#mon-updated').textContent = '最終更新 ' + new Date(res.serverMs).toLocaleTimeString('ja-JP');
+    renderRegulation(res.regulation);
     renderTiles(res.tiles);
   }).catch(function(e){ /* ポーリング中の一時エラーは無視 */ });
+}
+
+function renderRegulation(r){
+  if(!r){ $('#iw-bar').innerHTML=''; return; }
+  var total = r.I + r.You + r.We;
+  if(total === 0){ $('#iw-bar').innerHTML = '<div class="iw-seg" style="background:var(--idle);flex:1">まだ選択なし</div>'; $('#iw-none').textContent=''; return; }
+  var seg = function(cls, n){ return n>0 ? '<div class="iw-seg '+cls+'" style="flex:'+n+'" title="'+n+'人">'+n+'</div>' : ''; };
+  $('#iw-bar').innerHTML = seg('I', r.I) + seg('You', r.You) + seg('We', r.We);
+  $('#iw-none').textContent = r.none>0 ? ('未選択 '+r.none) : '';
 }
 
 var FLAG = { help:'🆘 こまった', idle:'⏳ 無操作', none:'未着手', busy:'', done:'✔ 完了' };
@@ -131,9 +153,17 @@ function openDetail(uid){
     var sels = Object.keys(d.selections||{}).map(function(cat){
       var v = d.selections[cat]; return esc(Array.isArray(v)?v.join('・'):v);
     }).join(' ・ ');
+    var effHtml = (d.goal && d.goal.efficacy != null)
+      ? '<div class="d-row"><b>できそう度（自己効力感）</b><span class="bar-mini"><i style="width:'+esc(d.goal.efficacy)+'%"></i></span><span class="num">'+esc(d.goal.efficacy)+'</span> ％</div>' : '';
+    var chkHtml = (d.checkpoints && d.checkpoints.length)
+      ? '<div class="d-row"><b>確認タイム</b><span class="d-chips">'+ d.checkpoints.map(function(c){
+          var col = c.status==='調整する'?'var(--warn)':'var(--ok)';
+          return '<span class="d-chip" style="color:'+col+'">'+esc(c.elapsedMin)+'分:'+esc(c.status)+(c.memo?('「'+esc(c.memo)+'」'):'')+'</span>';
+        }).join('') +'</span></div>' : '';
     $('#d-body').innerHTML =
       (d.help ? '<div style="background:var(--danger-soft); color:var(--danger); font-weight:800; border-radius:8px; padding:8px 12px">🆘 たすけてサインが出ています</div>' : '')+
       '<div class="d-row"><b>目標（BE / DO）</b>'+(d.goal? esc(d.goal.be)+'取り組む ／ '+esc(d.goal.doText) : '<span class="muted">未設定</span>')+'</div>'+
+      effHtml + chkHtml +
       '<div class="d-row"><b>工夫カード（REGULATE）</b><span class="d-chips">'+
         (d.regulateNames.length? d.regulateNames.map(function(r){ return '<span class="d-chip acc">'+esc(r)+'</span>'; }).join('') : '<span class="muted">未選択</span>')+'</span></div>'+
       (d.usedNames.length? '<div class="d-row"><b>使った工夫</b>'+esc(d.usedNames.join('、'))+'</div>' : '')+
@@ -198,6 +228,7 @@ function renderDesign(d){
       '<div><h3>学習課題</h3><textarea rows="2" data-lf="学習課題">'+esc(L.task)+'</textarea></div>'+
       '<div><h3>ゴール（評価基準）</h3><textarea rows="2" data-lf="ゴール">'+esc(L.goal)+'</textarea></div>'+
       '<div><h3>進度チェック項目（1行に1つ）</h3><textarea rows="4" data-lf="進度チェック項目">'+esc(L.checklist)+'</textarea></div>'+
+      '<div><h3>確認タイムの間隔（分・0で無効）</h3><input type="text" inputmode="numeric" data-lf="確認タイム間隔" value="'+esc(L.checkInterval)+'" style="max-width:120px"></div>'+
       '<div><h3>裁量レベル</h3><div class="chips" id="discretion">'+
         [1,2,3].map(function(n){ return '<button class="chip" data-disc="'+n+'" aria-pressed="'+(String(n)===String(L.discretion))+'"><span class="cx">✓</span>'+n+'（'+({1:'指定',2:'選択',3:'自由'})[n]+'調整型）</button>'; }).join('')+
       '</div></div>'+

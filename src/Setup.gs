@@ -77,7 +77,8 @@ function seedDemoUnitIfEmpty_() {
   var unitId = Repo.uuid();
   Repo.append(C.SH.UNIT, zip_(C.HEADERS[C.SH.UNIT],
     [unitId, '社会', '6年', '江戸幕府と政治の安定',
-     '幕府の政策から、世の中が安定したしくみを説明できる', 7, '公開']));
+     '幕府の政策から、世の中が安定したしくみを説明できる', 7, '公開',
+     '「大名支配のしくみ新聞」を作り、幕府が安定した理由を自分の言葉で説明する']));
 
   var lessonId = Repo.uuid();
   var checklist = [
@@ -90,7 +91,7 @@ function seedDemoUnitIfEmpty_() {
     [lessonId, unitId, 3, '大名を従わせた方法を資料から読み取る',
      '江戸幕府は、どのようにして大名を従わせ、世の中を安定させたのだろう。',
      '参勤交代や武家諸法度などの幕府の政策を資料から読み取り、大名支配のしくみを自分の言葉で説明できる。',
-     2, checklist, C.LESSON_STATE.DRAFT, Repo.now()]));
+     2, checklist, C.LESSON_STATE.DRAFT, Repo.now(), 10]));
 
   // 開放する選択肢カテゴリ（場所だけ閉じる）
   [['学習形態', 'TRUE'], ['ツール', 'TRUE'], ['順序', 'TRUE'], ['場所', 'FALSE']].forEach(function (c) {
@@ -132,7 +133,7 @@ function setupClearRecords() {
   var ui = SpreadsheetApp.getUi();
   var res = ui.alert(C.APP_NAME, '目標・選択・進度・方略利用・援助要請・振り返り・フィードバックを全消去します。よろしいですか？', ui.ButtonSet.YES_NO);
   if (res !== ui.Button.YES) return;
-  [C.SH.GOAL, C.SH.SEL, C.SH.PROG, C.SH.SUSE, C.SH.HELP, C.SH.REFL, C.SH.FB].forEach(function (name) {
+  [C.SH.GOAL, C.SH.SEL, C.SH.PROG, C.SH.SUSE, C.SH.HELP, C.SH.CHECK, C.SH.REFL, C.SH.FB].forEach(function (name) {
     var s = Repo.sheet(name);
     if (s.getLastRow() > 1) s.deleteRows(2, s.getLastRow() - 1);
   });
