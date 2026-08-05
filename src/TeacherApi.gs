@@ -115,6 +115,8 @@ function teacher_getMonitor() {
     else regulation.none++;
   });
 
+  var diagnosis = diagnoseEnvironment_(tiles, students.length, checkByUser);
+
   return {
     ok: true,
     hasUnit: true,
@@ -122,6 +124,7 @@ function teacher_getMonitor() {
     meta: unitMeta_(unit),
     counts: counts,
     regulation: regulation,
+    diagnosis: diagnosis,
     tiles: tiles,
     taskDistribution: tasks.map(function (t) {
       return {
@@ -131,6 +134,75 @@ function teacher_getMonitor() {
       };
     })
   };
+}
+
+/**
+ * 環境の診断。
+ * 「教師の前に長蛇の列ができたら失敗」── 立ち止まりや援助要請の多さは、
+ * 子どもの問題ではなく【手引き・資料・課題の粒度が足りているか】のサインとして返す。
+ * 個人を急かすためではなく、環境を見直すための材料。
+ */
+function diagnoseEnvironment_(tiles, studentCount, checkByUser) {
+  var helpCount = 0, idleCount = 0;
+  var stuckByTask = {};
+  tiles.forEach(function (t) {
+    if (t.status === 'help') helpCount++;
+    if (t.status === 'idle') idleCount++;
+    if ((t.status === 'help' || t.status === 'idle') && t.doingTitle) {
+      stuckByTask[t.doingTitle] = (stuckByTask[t.doingTitle] || 0) + 1;
+    }
+  });
+
+  // きょうの確認タイムで「調整する」を選んだ人数
+  var adjustCount = 0;
+  Object.keys(checkByUser).forEach(function (uid) {
+    if (checkByUser[uid].some(function (c) { return c['状態'] === '調整する'; })) adjustCount++;
+  });
+
+  var stuckTasks = Object.keys(stuckByTask)
+    .map(function (title) { return { title: title, count: stuckByTask[title] }; })
+    .filter(function (x) { return x.count >= 2; })
+    .sort(function (a, b) { return b.count - a.count; });
+
+  var stopped = helpCount + idleCount;
+  var level, message;
+  if (studentCount > 0 && stopped >= Math.ceil(studentCount * 0.3)) {
+    level = 'review';
+    message = '立ち止まっている子が' + stopped + '人。手引きや資料が足りていないサインかもしれません。'
+            + '個々に教えて回る前に、環境（資料の追加・課題の分割）を見直してみませんか。';
+  } else if (stuckTasks.length) {
+    level = 'watch';
+    message = '「' + stuckTasks[0].title + '」で止まっている子が' + stuckTasks[0].count + '人います。'
+            + 'この課題の資料や説明が足りているか確かめてみましょう。';
+  } else {
+    level = 'ok';
+    message = 'いまのところ、子どもは環境の中で自分で進められています。見取りに集中できます。';
+  }
+
+  return {
+    level: level, message: message,
+    helpCount: helpCount, idleCount: idleCount, adjustCount: adjustCount,
+    stuckTasks: stuckTasks
+  };
+}
+
+/** 見取りメモを保存（事実と解釈を分けて書く） */
+function teacher_saveObservation(userId, fact, interpretation) {
+  var ctx = requireTeacher_();
+  var unit = requireCurrentUnit_();
+  if (!String(fact || '').trim() && !String(interpretation || '').trim()) {
+    throw new Error('事実か解釈のどちらかは書いてください。');
+  }
+  Repo.append(C.SH.OBS, {
+    obs_id: Repo.uuid(),
+    unit_id: unit['unit_id'],
+    user_id: userId,
+    teacher_id: ctx.user.userId,
+    '事実': fact || '',
+    '解釈（仮説）': interpretation || '',
+    '時刻': Repo.now()
+  });
+  return { ok: true };
 }
 
 /** 児童1人の詳細 */
@@ -161,9 +233,15 @@ function teacher_getStudentDetail(userId) {
   var u = firstWhere_(C.SH.USERS, { user_id: userId });
   var selByTask = latestSelectionsByTask_(unitId, userId);
 
+  var observations = Repo.where(C.SH.OBS, { unit_id: unitId, user_id: userId })
+    .sort(function (a, b) { return toMs_(b['時刻']) - toMs_(a['時刻']); })
+    .slice(0, 5)
+    .map(function (o) { return { fact: o['事実'], interpretation: o['解釈（仮説）'], atMs: toMs_(o['時刻']) }; });
+
   return {
     ok: true,
     hasUnit: true,
+    observations: observations,
     userId: userId,
     name: u ? (u['表示名'] || u['氏名']) : userId,
     number: u ? u['出席番号'] : '',

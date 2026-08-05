@@ -21,13 +21,19 @@
       公開中の単元がありません。「単元デザイン」タブで単元を公開してください。
     </div></div>
     <div id="mon-body" class="hidden">
+      <div class="diag" id="diag">
+        <div class="dg-h"><span class="dg-em" id="dg-em">🌱</span><span class="dg-t">環境の診断</span><span class="dg-sub">この表示は子どもの評価ではなく、手引き・資料・課題の粒度が足りているかのサインです</span></div>
+        <p class="dg-m" id="dg-m"></p>
+        <div class="dg-n" id="dg-n"></div>
+      </div>
+
       <div class="card" style="margin-bottom:10px"><div class="card-b" style="padding:10px 16px; display:flex; align-items:center; gap:16px; flex-wrap:wrap">
         <div class="legend">
-          <span><i class="dot" style="background:var(--busy)"></i>取組中 <b class="num" id="c-busy">0</b></span>
+          <span><i class="dot" style="background:var(--busy)"></i>進めている <b class="num" id="c-busy">0</b></span>
           <span><i class="dot" style="background:var(--ok)"></i>必須やりきり <b class="num" id="c-done">0</b></span>
-          <span><i class="dot" style="background:var(--danger)"></i>🆘 <b class="num" id="c-help">0</b></span>
-          <span><i class="dot" style="background:var(--warn)"></i>停滞 <b class="num" id="c-idle">0</b></span>
-          <span><i class="dot" style="background:var(--idle)"></i>未着手 <b class="num" id="c-none">0</b></span>
+          <span><i class="dot" style="background:var(--danger)"></i>たすけて <b class="num" id="c-help">0</b></span>
+          <span><i class="dot" style="background:var(--warn)"></i>手が止まっている <b class="num" id="c-idle">0</b></span>
+          <span><i class="dot" style="background:var(--idle)"></i>まだ始めていない <b class="num" id="c-none">0</b></span>
         </div>
         <span style="margin-left:auto; font-size:11.5px; color:var(--muted)" id="mon-updated"></span>
       </div></div>
@@ -113,10 +119,25 @@ function pollMonitor(){
     $('#c-busy').textContent = res.counts.busy; $('#c-done').textContent = res.counts.done;
     $('#c-help').textContent = res.counts.help; $('#c-idle').textContent = res.counts.idle; $('#c-none').textContent = res.counts.none;
     $('#mon-updated').textContent = '最終更新 ' + new Date(res.serverMs).toLocaleTimeString('ja-JP');
+    renderDiagnosis(res.diagnosis);
     renderRegulation(res.regulation);
     renderDistribution(res.taskDistribution);
     renderTiles(res.tiles);
   }).catch(function(){});
+}
+
+function renderDiagnosis(dg){
+  if(!dg) return;
+  var em = {ok:'🌱', watch:'🔎', review:'🛠'}[dg.level] || '🌱';
+  $('#diag').className = 'diag ' + dg.level;
+  $('#dg-em').textContent = em;
+  $('#dg-m').textContent = dg.message;
+  var notes = [];
+  if(dg.helpCount) notes.push('たすけてサイン '+dg.helpCount+'人');
+  if(dg.idleCount) notes.push('手が止まっている '+dg.idleCount+'人');
+  if(dg.adjustCount) notes.push('確認タイムで「調整する」 '+dg.adjustCount+'人');
+  dg.stuckTasks.slice(0,3).forEach(function(s){ notes.push('「'+s.title+'」で '+s.count+'人'); });
+  $('#dg-n').innerHTML = notes.length ? notes.map(function(n){ return '<span class="d-chip">'+esc(n)+'</span>'; }).join('') : '';
 }
 
 function renderRegulation(r){
@@ -146,10 +167,11 @@ function renderDistribution(dist){
   }).join('');
 }
 
-var FLAG = { help:'🆘 こまった', idle:'⏳ 停滞', none:'未着手', busy:'', done:'✔ 必須やりきり' };
+// 断定せず、事実を短く出す（判断は教師の見取りに委ねる）
+var FLAG = { help:'🆘 たすけて', idle:'', none:'まだ始めていない', busy:'', done:'✔ 必須やりきり' };
 function renderTiles(tiles){
   $('#mon-grid').innerHTML = tiles.map(function(s){
-    var flag = s.status==='idle' ? ('⏳ '+s.idleMin+'分') : (FLAG[s.status]||'');
+    var flag = s.status==='idle' ? ('⏳ '+s.idleMin+'分 動きなし') : (FLAG[s.status]||'');
     var pct = s.mustTotal ? (s.doneMust/s.mustTotal*100) : 0;
     return '<button class="tile'+(s.userId===selectedUser?' sel':'')+'" data-uid="'+esc(s.userId)+'" data-st="'+s.status+'">'+
       '<span class="nm"><span class="no num">'+esc(s.number)+'</span>'+esc(s.name)+(flag?'<span class="flag">'+flag+'</span>':'')+'</span>'+
@@ -192,6 +214,19 @@ function openDetail(uid){
       (d.usedNames.length ? '<div class="d-row"><b>使った工夫</b>'+esc(d.usedNames.join('、'))+'</div>' : '')+
       chkHtml +
       '<div class="d-row"><b>課題の進み方</b><span class="d-chips">'+taskChips+'</span></div>'+
+      '<div class="obs">'+
+        '<b>見取りメモ　<span class="sub-h">見取りは仮説。事実と解釈を分けて書くと、あとで同僚と語り合えます</span></b>'+
+        '<input type="text" id="obs-fact" placeholder="事実：見えたこと（例：白地図を3分見て、色をぬらずに手が止まった）">'+
+        '<input type="text" id="obs-int" placeholder="解釈（仮説）：たぶん…（例：色分けの基準が決められないのかも）">'+
+        '<div style="display:flex; gap:6px; align-items:center; margin-top:6px">'+
+          '<button class="btn ghost" id="obs-save" style="padding:6px 14px; font-size:12.5px">メモを残す</button>'+
+          '<span class="sub-h">介入する前に、まず環境で支えられないか考えてみましょう</span>'+
+        '</div>'+
+        (d.observations && d.observations.length ? '<div class="obs-list">'+ d.observations.map(function(o){
+          return '<div class="obs-row"><span class="of">事実</span>'+esc(o.fact||'—')+
+                 '<span class="oi">仮説</span>'+esc(o.interpretation||'—')+'</div>';
+        }).join('') +'</div>' : '')+
+      '</div>'+
       '<div class="d-row"><b>ひとことコメントを送る</b>'+
         '<div class="quick">'+
           '<button data-fb="その順番でやってみたの、いい判断だね">👍 いい判断</button>'+
@@ -209,6 +244,12 @@ document.addEventListener('click', function(e){
   var q = e.target.closest('[data-fb]');
   if(q){ sendFeedback(q.dataset.fb); return; }
   if(e.target.id==='fb-send'){ var v=$('#fb-input').value; if(v.trim()) sendFeedback(v); return; }
+  if(e.target.id==='obs-save'){
+    var f = $('#obs-fact').value, i2 = $('#obs-int').value;
+    if(!f.trim() && !i2.trim()){ toast('事実か仮説のどちらかを書いてください'); return; }
+    save('teacher_saveObservation', selectedUser, f, i2).then(function(){ toast('見取りメモを残しました'); openDetail(selectedUser); });
+    return;
+  }
 });
 function sendFeedback(text){
   if(!selectedUser) return;

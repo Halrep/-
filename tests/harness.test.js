@@ -130,7 +130,7 @@ function backdate(min) { return vm.runInContext('new Date(Date.now()-' + min + '
 console.log('\n【1】初期セットアップ');
 call('setupSheets');
 const names = Object.keys(ss._sheets);
-ok(names.length === 16, 'シートが16枚生成された（実際: ' + names.length + '）');
+ok(names.length === 17, 'シートが17枚生成された（実際: ' + names.length + '）');
 ok(sheetRows('方略マスタ').length === 6, '方略マスタに6枚のサンプル');
 ok(sheetRows('単元').length === 1, 'デモ単元が1件');
 const allTasks = sheetRows('課題');
@@ -294,6 +294,33 @@ asUser('teacher@school.jp');
 call('teacher_setPeerRef', unitId, false, false);
 asUser('a@school.jp');
 ok(call('student_getPeers').enabled === false, '教師が無効化すると他者参照が閉じる');
+
+console.log('\n【16】見取りの作り替え：環境の診断');
+asUser('teacher@school.jp');
+const mon2 = call('teacher_getMonitor');
+ok(!!mon2.diagnosis, '環境の診断が返る');
+ok(typeof mon2.diagnosis.message === 'string' && mon2.diagnosis.message.length > 0, '診断メッセージがある');
+ok(['ok', 'watch', 'review'].indexOf(mon2.diagnosis.level) >= 0, 'レベルは ok/watch/review');
+ok(mon2.diagnosis.idleCount >= 1, '手が止まっている人数を数える（Bが該当）');
+ok(mon2.diagnosis.adjustCount === 1, '確認タイムで「調整する」を選んだ人数を数える');
+// 立ち止まりが3割を超えると、個人ではなく環境の見直しを促す
+asUser('b@school.jp'); call('student_raiseHelp', true);
+asUser('d@school.jp'); call('student_raiseHelp', true);
+asUser('teacher@school.jp');
+const diagR = call('teacher_getMonitor').diagnosis;
+ok(diagR.level === 'review', '立ち止まりが多いと review レベルになる');
+ok(diagR.message.indexOf('手引き') >= 0 || diagR.message.indexOf('環境') >= 0,
+  'メッセージが子どもではなく環境の見直しを促す');
+
+console.log('\n【17】見取りメモ（事実と解釈を分ける）');
+call('teacher_saveObservation', 'U01', '白地図を3分見て手が止まった', '色分けの基準を決められないのかも');
+const det = call('teacher_getStudentDetail', 'U01');
+ok(det.observations.length === 1, '見取りメモが1件記録される');
+ok(det.observations[0].fact.indexOf('白地図') >= 0, '事実が保存される');
+ok(det.observations[0].interpretation.indexOf('基準') >= 0, '解釈（仮説）が保存される');
+let obsErr = '';
+try { call('teacher_saveObservation', 'U01', '', ''); } catch (e) { obsErr = String(e.message || e); }
+ok(obsErr.length > 0, '事実も解釈も空なら保存を拒否する');
 
 /* =================== 結果 =================== */
 console.log('\n========================================');

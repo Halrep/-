@@ -46,7 +46,8 @@ var C = {
     HELP:    '援助要請',
     CHECK:   '確認タイム',
     REFL:    '振り返り',
-    FB:      'フィードバック'
+    FB:      'フィードバック',
+    OBS:     '見取りメモ'
   }
 };
 
@@ -88,13 +89,15 @@ C.HEADERS[C.SH.REFL]    = ['reflection_id', 'unit_id', 'user_id', '日付', '達
                            '自己評価', '原因帰属良', '原因帰属難', '教材リクエスト', '気持ち', '次への適用',
                            '共有', '記録時刻', '更新時刻'];
 C.HEADERS[C.SH.FB]      = ['feedback_id', 'unit_id', 'from_user_id', 'to_user_id', 'コメント', '既読', '送信時刻'];
+// 見取りメモ：見取りは仮説で行う。事実と解釈を分けて書き、あとで同僚と語り合うための記録。
+C.HEADERS[C.SH.OBS]     = ['obs_id', 'unit_id', 'user_id', 'teacher_id', '事実', '解釈（仮説）', '時刻'];
 
 // Setup で作る順
 C.SHEET_ORDER = [
   C.SH.USERS, C.SH.STRAT, C.SH.PRESET,
   C.SH.UNIT, C.SH.TASK, C.SH.RES, C.SH.USTRAT, C.SH.UCHOICE,
-  C.SH.GOAL, C.SH.SEL, C.SH.PROG, C.SH.SUSE, C.SH.HELP, C.SH.CHECK, C.SH.REFL, C.SH.FB
+  C.SH.GOAL, C.SH.SEL, C.SH.PROG, C.SH.SUSE, C.SH.HELP, C.SH.CHECK, C.SH.REFL, C.SH.FB, C.SH.OBS
 ];
 
 // 記録系（授業のやり直しで消せるもの）
-C.RECORD_SHEETS = [C.SH.GOAL, C.SH.SEL, C.SH.PROG, C.SH.SUSE, C.SH.HELP, C.SH.CHECK, C.SH.REFL, C.SH.FB];
+C.RECORD_SHEETS = [C.SH.GOAL, C.SH.SEL, C.SH.PROG, C.SH.SUSE, C.SH.HELP, C.SH.CHECK, C.SH.REFL, C.SH.FB, C.SH.OBS];
