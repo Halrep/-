@@ -20,12 +20,9 @@
     --ink:#E7EBEE; --muted:#9AA7B1; --line:#37414B;
     --primary:#6FA3D4; --primary-ink:#0F1519; --primary-soft:#24384C; --primary-line:#3A5878;
     --accent:#E5AC45; --accent-soft:#3A2F1A;
-    --ok:#4CBB8A; --ok-soft:#1E3A2E;
-    --busy:#6FA8DC; --busy-soft:#20344A;
-    --warn:#D9B23C; --warn-soft:#3A331A;
-    --danger:#E0736C; --danger-soft:#41231F;
-    --idle:#7C8894; --idle-soft:#2A323A;
-    --shadow:0 1px 3px rgba(0,0,0,.35);
+    --ok:#4CBB8A; --ok-soft:#1E3A2E; --busy:#6FA8DC; --busy-soft:#20344A;
+    --warn:#D9B23C; --warn-soft:#3A331A; --danger:#E0736C; --danger-soft:#41231F;
+    --idle:#7C8894; --idle-soft:#2A323A; --shadow:0 1px 3px rgba(0,0,0,.35);
   }
 }
 :root[data-theme="light"]{
@@ -33,123 +30,78 @@
   --ink:#23303A; --muted:#5D6B76; --line:#D9DFD9;
   --primary:#2E5E8C; --primary-ink:#FFFFFF; --primary-soft:#E3ECF5; --primary-line:#B9CDE0;
   --accent:#DF9A1F; --accent-soft:#FBF0DA;
-  --ok:#2E9E6B; --ok-soft:#E0F2E9;
-  --busy:#3D7BB8; --busy-soft:#E2EEF8;
-  --warn:#C79400; --warn-soft:#FAF1D2;
-  --danger:#CE4A42; --danger-soft:#FAE3E1;
-  --idle:#8A94A0; --idle-soft:#EAEDEF;
-  --shadow:0 1px 3px rgba(35,48,58,.10);
+  --ok:#2E9E6B; --ok-soft:#E0F2E9; --busy:#3D7BB8; --busy-soft:#E2EEF8;
+  --warn:#C79400; --warn-soft:#FAF1D2; --danger:#CE4A42; --danger-soft:#FAE3E1;
+  --idle:#8A94A0; --idle-soft:#EAEDEF; --shadow:0 1px 3px rgba(35,48,58,.10);
 }
 :root[data-theme="dark"]{
   --bg:#151A1F; --surface:#1E252C; --surface2:#252D35;
   --ink:#E7EBEE; --muted:#9AA7B1; --line:#37414B;
   --primary:#6FA3D4; --primary-ink:#0F1519; --primary-soft:#24384C; --primary-line:#3A5878;
   --accent:#E5AC45; --accent-soft:#3A2F1A;
-  --ok:#4CBB8A; --ok-soft:#1E3A2E;
-  --busy:#6FA8DC; --busy-soft:#20344A;
-  --warn:#D9B23C; --warn-soft:#3A331A;
-  --danger:#E0736C; --danger-soft:#41231F;
-  --idle:#7C8894; --idle-soft:#2A323A;
-  --shadow:0 1px 3px rgba(0,0,0,.35);
+  --ok:#4CBB8A; --ok-soft:#1E3A2E; --busy:#6FA8DC; --busy-soft:#20344A;
+  --warn:#D9B23C; --warn-soft:#3A331A; --danger:#E0736C; --danger-soft:#41231F;
+  --idle:#7C8894; --idle-soft:#2A323A; --shadow:0 1px 3px rgba(0,0,0,.35);
 }
 
 *{box-sizing:border-box}
+html,body{margin:0}
 body{
-  margin:0; background:var(--bg); color:var(--ink);
+  background:var(--bg); color:var(--ink);
   font-family:"BIZ UDPGothic","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI",Meiryo,sans-serif;
-  font-size:15px; line-height:1.65;
-  -webkit-font-smoothing:antialiased;
+  font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased;
 }
 button{font-family:inherit; font-size:inherit; color:inherit; cursor:pointer}
-button:focus-visible, [tabindex]:focus-visible, input:focus-visible, textarea:focus-visible{
-  outline:3px solid var(--accent); outline-offset:2px;
-}
-input,textarea{font-family:inherit}
-@media (prefers-reduced-motion: reduce){
-  *,*::before,*::after{transition:none !important; animation:none !important}
-}
+button:focus-visible,[tabindex]:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid var(--accent); outline-offset:2px}
+input,textarea,select{font-family:inherit}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 
-/* ---------- プロトタイプ用フレーム ---------- */
-.proto-bar{
-  display:flex; align-items:center; gap:16px; flex-wrap:wrap;
-  padding:10px 20px; background:var(--surface); border-bottom:1px solid var(--line);
-  position:sticky; top:0; z-index:50;
-}
-.proto-bar .tag{
-  font-size:11px; letter-spacing:.14em; color:var(--muted);
-  border:1px solid var(--line); border-radius:4px; padding:2px 8px;
-}
+/* プロトタイプ用フレーム */
+.proto-bar{display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:10px 20px; background:var(--surface); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:60}
+.proto-bar .tag{font-size:11px; letter-spacing:.14em; color:var(--muted); border:1px solid var(--line); border-radius:4px; padding:2px 8px}
 .proto-bar .note{font-size:12px; color:var(--muted); margin-left:auto}
 .seg{display:inline-flex; background:var(--surface2); border:1px solid var(--line); border-radius:999px; padding:3px}
-.seg button{
-  border:0; background:transparent; border-radius:999px; padding:6px 18px;
-  font-weight:700; color:var(--muted); transition:background .15s,color .15s;
-}
+.seg button{border:0; background:transparent; border-radius:999px; padding:6px 18px; font-weight:700; color:var(--muted); transition:background .15s,color .15s}
 .seg button[aria-pressed="true"]{background:var(--primary); color:var(--primary-ink)}
-.app{max-width:1180px; margin:0 auto; padding:20px 20px 80px}
 
-/* ---------- 共通部品 ---------- */
+.app{max-width:1180px; margin:0 auto; padding:20px 20px 80px}
 .card{background:var(--surface); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow)}
+.card+.card{margin-top:14px}
+.stack{display:flex; flex-direction:column; gap:16px}
 .card-h{display:flex; align-items:center; gap:10px; padding:14px 18px 0}
 .card-b{padding:14px 18px 18px}
-.eyebrow{font-size:11px; font-weight:700; letter-spacing:.16em; color:var(--muted)}
-.h-badge{
-  width:34px; height:34px; border-radius:9px; display:grid; place-items:center;
-  font-size:17px; background:var(--primary-soft); flex:none;
-}
+.h-badge{width:34px; height:34px; border-radius:9px; display:grid; place-items:center; font-size:17px; background:var(--primary-soft); flex:none}
 h2{font-size:16px; margin:0; text-wrap:balance}
 h3{font-size:14px; margin:0 0 8px; color:var(--muted); font-weight:700}
+.sub-h{font-size:11.5px; color:var(--muted); font-weight:700}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.center{text-align:center}
+.row-end{display:flex; justify-content:flex-end}
+.eyebrow{font-size:11px; font-weight:800; letter-spacing:.16em; color:var(--muted)}
+.empty{color:var(--muted); font-size:13px; text-align:center; padding:24px 10px}
+
 .chips{display:flex; flex-wrap:wrap; gap:8px}
-.chip{
-  border:1.5px solid var(--line); background:var(--surface); border-radius:999px;
-  padding:7px 16px; font-weight:600; transition:border-color .15s, background .15s;
-}
+.chip{border:1.5px solid var(--line); background:var(--surface); border-radius:999px; padding:7px 16px; font-weight:600; transition:border-color .15s, background .15s}
 .chip[aria-pressed="true"]{border-color:var(--primary); background:var(--primary-soft)}
 .chip .cx{display:none; color:var(--primary); font-weight:800; margin-right:2px}
 .chip[aria-pressed="true"] .cx{display:inline}
-.btn{
-  border:0; border-radius:var(--r); padding:10px 22px; font-weight:800;
-  background:var(--primary); color:var(--primary-ink);
-}
+.btn{border:0; border-radius:var(--r); padding:10px 22px; font-weight:800; background:var(--primary); color:var(--primary-ink)}
 .btn.ghost{background:var(--surface); color:var(--primary); border:1.5px solid var(--primary-line)}
 .btn:active{transform:translateY(1px)}
-.num{font-variant-numeric:tabular-nums}
-textarea, input[type=text]{
-  width:100%; border:1.5px solid var(--line); border-radius:8px; background:var(--surface);
-  color:var(--ink); padding:9px 12px; resize:vertical;
-}
-.toast{
-  position:fixed; left:50%; bottom:26px; transform:translate(-50%,20px);
-  background:var(--ink); color:var(--bg); padding:10px 22px; border-radius:999px;
-  font-weight:700; opacity:0; pointer-events:none; transition:opacity .25s, transform .25s; z-index:99;
-}
+textarea, input[type=text]{width:100%; border:1.5px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); padding:9px 12px; resize:vertical}
+.toast{position:fixed; left:50%; bottom:26px; transform:translate(-50%,20px); background:var(--ink); color:var(--bg); padding:10px 22px; border-radius:999px; font-weight:700; opacity:0; pointer-events:none; transition:opacity .25s, transform .25s; z-index:99}
 .toast.on{opacity:1; transform:translate(-50%,0)}
 
-/* ---------- 児童: ヘッダー ---------- */
-.lesson-head{
-  display:flex; align-items:center; gap:16px; flex-wrap:wrap;
-  background:var(--primary); color:var(--primary-ink);
-  border-radius:var(--r); padding:14px 20px; margin-bottom:14px;
-}
-.lesson-head .subj{
-  background:rgba(255,255,255,.18); border-radius:7px; padding:3px 12px;
-  font-weight:800; font-size:13px; letter-spacing:.06em;
-}
-:root[data-theme="dark"] .lesson-head .subj,
-.lesson-head .subj{border:1px solid rgba(255,255,255,.25)}
+.lesson-head{display:flex; align-items:center; gap:16px; flex-wrap:wrap; background:var(--primary); color:var(--primary-ink); border-radius:var(--r); padding:14px 20px; margin-bottom:14px}
+.lesson-head .subj{background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.25); border-radius:7px; padding:3px 12px; font-weight:800; font-size:13px}
 .lesson-head .t{font-size:17px; font-weight:800; text-wrap:balance}
-.lesson-head .n{margin-left:auto; font-size:13px; opacity:.85}
+.lesson-head .n{margin-left:auto; font-size:13px; opacity:.9}
 
-/* ---------- 児童: 3タブ ---------- */
+/* 児童3タブ */
 .big-tabs{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px}
-.big-tab{
-  border:2px solid var(--line); background:var(--surface); border-radius:var(--r);
-  padding:12px 10px 10px; text-align:center; transition:border-color .15s, background .15s;
-}
-.big-tab .no{
-  display:inline-grid; place-items:center; width:26px; height:26px; border-radius:50%;
-  background:var(--surface2); color:var(--muted); font-weight:800; font-size:13px; margin-bottom:2px;
-}
+.big-tab{border:2px solid var(--line); background:var(--surface); border-radius:var(--r); padding:12px 10px 10px; text-align:center; transition:border-color .15s, background .15s}
+.big-tab .no{display:inline-grid; place-items:center; width:26px; height:26px; border-radius:50%; background:var(--surface2); color:var(--muted); font-weight:800; font-size:13px; margin-bottom:2px}
 .big-tab .lb{display:block; font-size:16px; font-weight:800}
 .big-tab .sb{display:block; font-size:11px; color:var(--muted)}
 .big-tab[aria-selected="true"]{border-color:var(--primary); background:var(--primary-soft)}
@@ -157,79 +109,115 @@ textarea, input[type=text]{
 .panel{display:none; flex-direction:column; gap:14px}
 .panel.on{display:flex}
 
-/* 課題カード */
-.task-goal{display:grid; grid-template-columns:1.2fr 1fr; gap:14px}
-@media (max-width:860px){.task-goal{grid-template-columns:1fr}}
-.task-q{
-  font-size:17px; font-weight:800; line-height:1.7; text-wrap:balance;
-  padding:4px 0 0;
-}
-.goal-box{
-  background:var(--accent-soft); border:1.5px solid var(--accent); border-radius:8px;
-  padding:10px 14px; font-size:13.5px;
-}
-.goal-box b{display:block; color:var(--accent); font-size:11px; letter-spacing:.14em; margin-bottom:4px}
+/* 単元の出口 */
+.outcome{display:flex; gap:12px; align-items:flex-start; background:var(--primary-soft); border:1.5px solid var(--primary-line); border-radius:var(--r); padding:12px 16px}
+.outcome .flag{font-size:22px; flex:none}
+.outcome .lb{font-size:10.5px; font-weight:800; letter-spacing:.14em; color:var(--primary); display:block; margin-bottom:2px}
+.outcome .ol{font-weight:800; font-size:14.5px; line-height:1.6}
+.outcome .og{font-size:12px; color:var(--muted); margin-top:2px}
 
-/* 方略カード */
-.strat-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(168px,1fr)); gap:10px}
-.strat{
-  border:2px solid var(--line); border-radius:var(--r); background:var(--surface);
-  padding:10px 12px; text-align:left; display:flex; flex-direction:column; gap:2px;
-  transition:border-color .15s, background .15s;
-}
-.strat .ic{font-size:20px}
-.strat .nm{font-weight:800; font-size:13.5px}
-.strat .ds{font-size:11.5px; color:var(--muted); line-height:1.5}
-.strat .cat{font-size:10px; font-weight:700; letter-spacing:.1em; color:var(--primary); margin-top:4px}
-.strat[aria-pressed="true"]{border-color:var(--accent); background:var(--accent-soft)}
-.strat .used{
-  display:none; margin-top:6px; font-size:11.5px; font-weight:800; color:var(--accent);
-}
-.strat.exec[aria-pressed="true"] .used{display:block}
+/* 学習の手引き */
+.guide-list{display:flex; flex-direction:column; gap:5px}
+.guide-row{display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:8px; padding:6px 10px; background:var(--surface)}
+.guide-row .gt{font-weight:700; font-size:13px}
+.guide-row .gm{margin-left:auto; font-size:11px; color:var(--muted); white-space:nowrap}
+.gk{font-size:10px; font-weight:800; border-radius:5px; padding:2px 8px; white-space:nowrap; flex:none}
+.k必須{background:var(--primary-soft); color:var(--primary)}
+.k選択{background:var(--surface2); color:var(--muted)}
+.k発展{background:var(--accent-soft); color:var(--accent)}
+.gs{font-size:10.5px; font-weight:800; border-radius:5px; padding:1px 7px; white-space:nowrap}
+.gs.s0,.sn-s.s0,.now.s0{background:var(--idle-soft); color:var(--idle)}
+.gs.s1,.sn-s.s1,.now.s1{background:var(--busy-soft); color:var(--busy)}
+.gs.s2,.sn-s.s2,.now.s2{background:var(--ok-soft); color:var(--ok)}
 
-/* 選択カード（やってみる） */
+/* 課題中心のやってみる */
+.task-hero{border-left:5px solid var(--primary)}
+.task-hero .tq{font-size:18px; font-weight:800; line-height:1.7; text-wrap:balance; margin:4px 0 0}
+.task-hero .hgoal{margin-top:10px; background:var(--accent-soft); border:1.5px solid var(--accent); border-radius:8px; padding:8px 12px; font-size:12.5px}
+.task-hero .hgoal b{color:var(--accent); font-size:10.5px; letter-spacing:.14em; margin-right:6px}
+.steps-nav{display:flex; gap:8px; overflow-x:auto; padding-bottom:6px}
+.snav{flex:none; width:172px; border:2px solid var(--line); background:var(--surface); border-radius:10px; padding:8px 12px; text-align:left; display:flex; flex-direction:column; gap:3px; transition:border-color .15s, background .15s}
+.snav[aria-selected="true"]{border-color:var(--primary); background:var(--primary-soft)}
+.sn-n{font-size:10px; font-weight:800; border-radius:5px; padding:1px 7px; align-self:flex-start}
+.snav .sn-t{font-size:12.5px; font-weight:700; line-height:1.4}
+.sn-s{font-size:10.5px; font-weight:800; border-radius:5px; padding:1px 7px; align-self:flex-start}
+.tcard .card-h{align-items:flex-start}
+.tcard .tmins{margin-left:auto; font-size:11.5px; color:var(--muted); font-weight:700; white-space:nowrap}
+.tdesc{font-size:13.5px; line-height:1.7}
+.tsec{border-top:1px dashed var(--line); padding-top:12px; margin-top:12px}
+.tstate{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+.tstate .now{font-size:12px; font-weight:800; border-radius:6px; padding:4px 12px}
+.always-res{display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:12px; color:var(--muted)}
+
 .choice-row{display:flex; flex-direction:column; gap:4px}
 .choice-cards{display:flex; flex-wrap:wrap; gap:10px}
-.ccard{
-  border:2px solid var(--line); border-radius:var(--r); background:var(--surface);
-  padding:10px 16px; min-width:118px; text-align:center; transition:border-color .15s, background .15s;
-}
+.ccard{border:2px solid var(--line); border-radius:var(--r); background:var(--surface); padding:10px 16px; min-width:112px; text-align:center; transition:border-color .15s, background .15s}
 .ccard .ic{display:block; font-size:22px}
 .ccard .lb{font-weight:700; font-size:13.5px}
 .ccard[aria-pressed="true"]{border-color:var(--busy); background:var(--busy-soft)}
 .ccard[aria-pressed="true"] .lb::before{content:"✓ "; color:var(--busy); font-weight:800}
 
-/* 進度チェック */
-.steps{display:flex; flex-direction:column; gap:8px}
-.step{
-  display:flex; align-items:center; gap:12px; border:1.5px solid var(--line);
-  border-radius:var(--r); padding:10px 14px; background:var(--surface); text-align:left;
-  transition:background .15s, border-color .15s;
-}
-.step .st{
-  flex:none; font-size:11px; font-weight:800; border-radius:6px; padding:3px 10px;
-  background:var(--idle-soft); color:var(--idle); min-width:64px; text-align:center;
-}
-.step[data-s="1"] .st{background:var(--busy-soft); color:var(--busy)}
-.step[data-s="2"] .st{background:var(--ok-soft); color:var(--ok)}
-.step[data-s="1"]{border-color:var(--busy)}
-.step[data-s="2"]{border-color:var(--ok)}
-.step .tx{font-weight:700}
-.step[data-s="2"] .tx{text-decoration:line-through; color:var(--muted)}
-.step .hint{margin-left:auto; font-size:11px; color:var(--muted)}
-.help-btn{
-  width:100%; border:2px solid var(--danger); background:var(--danger-soft); color:var(--danger);
-  border-radius:var(--r); padding:14px; font-size:16px; font-weight:800; transition:background .15s;
-}
+.res-list{display:flex; flex-direction:column; gap:8px}
+.res-row{display:flex; align-items:center; gap:12px; border:1.5px solid var(--line); border-radius:var(--r); padding:9px 14px; background:var(--surface)}
+.res-row .ic{font-size:20px; flex:none}
+.res-row .ti{font-weight:700; font-size:13.5px}
+.res-row .sub{font-size:11.5px; color:var(--muted)}
+.rtag{flex:none; font-size:10px; font-weight:800; letter-spacing:.08em; border-radius:5px; padding:2px 8px; background:var(--surface2); color:var(--muted); margin-left:auto}
+.rtag.link{background:var(--primary-soft); color:var(--primary)}
+.open-btn{flex:none; border:1.5px solid var(--primary-line); background:var(--surface); color:var(--primary); border-radius:8px; padding:5px 14px; font-size:12.5px; font-weight:800}
+
+.strat-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(168px,1fr)); gap:10px}
+.strat{border:2px solid var(--line); border-radius:var(--r); background:var(--surface); padding:10px 12px; text-align:left; display:flex; flex-direction:column; gap:2px; transition:border-color .15s, background .15s}
+.strat .ic{font-size:20px}
+.strat .nm{font-weight:800; font-size:13.5px}
+.strat .ds{font-size:11.5px; color:var(--muted); line-height:1.5}
+.strat .cat{font-size:10px; font-weight:700; letter-spacing:.1em; color:var(--primary); margin-top:4px}
+.strat[aria-pressed="true"]{border-color:var(--accent); background:var(--accent-soft)}
+.strat .used{display:none; margin-top:6px; font-size:11.5px; font-weight:800; color:var(--accent)}
+.strat.exec[aria-pressed="true"] .used{display:block}
+.star-rec{color:var(--accent)}
+
+.help-btn{width:100%; border:2px solid var(--danger); background:var(--danger-soft); color:var(--danger); border-radius:var(--r); padding:14px; font-size:16px; font-weight:800; transition:background .15s}
 .help-btn[aria-pressed="true"]{background:var(--danger); color:#fff}
+
+/* 自己効力感 */
+.efficacy{display:flex; align-items:center; gap:14px}
+.efficacy input[type=range]{flex:1; accent-color:var(--ok); height:32px}
+.efficacy .face{font-size:26px; min-width:34px; text-align:center}
+.efficacy .lab{font-size:12px; font-weight:800; min-width:96px; text-align:right}
+
+/* 確認タイム */
+.checkin{position:fixed; left:50%; bottom:0; transform:translate(-50%,110%); width:min(680px,94vw); z-index:80; background:var(--surface); border:2px solid var(--accent); border-bottom:0; border-radius:14px 14px 0 0; box-shadow:0 -6px 24px rgba(35,48,58,.18); padding:14px 18px; transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+.checkin.on{transform:translate(-50%,0)}
+.checkin .ci-h{display:flex; align-items:center; gap:10px; font-weight:800; font-size:15px}
+.checkin .ci-h .em{font-size:22px}
+.checkin .ci-q{font-size:12.5px; color:var(--muted); margin:6px 0 10px}
+.checkin .ci-row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+.checkin .ci-btn{border:2px solid var(--line); background:var(--surface); border-radius:999px; padding:9px 18px; font-weight:800}
+.checkin .ci-btn.ok{border-color:var(--ok); color:var(--ok)}
+.checkin .ci-btn.adj{border-color:var(--warn); color:var(--warn)}
+.checkin .ci-memo{flex:1; min-width:160px}
+
+/* みんなの様子 */
+.peer-head{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.peer-mode{font-size:11px; font-weight:800; border-radius:5px; padding:2px 8px; background:var(--surface2); color:var(--muted)}
+.peer-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px}
+.peer{border:1.5px solid var(--line); border-radius:8px; background:var(--surface); padding:8px 10px; display:flex; flex-direction:column; gap:3px}
+.peer.me{border-color:var(--primary); background:var(--primary-soft)}
+.peer .pn{font-weight:800; font-size:12.5px; display:flex; align-items:center; gap:6px}
+.peer .pn .no{color:var(--muted); font-size:10px; font-weight:700}
+.peer .stage{font-size:10.5px; font-weight:800; border-radius:5px; padding:1px 7px; align-self:flex-start}
+.peer .stage.s0{background:var(--idle-soft); color:var(--idle)}
+.peer .stage.s1{background:var(--busy-soft); color:var(--busy)}
+.peer .stage.s2{background:var(--ok-soft); color:var(--ok)}
+.peer .pmeta{font-size:11px; color:var(--muted)}
+.peer .picons{font-size:15px; letter-spacing:1px; min-height:18px}
+.peer .pgoal{font-size:11.5px; color:var(--ink); border-top:1px dashed var(--line); padding-top:5px; margin-top:2px}
 
 /* ふりかえる */
 .slider-wrap{display:flex; align-items:center; gap:16px}
 .slider-wrap input[type=range]{flex:1; accent-color:var(--primary); height:32px}
-.slider-val{
-  font-size:30px; font-weight:800; min-width:96px; text-align:right;
-  color:var(--primary); font-variant-numeric:tabular-nums;
-}
+.slider-val{font-size:30px; font-weight:800; min-width:96px; text-align:right; color:var(--primary); font-variant-numeric:tabular-nums}
 .slider-val small{font-size:14px; color:var(--muted); font-weight:700}
 .attr-cols{display:grid; grid-template-columns:1fr 1fr; gap:14px}
 @media (max-width:760px){.attr-cols{grid-template-columns:1fr}}
@@ -240,78 +228,43 @@ textarea, input[type=text]{
 .attr-box.good h4{color:var(--ok)}
 .attr-box.hard h4{color:var(--warn)}
 .stamp-row{display:flex; gap:10px; flex-wrap:wrap}
-.stamp{
-  border:2px solid var(--line); background:var(--surface); border-radius:12px;
-  padding:8px 14px 6px; min-width:96px;
-  display:flex; flex-direction:column; align-items:center; gap:2px;
-  transition:border-color .15s, background .15s;
-}
+.stamp{border:2px solid var(--line); background:var(--surface); border-radius:12px; padding:8px 14px 6px; min-width:96px; display:flex; flex-direction:column; align-items:center; gap:2px; transition:border-color .15s, background .15s}
 .stamp .em{font-size:26px; line-height:1.2}
 .stamp .sl{font-size:11.5px; font-weight:700; color:var(--muted); line-height:1.4; text-align:center}
 .stamp[aria-pressed="true"]{border-color:var(--accent); background:var(--accent-soft)}
 .stamp[aria-pressed="true"] .sl{color:var(--accent)}
-
-/* 資料一覧 */
-.res-strip{
-  grid-column:1/-1; display:flex; flex-wrap:wrap; gap:6px; align-items:center;
-  border-top:1px dashed var(--line); padding-top:10px; font-size:12px; color:var(--muted);
-}
-.res-strip .d-chip{font-weight:700}
-.res-list{display:flex; flex-direction:column; gap:8px}
-.res-row{
-  display:flex; align-items:center; gap:12px; border:1.5px solid var(--line);
-  border-radius:var(--r); padding:9px 14px; background:var(--surface);
-}
-.res-row .ic{font-size:20px; flex:none}
-.res-row .ti{font-weight:700; font-size:13.5px}
-.res-row .sub{font-size:11.5px; color:var(--muted)}
-.rtag{
-  flex:none; font-size:10px; font-weight:800; letter-spacing:.08em; border-radius:5px;
-  padding:2px 8px; background:var(--surface2); color:var(--muted); margin-left:auto;
-}
-.rtag.link{background:var(--primary-soft); color:var(--primary)}
-.open-btn{
-  flex:none; border:1.5px solid var(--primary-line); background:var(--surface); color:var(--primary);
-  border-radius:8px; padding:5px 14px; font-size:12.5px; font-weight:800;
-}
-.timeline{display:flex; flex-direction:column; gap:0}
+.req-box{background:var(--accent-soft); border:1.5px solid var(--accent); border-radius:var(--r); padding:12px 14px}
+.req-box h3{color:var(--accent); margin-bottom:2px}
+.timeline{display:flex; flex-direction:column}
 .tl-item{display:flex; gap:14px; position:relative; padding:0 0 16px 2px}
-.tl-item::before{
-  content:""; position:absolute; left:12px; top:24px; bottom:0; width:2px; background:var(--line);
-}
+.tl-item::before{content:""; position:absolute; left:16px; top:26px; bottom:0; width:2px; background:var(--line)}
 .tl-item:last-child::before{display:none}
-.tl-dot{
-  flex:none; width:22px; height:22px; border-radius:50%; background:var(--primary-soft);
-  border:2px solid var(--primary); display:grid; place-items:center;
-  font-size:10px; font-weight:800; color:var(--primary); margin-top:2px; z-index:1;
-  font-variant-numeric:tabular-nums;
-}
+.tl-dot{flex:none; width:32px; height:24px; border-radius:12px; background:var(--primary-soft); border:2px solid var(--primary); display:grid; place-items:center; font-size:10px; font-weight:800; color:var(--primary); margin-top:2px; z-index:1; font-variant-numeric:tabular-nums}
 .tl-body{font-size:13px}
 .tl-body .d{font-weight:800}
 .tl-body .m{color:var(--muted)}
-.fb-note{
-  margin-top:6px; background:var(--primary-soft); border-left:3px solid var(--primary);
-  border-radius:0 8px 8px 0; padding:6px 12px; font-size:12.5px;
-}
+.fb-note{margin-top:6px; background:var(--primary-soft); border-left:3px solid var(--primary); border-radius:0 8px 8px 0; padding:6px 12px; font-size:12.5px}
 .fb-note b{color:var(--primary)}
 
-/* ---------- 教師画面 ---------- */
-.t-tabs{display:flex; gap:8px; margin-bottom:16px; border-bottom:2px solid var(--line); padding-bottom:0}
-.t-tab{
-  border:0; background:transparent; padding:9px 18px 11px; font-weight:800; color:var(--muted);
-  border-bottom:3px solid transparent; margin-bottom:-2px;
-}
+/* 教師 */
+.t-tabs{display:flex; gap:8px; margin-bottom:16px; border-bottom:2px solid var(--line)}
+.t-tab{border:0; background:transparent; padding:9px 18px 11px; font-weight:800; color:var(--muted); border-bottom:3px solid transparent; margin-bottom:-2px}
 .t-tab[aria-selected="true"]{color:var(--primary); border-bottom-color:var(--primary)}
 .legend{display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--muted); align-items:center}
 .legend .dot{width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:5px; vertical-align:-1px}
-.mon-wrap{display:grid; grid-template-columns:1fr 320px; gap:14px; align-items:start}
-@media (max-width:980px){.mon-wrap{grid-template-columns:1fr}}
-.mon-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(148px,1fr)); gap:8px}
-.tile{
-  border:1.5px solid var(--line); border-left:5px solid var(--idle); border-radius:8px;
-  background:var(--surface); padding:8px 10px; text-align:left; display:flex; flex-direction:column; gap:3px;
-  transition:border-color .15s, box-shadow .15s;
-}
+.diag{border:1.5px solid var(--line); border-left:5px solid var(--ok); border-radius:var(--r); background:var(--surface); padding:12px 16px; margin-bottom:10px; box-shadow:var(--shadow)}
+.diag.watch{border-left-color:var(--accent)}
+.diag.review{border-left-color:var(--primary)}
+.diag .dg-h{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.diag .dg-em{font-size:18px}
+.diag .dg-t{font-weight:800; font-size:13.5px}
+.diag .dg-sub{font-size:11px; color:var(--muted)}
+.diag .dg-m{margin:6px 0 0; font-size:13.5px; line-height:1.7}
+.diag .dg-n{display:flex; gap:6px; flex-wrap:wrap; margin-top:8px}
+.mon-wrap{display:grid; grid-template-columns:1fr 340px; gap:14px; align-items:start}
+@media (max-width:1000px){.mon-wrap{grid-template-columns:1fr}}
+.mon-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(158px,1fr)); gap:8px}
+.tile{border:1.5px solid var(--line); border-left:5px solid var(--idle); border-radius:8px; background:var(--surface); padding:8px 10px; text-align:left; display:flex; flex-direction:column; gap:3px; transition:box-shadow .15s}
 .tile:hover{box-shadow:var(--shadow)}
 .tile.sel{outline:3px solid var(--accent); outline-offset:1px}
 .tile[data-st="busy"]{border-left-color:var(--busy)}
@@ -321,7 +274,7 @@ textarea, input[type=text]{
 .tile .nm{font-weight:800; font-size:13px; display:flex; align-items:center; gap:6px}
 .tile .nm .no{color:var(--muted); font-size:10.5px; font-weight:700; font-variant-numeric:tabular-nums}
 .tile .meta{font-size:11px; color:var(--muted); display:flex; gap:8px; align-items:center}
-.tile .flag{font-size:10.5px; font-weight:800}
+.tile .flag{font-size:10.5px; font-weight:800; margin-left:auto; white-space:nowrap}
 .tile[data-st="help"] .flag{color:var(--danger)}
 .tile[data-st="idle"] .flag{color:var(--warn)}
 .pbar{height:5px; border-radius:3px; background:var(--idle-soft); overflow:hidden; margin-top:2px}
@@ -334,124 +287,25 @@ textarea, input[type=text]{
 .d-chip{background:var(--surface2); border-radius:6px; padding:2px 9px; font-size:11.5px; font-weight:700}
 .d-chip.acc{background:var(--accent-soft); color:var(--accent)}
 .quick{display:flex; flex-wrap:wrap; gap:6px}
-.quick button{
-  border:1.5px solid var(--primary-line); background:var(--surface); color:var(--primary);
-  border-radius:999px; padding:5px 12px; font-size:12px; font-weight:700;
-}
-.empty{color:var(--muted); font-size:13px; text-align:center; padding:30px 10px}
-
-/* デザイン画面 */
-.design-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px}
-@media (max-width:900px){.design-grid{grid-template-columns:1fr}}
-.koma-row{display:flex; gap:8px; overflow-x:auto; padding-bottom:6px}
-.koma{
-  flex:none; width:118px; border:1.5px solid var(--line); border-radius:8px; background:var(--surface);
-  padding:8px 10px; font-size:11.5px;
-}
-.koma .kn{font-weight:800; font-size:12px; display:flex; justify-content:space-between; align-items:center}
-.koma .kn .num{color:var(--muted)}
-.koma .ks{margin-top:3px; color:var(--muted); line-height:1.45}
-.koma .pill{
-  display:inline-block; margin-top:6px; font-size:10px; font-weight:800; border-radius:5px; padding:1px 7px;
-}
-.koma.now{border-color:var(--primary); border-width:2px; background:var(--primary-soft)}
-.koma .pill.open{background:var(--ok-soft); color:var(--ok)}
-.koma .pill.draft{background:var(--idle-soft); color:var(--idle)}
-.koma .pill.closed{background:var(--surface2); color:var(--muted)}
-.sw-row{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7px 0; border-bottom:1px dashed var(--line)}
-.sw-row:last-child{border-bottom:0}
-.sw-row .lb{font-weight:700; font-size:13.5px}
-.sw-row .sub{font-size:11px; color:var(--muted)}
-.switch{
-  width:44px; height:24px; border-radius:999px; background:var(--idle-soft); border:1px solid var(--line);
-  position:relative; flex:none; transition:background .15s;
-}
-.switch::after{
-  content:""; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%;
-  background:var(--surface); box-shadow:var(--shadow); transition:left .15s;
-}
-.switch[aria-pressed="true"]{background:var(--ok)}
-.switch[aria-pressed="true"]::after{left:22px}
-.refl-table{width:100%; border-collapse:collapse; font-size:12.5px}
-.refl-table th{
-  text-align:left; font-size:10.5px; letter-spacing:.1em; color:var(--muted);
-  border-bottom:2px solid var(--line); padding:6px 8px;
-}
-.refl-table td{border-bottom:1px solid var(--line); padding:8px; vertical-align:top}
-.refl-table .num{text-align:right}
-.bar-mini{display:inline-block; width:64px; height:6px; border-radius:3px; background:var(--idle-soft); vertical-align:2px; margin-right:6px}
-.bar-mini i{display:block; height:100%; border-radius:3px; background:var(--primary)}
-.attr-tag{font-size:10.5px; font-weight:800; border-radius:5px; padding:1px 7px; background:var(--surface2); color:var(--muted); white-space:nowrap}
-.star-btn{border:0; background:transparent; font-size:16px; opacity:.35}
-.star-btn[aria-pressed="true"]{opacity:1}
-.view{display:none}
-.view.on{display:block}
-
-/* 課題中心レイアウト（やってみる） */
-.task-hero{border-left:5px solid var(--primary); margin-bottom:14px}
-.task-hero .tq{font-size:19px; font-weight:800; line-height:1.7; text-wrap:balance; margin:4px 0 0}
-.task-hero .hgoal{margin-top:10px; background:var(--accent-soft); border:1.5px solid var(--accent); border-radius:8px; padding:8px 12px; font-size:12.5px}
-.task-hero .hgoal b{color:var(--accent); font-size:10.5px; letter-spacing:.14em; margin-right:6px}
-.steps-nav{display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; margin-bottom:12px}
-.snav{flex:none; width:170px; border:2px solid var(--line); background:var(--surface); border-radius:10px; padding:8px 12px; text-align:left; display:flex; flex-direction:column; gap:2px; transition:border-color .15s, background .15s}
-.snav[aria-selected="true"]{border-color:var(--primary); background:var(--primary-soft)}
-.snav .sn-n{font-size:11px; font-weight:800; color:var(--muted)}
-.snav .sn-t{font-size:12.5px; font-weight:700; line-height:1.4}
-.snav .sn-s{font-size:10.5px; font-weight:800; border-radius:5px; padding:1px 7px; align-self:flex-start; margin-top:3px}
-.sn-s.s0{background:var(--idle-soft); color:var(--idle)}
-.sn-s.s1{background:var(--busy-soft); color:var(--busy)}
-.sn-s.s2{background:var(--ok-soft); color:var(--ok)}
-.tcard .card-h{align-items:flex-start}
-.tcard .tmins{margin-left:auto; font-size:11.5px; color:var(--muted); font-weight:700; white-space:nowrap}
-.tsec{border-top:1px dashed var(--line); padding-top:12px; margin-top:12px}
-.tsec.first{border-top:0; padding-top:0; margin-top:0}
-.tstate{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
-.tstate .now{font-size:12px; font-weight:800; border-radius:6px; padding:4px 12px}
-.tstate .now.s0{background:var(--idle-soft); color:var(--idle)}
-.tstate .now.s1{background:var(--busy-soft); color:var(--busy)}
-.tstate .now.s2{background:var(--ok-soft); color:var(--ok)}
-.always-res{display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:12px; color:var(--muted)}
-
-/* 単元の出口 */
-.outcome{display:flex; gap:12px; align-items:flex-start; background:var(--primary-soft); border:1.5px solid var(--primary-line); border-radius:var(--r); padding:12px 16px; margin-bottom:14px}
-.outcome .flag{font-size:22px; flex:none}
-.outcome .lb{font-size:10.5px; font-weight:800; letter-spacing:.14em; color:var(--primary); display:block; margin-bottom:2px}
-.outcome .ol{font-weight:800; font-size:14.5px; line-height:1.6}
-.outcome .og{font-size:12px; color:var(--muted); margin-top:2px}
-/* 自己効力感 */
-.efficacy{display:flex; align-items:center; gap:14px}
-.efficacy input[type=range]{flex:1; accent-color:var(--ok); height:32px}
-.efficacy .face{font-size:26px; min-width:34px; text-align:center}
-.efficacy .lab{font-size:12px; font-weight:800; min-width:96px; text-align:right}
-/* 確認タイムのバナー */
-.checkin{position:fixed; left:50%; bottom:0; transform:translate(-50%,110%); width:min(680px,94vw); z-index:80; background:var(--surface); border:2px solid var(--accent); border-bottom:0; border-radius:14px 14px 0 0; box-shadow:0 -6px 24px rgba(35,48,58,.18); padding:14px 18px; transition:transform .35s cubic-bezier(.2,.8,.2,1)}
-.checkin.on{transform:translate(-50%,0)}
-.checkin .ci-h{display:flex; align-items:center; gap:10px; font-weight:800; font-size:15px}
-.checkin .ci-h .em{font-size:22px}
-.checkin .ci-q{font-size:12.5px; color:var(--muted); margin:6px 0 10px}
-.checkin .ci-row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
-.checkin .ci-btn{border:2px solid var(--line); background:var(--surface); border-radius:999px; padding:9px 18px; font-weight:800}
-.checkin .ci-btn.ok{border-color:var(--ok); color:var(--ok)}
-.checkin .ci-btn.adj{border-color:var(--warn); color:var(--warn)}
-.checkin .ci-memo{flex:1; min-width:160px}
-/* みんなの様子（他者参照） */
-.peer-head{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
-.peer-mode{font-size:11px; font-weight:800; border-radius:5px; padding:2px 8px; background:var(--surface2); color:var(--muted)}
-.peer-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px}
-.peer{border:1.5px solid var(--line); border-radius:8px; background:var(--surface); padding:8px 10px; display:flex; flex-direction:column; gap:3px; cursor:pointer; transition:border-color .15s, box-shadow .15s}
-.peer:hover{box-shadow:var(--shadow)}
-.peer.me{border-color:var(--primary); background:var(--primary-soft)}
-.peer .pn{font-weight:800; font-size:12.5px; display:flex; align-items:center; gap:6px}
-.peer .pn .no{color:var(--muted); font-size:10px; font-weight:700}
-.peer .stage{font-size:10.5px; font-weight:800; border-radius:5px; padding:1px 7px; align-self:flex-start}
-.peer .stage.s0{background:var(--idle-soft); color:var(--idle)}
-.peer .stage.s1{background:var(--busy-soft); color:var(--busy)}
-.peer .stage.s2{background:var(--ok-soft); color:var(--ok)}
-.peer .pmeta{font-size:11px; color:var(--muted)}
-.peer .picons{font-size:15px; letter-spacing:1px; min-height:18px}
-.peer .pgoal{display:none; font-size:11.5px; color:var(--ink); border-top:1px dashed var(--line); padding-top:5px; margin-top:2px}
-.peer.open .pgoal{display:block}
-/* I/You/We バー */
+.quick button{border:1.5px solid var(--primary-line); background:var(--surface); color:var(--primary); border-radius:999px; padding:5px 12px; font-size:12px; font-weight:700}
+.obs{border:1.5px dashed var(--line); border-radius:8px; padding:10px 12px; display:flex; flex-direction:column; gap:6px}
+.obs > b{display:block; font-size:10.5px; letter-spacing:.14em; color:var(--muted)}
+.obs input{font-size:12.5px}
+.obs-list{display:flex; flex-direction:column; gap:4px; margin-top:6px}
+.obs-row{font-size:11.5px; line-height:1.6; border-top:1px dashed var(--line); padding-top:4px}
+.obs-row .of,.obs-row .oi{display:inline-block; font-size:9.5px; font-weight:800; border-radius:4px; padding:1px 6px; margin-right:5px}
+.obs-row .of{background:var(--surface2); color:var(--muted)}
+.obs-row .oi{background:var(--accent-soft); color:var(--accent); margin-left:8px}
+.dist-list{display:flex; flex-direction:column; gap:6px}
+.dist-row{display:flex; align-items:center; gap:10px; font-size:12.5px; border-bottom:1px dashed var(--line); padding-bottom:6px}
+.dist-row:last-child{border-bottom:0}
+.dist-row.unpub{opacity:.55}
+.dist-row .dt{font-weight:700; min-width:200px}
+.dist-row .dbar{display:flex; flex:1; min-width:70px; height:14px; border-radius:4px; overflow:hidden; background:var(--surface2)}
+.dist-row .dbar i{display:block}
+.dist-row .dbar i.doing{background:var(--busy)}
+.dist-row .dbar i.done{background:var(--ok)}
+.dist-row .dnum{font-size:11px; color:var(--muted); white-space:nowrap}
 .iyouwe{display:flex; flex-direction:column; gap:6px}
 .iyouwe .iw-h{font-size:10.5px; font-weight:800; letter-spacing:.12em; color:var(--muted)}
 .iyouwe .iw-bar{display:flex; height:22px; border-radius:6px; overflow:hidden; border:1px solid var(--line)}
@@ -461,6 +315,40 @@ textarea, input[type=text]{
 .iyouwe .iw-seg.We{background:var(--ok)}
 .iyouwe .iw-key{display:flex; gap:12px; font-size:11px; color:var(--muted); flex-wrap:wrap}
 .iyouwe .iw-key i{width:9px; height:9px; border-radius:2px; display:inline-block; margin-right:4px}
+.design-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+@media (max-width:900px){.design-grid{grid-template-columns:1fr}}
+.design-grid .card{margin-top:0}
+.sw-row{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7px 0; border-bottom:1px dashed var(--line)}
+.sw-row:last-child{border-bottom:0}
+.sw-row .lb{font-weight:700; font-size:13.5px}
+.sw-row .sb2{font-size:11px; color:var(--muted)}
+.switch{width:44px; height:24px; border-radius:999px; background:var(--idle-soft); border:1px solid var(--line); position:relative; flex:none; transition:background .15s}
+.switch::after{content:""; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:var(--surface); box-shadow:var(--shadow); transition:left .15s}
+.switch[aria-pressed="true"]{background:var(--ok)}
+.switch[aria-pressed="true"]::after{left:22px}
+.task-edit-list{display:flex; flex-direction:column; gap:8px}
+.task-edit{border:1.5px solid var(--line); border-radius:10px; padding:10px 12px; background:var(--surface)}
+.task-edit.unpub{opacity:.6; border-style:dashed}
+.task-edit .te-h{display:flex; align-items:center; gap:10px}
+.task-edit .te-t{font-weight:800; font-size:13.5px}
+.task-edit .te-m{margin-left:auto; font-size:11px; color:var(--muted); white-space:nowrap}
+.task-edit .te-b{margin-top:6px}
+.task-edit .te-d{font-size:12px; color:var(--muted); margin-bottom:5px}
+.refl-table{width:100%; border-collapse:collapse; font-size:12.5px}
+.refl-table th{text-align:left; font-size:10.5px; letter-spacing:.1em; color:var(--muted); border-bottom:2px solid var(--line); padding:6px 8px}
+.refl-table td{border-bottom:1px solid var(--line); padding:8px; vertical-align:top}
+.bar-mini{display:inline-block; width:64px; height:6px; border-radius:3px; background:var(--idle-soft); vertical-align:2px; margin-right:6px}
+.bar-mini i{display:block; height:100%; border-radius:3px; background:var(--primary)}
+.attr-tag{font-size:10.5px; font-weight:800; border-radius:5px; padding:1px 7px; background:var(--surface2); color:var(--muted); white-space:nowrap}
+.star-btn{border:0; background:transparent; font-size:16px; opacity:.35}
+.star-btn[aria-pressed="true"]{opacity:1}
+.req-list{display:flex; flex-direction:column; gap:6px}
+.req-row{display:flex; align-items:baseline; gap:10px; border:1px solid var(--line); border-radius:8px; padding:7px 12px; font-size:13px}
+.req-row .rq-who{font-weight:800; font-size:11.5px; color:var(--muted); white-space:nowrap}
+.req-row .rq-t{flex:1}
+.req-row .rq-d{font-size:11px; color:var(--muted); white-space:nowrap}
+.view{display:none}
+.view.on{display:block}
 </style>
 
 <div class="proto-bar">
@@ -469,138 +357,87 @@ textarea, input[type=text]{
     <button id="sw-student" aria-pressed="true">児童の画面</button>
     <button id="sw-teacher" aria-pressed="false">教師の画面</button>
   </div>
-  <span class="note">6年社会／ダミーデータ・操作できます　＋自己効力感・確認タイム・みんなの様子・I/You/We を追加</span>
+  <span class="note">6年社会・単元内自由進度学習／ダミーデータ・操作できます</span>
 </div>
 
-<!-- ================= 児童ビュー ================= -->
+<!-- ================= 児童 ================= -->
 <div class="app view on" id="view-student">
-
   <div class="lesson-head">
     <span class="subj">6年 社会</span>
-    <span class="t">江戸幕府と政治の安定</span>
-    <span class="n num">3 / 7 時間目 ・ 青木さん</span>
+    <span class="t">江戸幕府と政治の安定（全8時間）</span>
+    <span class="n num" id="h-must">必須 1/4 ・ 青木さん</span>
   </div>
 
-  <div class="big-tabs" role="tablist" aria-label="学習のながれ">
-    <button class="big-tab" role="tab" id="bt0" aria-selected="true">
-      <span class="no num">1</span><span class="lb">みとおす</span><span class="sb">課題をつかみ、目標を立てる</span>
-    </button>
-    <button class="big-tab" role="tab" id="bt1" aria-selected="false">
-      <span class="no num">2</span><span class="lb">やってみる</span><span class="sb">方法をえらんで取り組む</span>
-    </button>
-    <button class="big-tab" role="tab" id="bt2" aria-selected="false">
-      <span class="no num">3</span><span class="lb">ふりかえる</span><span class="sb">達成度とわけを考える</span>
-    </button>
+  <div class="big-tabs" role="tablist">
+    <button class="big-tab" data-tab="0" aria-selected="true"><span class="no num">1</span><span class="lb">みとおす</span><span class="sb">手引きを読み、計画を立てる</span></button>
+    <button class="big-tab" data-tab="1" aria-selected="false"><span class="no num">2</span><span class="lb">やってみる</span><span class="sb">課題をえらんで取り組む</span></button>
+    <button class="big-tab" data-tab="2" aria-selected="false"><span class="no num">3</span><span class="lb">ふりかえる</span><span class="sb">計画とのズレを考える</span></button>
   </div>
 
   <!-- ① みとおす -->
-  <div class="panel on" id="pn0" role="tabpanel">
+  <div class="panel on" id="pn0">
     <div class="outcome">
       <span class="flag">🏁</span>
-      <div><span class="lb">この単元のゴール（出口）</span>
+      <div><span class="lb">この単元でできるようになること</span>
         <div class="ol">「大名支配のしくみ新聞」を作り、幕府が安定した理由を自分の言葉で説明する</div>
         <div class="og">単元の目標：幕府の政策から、世の中が安定したしくみを説明できる</div>
       </div>
     </div>
+
     <div class="card">
-      <div class="card-h"><span class="h-badge">❓</span><h2>今日の学習課題</h2></div>
-      <div class="card-b task-goal">
-        <p class="task-q">江戸幕府は、どのようにして大名を従わせ、世の中を安定させたのだろう。</p>
-        <div class="goal-box">
-          <b>ゴール（できるようになりたい姿）</b>
-          参勤交代や武家諸法度などの幕府の政策を資料から読み取り、大名支配のしくみを<strong>自分の言葉で説明できる</strong>。
-        </div>
-        <div class="res-strip">
-          つかえる資料：
-          <span class="d-chip">📖 教科書 p.96–99</span>
-          <span class="d-chip">📚 資料集 p.42–45</span>
-          <span class="d-chip">🎬 動画 1本</span>
-          <span class="d-chip">🗺 白地図</span>
-          <span class="d-chip">🔗 リンク 1件</span>
-          <span style="margin-left:auto">くわしくは「② やってみる」の資料コーナーへ</span>
-        </div>
-      </div>
+      <div class="card-h"><span class="h-badge">📋</span><h2>学習の手引き　<span class="sub-h">かならずやること／えらべること</span></h2></div>
+      <div class="card-b" id="guide"></div>
     </div>
 
     <div class="card">
-      <div class="card-h"><span class="h-badge">🎯</span><h2>今日の目標を立てよう</h2></div>
-      <div class="card-b" style="display:flex; flex-direction:column; gap:16px">
-        <div>
-          <h3>Be ─ どんな姿で取り組む？（タップでえらぶ）</h3>
-          <div class="chips" id="be-chips">
+      <div class="card-h"><span class="h-badge">🎯</span><h2>きょうの計画を立てよう</h2></div>
+      <div class="card-b stack">
+        <div><h3>Be ─ どんな姿で取り組む？</h3>
+          <div class="chips">
             <button class="chip" aria-pressed="true"><span class="cx">✓</span>集中して</button>
             <button class="chip" aria-pressed="false"><span class="cx">✓</span>ねばり強く</button>
             <button class="chip" aria-pressed="false"><span class="cx">✓</span>協力して</button>
             <button class="chip" aria-pressed="true"><span class="cx">✓</span>資料をじっくり読んで</button>
-            <button class="chip" aria-pressed="false"><span class="cx">✓</span>自分の考えをもって</button>
           </div>
         </div>
-        <div>
-          <h3>Do ─ 何をどこまでやる？（成果物・量）</h3>
-          <input type="text" value="白地図に大名の配置を色分けでまとめて、説明文を3文以上書く">
-        </div>
-        <div>
-          <h3>Regulate ─ どんな工夫（方略）を使う？　★は先生のおすすめ</h3>
-          <div class="strat-grid" id="plan-strats">
-            <button class="strat" aria-pressed="true">
-              <span class="ic">🗺</span><span class="nm">★ まず全体、つぎに細かく</span>
-              <span class="ds">地図や年表の全体をながめてから、細かい資料を読む</span>
-              <span class="cat">認知</span>
-            </button>
-            <button class="strat" aria-pressed="false">
-              <span class="ic">📝</span><span class="nm">キーワードメモ</span>
-              <span class="ds">大事な言葉を3つメモしてから文をつくる</span>
-              <span class="cat">認知</span>
-            </button>
-            <button class="strat" aria-pressed="true">
-              <span class="ic">🗣</span><span class="nm">★ 友だちに説明してみる</span>
-              <span class="ds">説明できたら「わかった」のサイン。つまったら資料にもどる</span>
-              <span class="cat">メタ認知</span>
-            </button>
-            <button class="strat" aria-pressed="false">
-              <span class="ic">⏱</span><span class="nm">タイマーで区切る</span>
-              <span class="ds">10分ごとに区切って、進みぐあいをたしかめる</span>
-              <span class="cat">感情調節・時間</span>
-            </button>
-            <button class="strat" aria-pressed="false">
-              <span class="ic">🙋</span><span class="nm">たすけてサイン</span>
-              <span class="ds">5分考えてもわからなかったら、友だちか先生に聞く</span>
-              <span class="cat">援助要請</span>
-            </button>
-            <button class="strat" aria-pressed="false">
-              <span class="ic">🎯</span><span class="nm">ゴールを見返す</span>
-              <span class="ds">まよったら「ゴールの姿」を読み直して方向をたしかめる</span>
-              <span class="cat">メタ認知</span>
-            </button>
+        <div><h3>Do ─ きょうはどこまでやる？</h3>
+          <input type="text" value="必須①と②を終えて、③に入る"></div>
+        <div><h3>Regulate ─ どんな工夫を使う？　<span class="star-rec">★</span>は先生のおすすめ</h3>
+          <div class="strat-grid">
+            <button class="strat" aria-pressed="true"><span class="ic">🗺</span><span class="nm">★ まず全体、つぎに細かく</span><span class="ds">地図や年表の全体をながめてから、細かい資料を読む</span><span class="cat">認知</span></button>
+            <button class="strat" aria-pressed="true"><span class="ic">🎯</span><span class="nm">★ ゴールを見返す</span><span class="ds">まよったら「ゴールの姿」を読み直して方向をたしかめる</span><span class="cat">メタ認知</span></button>
+            <button class="strat" aria-pressed="false"><span class="ic">📝</span><span class="nm">キーワードメモ</span><span class="ds">大事な言葉を3つメモしてから文をつくる</span><span class="cat">認知</span></button>
+            <button class="strat" aria-pressed="false"><span class="ic">🗣</span><span class="nm">友だちに説明してみる</span><span class="ds">説明できたら「わかった」のサイン</span><span class="cat">メタ認知</span></button>
+            <button class="strat" aria-pressed="false"><span class="ic">⏱</span><span class="nm">タイマーで区切る</span><span class="ds">10分ごとに進みぐあいをたしかめる</span><span class="cat">感情調節・時間</span></button>
+            <button class="strat" aria-pressed="false"><span class="ic">🙋</span><span class="nm">たすけてサイン</span><span class="ds">5分考えてもわからなかったら聞く</span><span class="cat">援助要請</span></button>
           </div>
         </div>
-        <div>
-          <h3>この計画なら「できそう」？（自己効力感）</h3>
+        <div><h3>この計画なら「できそう」？（自己効力感）</h3>
           <div class="efficacy">
             <span class="face" id="eff-face">🙂</span>
-            <input type="range" min="0" max="100" value="65" id="eff" aria-label="できそう度">
+            <input type="range" min="0" max="100" value="65" id="eff">
             <span class="lab"><span id="eff-v" class="num">65</span> ％できそう</span>
           </div>
         </div>
-        <div style="display:flex; justify-content:flex-end">
-          <button class="btn" data-toast="目標を先生に送りました">この目標で始める</button>
-        </div>
+        <div class="row-end"><button class="btn" data-toast="計画を先生に送りました">この計画で始める</button></div>
       </div>
     </div>
   </div>
 
-  <!-- ② やってみる（学習課題が中心） -->
-  <div class="panel" id="pn1" role="tabpanel">
+  <!-- ② やってみる -->
+  <div class="panel" id="pn1">
     <div class="card task-hero">
       <div class="card-b">
-        <span class="eyebrow">きょうの学習課題</span>
-        <p class="tq">江戸幕府は、どのようにして大名を従わせ、世の中を安定させたのだろう。</p>
-        <div class="hgoal"><b>ゴール</b>参勤交代や武家諸法度などの幕府の政策を資料から読み取り、大名支配のしくみを自分の言葉で説明できる。</div>
+        <span class="eyebrow">単元の問い</span>
+        <p class="tq">幕府の政策から、世の中が安定したしくみを説明できる</p>
+        <div class="hgoal"><b>ゴール</b>「大名支配のしくみ新聞」を作り、幕府が安定した理由を自分の言葉で説明する</div>
       </div>
     </div>
 
-    <h3 style="margin-bottom:6px">取り組む課題（タップで切りかえ）</h3>
-    <div class="steps-nav" id="steps-nav" role="tablist"></div>
+    <div>
+      <h3 style="margin-bottom:6px">取り組む課題をえらぶ　<span class="sub-h">自分のペース・自分の順序でOK</span></h3>
+      <div class="steps-nav" id="tasks-nav"></div>
+    </div>
     <div id="task-panel"></div>
 
     <div class="card">
@@ -608,40 +445,52 @@ textarea, input[type=text]{
         <span style="font-weight:800; color:var(--ink)">いつでも使える資料：</span>
         <span class="d-chip">📖 教科書 p.96–99</span>
         <span class="d-chip">📚 資料集 p.42–45</span>
-        <button class="open-btn" data-toast="「武家諸法度」現代語やくをひらきます（デモ）">🔗 武家諸法度 現代語やく</button>
       </div>
     </div>
 
     <button class="help-btn" id="help-btn" aria-pressed="false">🆘 こまっています（先生に知らせる）</button>
 
     <div class="card">
-      <div class="card-h"><span class="h-badge">👀</span><h2>みんなの様子（クラスの今）　<span style="font-size:11.5px;color:var(--muted);font-weight:700">タップで目標を見る</span></h2></div>
+      <div class="card-h"><span class="h-badge">👀</span><h2>みんなの様子（クラスの今）</h2></div>
       <div class="card-b">
-        <div class="peer-head" style="margin-bottom:8px"><span class="peer-mode">記名モード</span><span style="font-size:11.5px;color:var(--muted);font-weight:700">約20秒ごとに更新／自分と比べて学び方の参考にしよう</span></div>
-        <div class="peer-grid" id="peer-grid">
-          <div class="peer me"><div class="pn"><span class="no">1</span>あなた</div><span class="stage s1">とりくみ中 1/4</span><div class="pmeta">🧑‍🤝‍🧑 ペア</div><div class="picons">🗺🗣</div><div class="pgoal">集中して ／ 白地図に色分け＋説明文3文</div></div>
-          <div class="peer"><div class="pn"><span class="no">2</span>石田</div><span class="stage s2">できた 4/4</span><div class="pmeta">🧑 ひとり</div><div class="picons">📝🎯</div><div class="pgoal">ねばり強く ／ しくみ図を完成させる</div></div>
-          <div class="peer"><div class="pn"><span class="no">3</span>上野</div><span class="stage s1">とりくみ中 2/4</span><div class="pmeta">👥 グループ</div><div class="picons">🗣</div><div class="pgoal">協力して ／ 年表から3つ見つける</div></div>
-          <div class="peer"><div class="pn"><span class="no">5</span>大田</div><span class="stage s1">とりくみ中 3/4</span><div class="pmeta">🧑‍🤝‍🧑 ペア</div><div class="picons">🗺🗣🎯</div><div class="pgoal">資料をじっくり ／ 新聞の下書きを作る</div></div>
-          <div class="peer"><div class="pn"><span class="no">7</span>木村</div><span class="stage s0">これから 0/4</span><div class="pmeta">— </div><div class="picons"><span style="font-size:11.5px;color:var(--muted);font-weight:700">工夫はまだ</span></div><div class="pgoal"><span style="font-size:11.5px;color:var(--muted);font-weight:700">目標はまだ</span></div></div>
+        <div class="peer-head" style="margin-bottom:8px"><span class="peer-mode">記名モード</span><span class="sub-h">約20秒ごとに更新／学び方の参考にしよう</span></div>
+        <div class="peer-grid">
+          <div class="peer me"><div class="pn"><span class="no">1</span>あなた</div><span class="stage s1">とりくみ中 必須1/4</span><div class="pmeta">🧑‍🤝‍🧑 ペアで</div><div class="picons">🗺</div><div class="pgoal">いま：幕府のしくみを図にまとめる</div></div>
+          <div class="peer"><div class="pn"><span class="no">2</span>石田</div><span class="stage s1">とりくみ中 必須2/4</span><div class="pmeta">🧑 ひとりで</div><div class="picons">📝🎯</div><div class="pgoal">いま：武家諸法度を現代語で読み比べる</div></div>
+          <div class="peer"><div class="pn"><span class="no">3</span>上野</div><span class="stage s2">できた 必須4/4</span><div class="pmeta">👥 グループで</div><div class="picons">🗣🗺</div><div class="pgoal">いま：「大名支配のしくみ新聞」をつくる</div></div>
+          <div class="peer"><div class="pn"><span class="no">5</span>大田</div><span class="stage s1">とりくみ中 必須3/4</span><div class="pmeta">🧑‍🤝‍🧑 ペアで</div><div class="picons">🗺🎯</div><div class="pgoal">いま：「なぜ安定したか」を説明する文を書く</div></div>
+          <div class="peer"><div class="pn"><span class="no">7</span>木村</div><span class="stage s0">これから 必須0/4</span><div class="pmeta">—</div><div class="picons"><span class="sub-h">工夫はまだ</span></div><div class="pgoal"><span class="sub-h">まだ選んでいません</span></div></div>
         </div>
       </div>
     </div>
 
-    <div class="center" style="margin-top:4px"><button class="btn ghost" id="ci-demo">⏰（デモ）確認タイムを出す</button></div>
+    <div class="center"><button class="btn ghost" id="ci-demo">⏰（デモ）確認タイムを出す</button></div>
   </div>
 
   <!-- ③ ふりかえる -->
-  <div class="panel" id="pn2" role="tabpanel">
+  <div class="panel" id="pn2">
     <div class="card">
-      <div class="card-h"><span class="h-badge">📏</span><h2>目標はどこまで達成できた？</h2></div>
-      <div class="card-b">
-        <div style="font-size:12.5px; color:var(--muted); margin-bottom:6px">
-          きみの目標：白地図に大名の配置をまとめて、説明文を3文以上書く
+      <div class="card-h"><span class="h-badge">📏</span><h2>きょうの計画はどうだった？</h2></div>
+      <div class="card-b stack">
+        <div class="muted" style="font-size:12.5px">きょうの計画：必須①と②を終えて、③に入る</div>
+        <div>
+          <h3>計画とくらべて、どうだった？　<span class="sub-h">できた・できないではなく、計画とのズレを見よう</span></h3>
+          <div class="chips" id="plangap">
+            <button class="chip" data-v="早く進んだ" aria-pressed="false"><span class="cx">✓</span>🚀 早く進んだ</button>
+            <button class="chip" data-v="計画どおり" aria-pressed="false"><span class="cx">✓</span>🎯 計画どおり</button>
+            <button class="chip" data-v="遅れた" aria-pressed="true"><span class="cx">✓</span>🐢 遅れた</button>
+          </div>
         </div>
-        <div class="slider-wrap">
-          <input type="range" min="0" max="100" value="70" id="ach" aria-label="達成度">
-          <div class="slider-val"><span id="ach-v" class="num">70</span><small> /100</small></div>
+        <div id="gap-reason-wrap">
+          <h3>そのズレは、何が理由だと思う？</h3>
+          <input type="text" value="白地図の色分けの基準を決めるのに時間がかかった">
+        </div>
+        <div>
+          <h3>どこまで進んだ？</h3>
+          <div class="slider-wrap">
+            <input type="range" min="0" max="100" value="70" id="ach">
+            <div class="slider-val"><span id="ach-v" class="num">70</span><small> /100</small></div>
+          </div>
         </div>
       </div>
     </div>
@@ -649,8 +498,7 @@ textarea, input[type=text]{
     <div class="card">
       <div class="card-h"><span class="h-badge">🔍</span><h2>そのわけを考えよう（原因のふりかえり）</h2></div>
       <div class="card-b attr-cols">
-        <div class="attr-box good">
-          <h4>◎ うまくいったのは、なぜ？</h4>
+        <div class="attr-box good"><h4>◎ うまくいったのは、なぜ？</h4>
           <div class="chips">
             <button class="chip" aria-pressed="true"><span class="cx">✓</span>やり方（工夫）がよかった</button>
             <button class="chip" aria-pressed="false"><span class="cx">✓</span>集中できた</button>
@@ -658,8 +506,7 @@ textarea, input[type=text]{
             <button class="chip" aria-pressed="false"><span class="cx">✓</span>時間の使い方がよかった</button>
           </div>
         </div>
-        <div class="attr-box hard">
-          <h4>△ むずかしかったのは、なぜ？</h4>
+        <div class="attr-box hard"><h4>△ むずかしかったのは、なぜ？</h4>
           <div class="chips">
             <button class="chip" aria-pressed="false"><span class="cx">✓</span>やり方が合わなかった</button>
             <button class="chip" aria-pressed="false"><span class="cx">✓</span>集中が切れた</button>
@@ -672,9 +519,8 @@ textarea, input[type=text]{
 
     <div class="card">
       <div class="card-h"><span class="h-badge">💬</span><h2>今日の気持ちと、次にいかすこと</h2></div>
-      <div class="card-b" style="display:flex; flex-direction:column; gap:14px">
-        <div>
-          <h3>今日の気持ち（いちばん近いものを1つ）</h3>
+      <div class="card-b stack">
+        <div><h3>今日の気持ち（いちばん近いものを1つ）</h3>
           <div class="stamp-row" data-single>
             <button class="stamp" aria-pressed="false"><span class="em">😊</span><span class="sl">やりきった！<br>たのしかった</span></button>
             <button class="stamp" aria-pressed="true"><span class="em">🙂</span><span class="sl">だいたいできた<br>もう少しやりたい</span></button>
@@ -683,152 +529,134 @@ textarea, input[type=text]{
             <button class="stamp" aria-pressed="false"><span class="em">😵</span><span class="sl">わからなくて<br>こまった</span></button>
           </div>
         </div>
-        <div>
-          <h3>ひとことふりかえり</h3>
-          <textarea rows="2">参勤交代のしくみは説明できた。説明文が2文で終わったので、次は先に書く時間を残しておきたい。</textarea>
+        <div><h3>ひとことふりかえり</h3><textarea rows="2">参勤交代のしくみは説明できた。白地図はまだとちゅう。</textarea></div>
+        <div><h3>次はどうする？（次の時間・ほかの教科で）</h3><textarea rows="2">「まず全体、つぎに細かく」は地図に合っていた。次は色分けの基準を先に決める。</textarea></div>
+        <div class="req-box">
+          <h3>💡 先生へ：こんな資料や道具があれば、もっと分かりそう</h3>
+          <div class="sub-h" style="margin-bottom:6px">きみの「分かりにくかった」は、次の授業をよくするための大事な情報です。反省ではありません。</div>
+          <input type="text" value="白地図に県名が入っていると助かる">
         </div>
-        <div>
-          <h3>次はどうする？（次の授業・ほかの教科で）</h3>
-          <textarea rows="2">「まず全体、つぎに細かく」は地図の学習に合っていた。次回は最初に時間割りを決めてから調べる。</textarea>
-        </div>
-        <div style="display:flex; justify-content:flex-end">
-          <button class="btn" data-toast="ふりかえりを記録しました">ふりかえりを記録する</button>
-        </div>
+        <div class="row-end"><button class="btn" data-toast="ふりかえりを記録しました">ふりかえりを記録する</button></div>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-h"><span class="h-badge">📚</span><h2>これまでのわたし（単元のきろく）</h2></div>
+      <div class="card-h"><span class="h-badge">📚</span><h2>これまでのわたし（この単元のきろく）</h2></div>
       <div class="card-b timeline">
-        <div class="tl-item">
-          <span class="tl-dot">2/7</span>
-          <div class="tl-body">
-            <span class="d">達成度 <span class="num">85</span> ・ 😊</span>
-            <div class="m">工夫：キーワードメモ／「幕府のしくみ図がうまく描けた」</div>
-            <div class="fb-note"><b>先生から：</b>しくみ図に矢印で関係を書けたのがすばらしい。次は「なぜ」を言葉にしてみよう。</div>
-          </div>
-        </div>
-        <div class="tl-item">
-          <span class="tl-dot">1/7</span>
-          <div class="tl-body">
-            <span class="d">達成度 <span class="num">60</span> ・ 💪</span>
-            <div class="m">工夫：たすけてサイン／「年表のどこを見ればよいか、友だちに聞けた」</div>
-          </div>
-        </div>
+        <div class="tl-item"><span class="tl-dot">7/22</span><div class="tl-body">
+          <span class="d">達成度 <span class="num">85</span> ・ 😊 ・ 計画: 計画どおり</span>
+          <div class="m">幕府のしくみ図に矢印で関係を書けた／次：大名の配置に進む</div>
+          <div class="fb-note"><b>先生から：</b>③から始めた判断がよかったね。図の矢印がていねい。</div>
+        </div></div>
+        <div class="tl-item"><span class="tl-dot">7/21</span><div class="tl-body">
+          <span class="d">達成度 <span class="num">60</span> ・ 💪 ・ 計画: 遅れた</span>
+          <div class="m">年表のどこを見ればよいか、友だちに聞けた／次：先に全体を見る</div>
+        </div></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- 確認タイムのバナー（児童・デモ） -->
+<!-- 確認タイム -->
 <div class="checkin" id="checkin" role="dialog" aria-label="確認タイム">
-  <div class="ci-h"><span class="em">⏰</span><span>確認タイム（10分経過）</span></div>
-  <div class="ci-q">目標とずれてないかな？　残りの時間で終わりそう？　いまの調子をえらんでね。</div>
+  <div class="ci-h"><span class="em">⏰</span><span>確認タイム（15分経過）</span></div>
+  <div class="ci-q">計画とずれてないかな？　残りの時間で終わりそう？　いまの調子をえらんでね。</div>
   <div class="ci-row">
     <button class="ci-btn ok" id="ci-ok">👍 順調！このまま続ける</button>
     <button class="ci-btn adj" id="ci-adj">🔧 ちょっとズレてる（調整する）</button>
-    <input type="text" class="ci-memo" id="ci-memo" placeholder="ひとことメモ（任意）">
+    <input type="text" class="ci-memo" placeholder="ひとことメモ（任意）">
   </div>
 </div>
 
-<!-- ================= 教師ビュー ================= -->
+<!-- ================= 教師 ================= -->
 <div class="app view" id="view-teacher">
-
   <div class="lesson-head">
     <span class="subj">6年1組</span>
-    <span class="t">社会「江戸幕府と政治の安定」 3/7</span>
-    <span class="n num">公開中 ・ 経過 23:40 ・ 最終更新 8秒前</span>
+    <span class="t">社会「江戸幕府と政治の安定」（全8時間）</span>
+    <span class="n num">公開中 ・ 最終更新 8秒前</span>
   </div>
 
-  <div class="t-tabs" role="tablist" aria-label="教師メニュー">
-    <button class="t-tab" role="tab" aria-selected="true" data-tv="tv-mon">授業モニタ</button>
-    <button class="t-tab" role="tab" aria-selected="false" data-tv="tv-design">本時デザイン</button>
-    <button class="t-tab" role="tab" aria-selected="false" data-tv="tv-refl">ふりかえり一覧</button>
+  <div class="t-tabs" role="tablist">
+    <button class="t-tab" aria-selected="true" data-tv="tv-mon">授業モニタ</button>
+    <button class="t-tab" aria-selected="false" data-tv="tv-design">単元デザイン</button>
+    <button class="t-tab" aria-selected="false" data-tv="tv-refl">ふりかえり一覧</button>
   </div>
 
   <!-- モニタ -->
   <div class="view on" id="tv-mon">
-    <div class="mon-wrap">
-      <div>
-        <div class="card" style="margin-bottom:10px">
-          <div class="card-b" style="padding:10px 16px; display:flex; align-items:center; gap:16px; flex-wrap:wrap">
-            <div class="legend">
-              <span><i class="dot" style="background:var(--busy)"></i>取組中 <b class="num" id="c-busy"></b></span>
-              <span><i class="dot" style="background:var(--ok)"></i>完了 <b class="num" id="c-done"></b></span>
-              <span><i class="dot" style="background:var(--danger)"></i>🆘 こまった <b class="num" id="c-help"></b></span>
-              <span><i class="dot" style="background:var(--warn)"></i>10分無操作 <b class="num" id="c-idle"></b></span>
-              <span><i class="dot" style="background:var(--idle)"></i>未着手 <b class="num" id="c-none"></b></span>
-            </div>
-            <span style="margin-left:auto; font-size:11.5px; color:var(--muted)">タイルをタップで詳細</span>
-          </div>
-        </div>
-        <div class="card" style="margin-bottom:10px"><div class="card-b" style="padding:12px 16px">
-          <div class="iyouwe">
-            <div class="iw-h">調整層バランス（I / You / We）</div>
-            <div class="iw-bar" id="iw-bar"></div>
-            <div class="iw-key">
-              <span><i style="background:var(--busy)"></i>I 一人で調整</span>
-              <span><i style="background:var(--accent)"></i>You ペアで共調整</span>
-              <span><i style="background:var(--ok)"></i>We 集団で調整</span>
-              <span id="iw-none" class="muted"></span>
-            </div>
-          </div>
-        </div></div>
-        <div class="mon-grid" id="mon-grid"></div>
-      </div>
+    <div class="diag review" id="diag">
+      <div class="dg-h"><span class="dg-em">🛠</span><span class="dg-t">環境の診断</span>
+        <span class="dg-sub">この表示は子どもの評価ではなく、手引き・資料・課題の粒度が足りているかのサインです</span></div>
+      <p class="dg-m" id="dg-m"></p>
+      <div class="dg-n" id="dg-n"></div>
+    </div>
 
+    <div class="card" style="margin-bottom:10px"><div class="card-b" style="padding:10px 16px; display:flex; align-items:center; gap:16px; flex-wrap:wrap">
+      <div class="legend">
+        <span><i class="dot" style="background:var(--busy)"></i>進めている <b class="num" id="c-busy"></b></span>
+        <span><i class="dot" style="background:var(--ok)"></i>必須やりきり <b class="num" id="c-done"></b></span>
+        <span><i class="dot" style="background:var(--danger)"></i>たすけて <b class="num" id="c-help"></b></span>
+        <span><i class="dot" style="background:var(--warn)"></i>手が止まっている <b class="num" id="c-idle"></b></span>
+        <span><i class="dot" style="background:var(--idle)"></i>まだ始めていない <b class="num" id="c-none"></b></span>
+      </div>
+      <span style="margin-left:auto" class="sub-h">タイルをタップで詳細</span>
+    </div></div>
+
+    <div class="card" style="margin-bottom:10px"><div class="card-b" style="padding:12px 16px">
+      <div class="iyouwe">
+        <div class="iw-h">調整層バランス（I / You / We）</div>
+        <div class="iw-bar" id="iw-bar"></div>
+        <div class="iw-key">
+          <span><i style="background:var(--busy)"></i>I 一人で調整</span>
+          <span><i style="background:var(--accent)"></i>You ペアで共調整</span>
+          <span><i style="background:var(--ok)"></i>We 集団で調整</span>
+        </div>
+      </div>
+    </div></div>
+
+    <div class="card" style="margin-bottom:10px">
+      <div class="card-h"><span class="h-badge">🗂</span><h2>いま誰がどの課題にいるか</h2></div>
+      <div class="card-b"><div class="dist-list" id="dist-list"></div></div>
+    </div>
+
+    <div class="mon-wrap">
+      <div class="mon-grid" id="mon-grid"></div>
       <div class="card detail" id="detail">
         <div class="card-h"><span class="h-badge">👤</span><h2 id="d-name">児童をえらんでください</h2></div>
-        <div class="card-b" id="d-body">
-          <div class="empty">左のタイルをタップすると、目標・えらんだ学び方・進度がここに表示されます。</div>
-        </div>
+        <div class="card-b" id="d-body"><div class="empty">タイルをタップすると、計画・課題の進み方・確認タイムが表示されます。</div></div>
       </div>
     </div>
   </div>
 
-  <!-- 本時デザイン -->
+  <!-- 単元デザイン -->
   <div class="view" id="tv-design">
-    <div class="card" style="margin-bottom:14px">
-      <div class="card-h"><span class="h-badge">🗂</span><h2>単元のコマ割り（全7時間）</h2></div>
-      <div class="card-b">
-        <div class="koma-row">
-          <div class="koma"><div class="kn">1時 <span class="num">2/7済</span></div><div class="ks">幕府はどう始まった？（つかむ）</div><span class="pill closed">終了</span></div>
-          <div class="koma"><div class="kn">2時</div><div class="ks">幕府のしくみを図にする</div><span class="pill closed">終了</span></div>
-          <div class="koma now"><div class="kn">3時 ★本時</div><div class="ks">大名を従わせた方法を調べる</div><span class="pill open">公開中</span></div>
-          <div class="koma"><div class="kn">4時</div><div class="ks">キリスト教禁止と鎖国</div><span class="pill draft">下書き</span></div>
-          <div class="koma"><div class="kn">5時</div><div class="ks">身分とくらし</div><span class="pill draft">下書き</span></div>
-          <div class="koma"><div class="kn">6時</div><div class="ks">まとめの構想（選択課題）</div><span class="pill draft">下書き</span></div>
-          <div class="koma"><div class="kn">7時</div><div class="ks">単元まとめ・発表</div><span class="pill draft">下書き</span></div>
-        </div>
+    <div class="card" style="margin-bottom:14px"><div class="card-b" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap">
+      <label style="font-weight:700; font-size:13px">単元：</label>
+      <select style="padding:8px 10px; border:1.5px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink)">
+        <option>社会／江戸幕府と政治の安定（公開中）</option>
+      </select>
+      <span class="rtag">公開中</span>
+      <div style="margin-left:auto; display:flex; gap:8px">
+        <button class="btn ghost" data-toast="単元を終了しました（デモ）">単元を終了</button>
+        <button class="btn" data-toast="単元を児童に公開しました（デモ）">この単元を公開</button>
       </div>
-    </div>
+    </div></div>
 
     <div class="design-grid">
       <div class="card">
-        <div class="card-h"><span class="h-badge">❓</span><h2>本時の課題とゴール</h2></div>
-        <div class="card-b" style="display:flex; flex-direction:column; gap:12px">
-          <div>
-            <h3>学習課題</h3>
-            <textarea rows="2">江戸幕府は、どのようにして大名を従わせ、世の中を安定させたのだろう。</textarea>
+        <div class="card-h"><span class="h-badge">🏁</span><h2>学習の手引き（子どもとの契約）</h2></div>
+        <div class="card-b stack">
+          <div><h3>単元の問い・目標</h3><textarea rows="2">幕府の政策から、世の中が安定したしくみを説明できる</textarea></div>
+          <div><h3>単元の出口（成果物イメージ）</h3><textarea rows="2">「大名支配のしくみ新聞」を作り、幕府が安定した理由を自分の言葉で説明する</textarea></div>
+          <div style="display:flex; gap:12px; flex-wrap:wrap">
+            <div><h3>総時数</h3><input type="text" value="8" style="max-width:90px"></div>
+            <div><h3>確認タイム間隔（分・0で無効）</h3><input type="text" value="15" style="max-width:110px"></div>
           </div>
-          <div>
-            <h3>ゴール（評価基準）</h3>
-            <textarea rows="2">参勤交代や武家諸法度などの幕府の政策を資料から読み取り、大名支配のしくみを自分の言葉で説明できる。</textarea>
-          </div>
-          <div>
-            <h3>単元の出口（成果物イメージ）</h3>
-            <textarea rows="2">「大名支配のしくみ新聞」を作り、幕府が安定した理由を自分の言葉で説明する</textarea>
-          </div>
-          <div>
-            <h3>確認タイムの間隔（分・0で無効）</h3>
-            <input type="text" value="10" style="max-width:120px">
-          </div>
-          <div>
-            <h3>裁量レベル</h3>
+          <div><h3>裁量レベル</h3>
             <div class="chips" data-single>
-              <button class="chip" aria-pressed="false"><span class="cx">✓</span>1 指定調整型</button>
-              <button class="chip" aria-pressed="true"><span class="cx">✓</span>2 選択調整型</button>
-              <button class="chip" aria-pressed="false"><span class="cx">✓</span>3 自由調整型</button>
+              <button class="chip" aria-pressed="false"><span class="cx">✓</span>1（指定調整型）</button>
+              <button class="chip" aria-pressed="true"><span class="cx">✓</span>2（選択調整型）</button>
+              <button class="chip" aria-pressed="false"><span class="cx">✓</span>3（自由調整型）</button>
             </div>
           </div>
         </div>
@@ -837,64 +665,24 @@ textarea, input[type=text]{
       <div class="card">
         <div class="card-h"><span class="h-badge">🎛</span><h2>児童に開放する選択肢</h2></div>
         <div class="card-b">
-          <div class="sw-row"><div><div class="lb">学習形態</div><div class="sub">ひとり／ペア／グループ</div></div><button class="switch" aria-pressed="true" aria-label="学習形態を開放"></button></div>
-          <div class="sw-row"><div><div class="lb">資料・ツール</div><div class="sub">教科書／資料集／NHK for School／白地図</div></div><button class="switch" aria-pressed="true" aria-label="資料を開放"></button></div>
-          <div class="sw-row"><div><div class="lb">順序</div><div class="sub">調べてから書く／構想してから調べる</div></div><button class="switch" aria-pressed="true" aria-label="順序を開放"></button></div>
-          <div class="sw-row"><div><div class="lb">場所</div><div class="sub">自席／学びスペース（今回は閉じる）</div></div><button class="switch" aria-pressed="false" aria-label="場所を開放"></button></div>
+          <div class="sw-row"><div><div class="lb">学習形態</div><div class="sb2">ひとり／ペア／グループ</div></div><button class="switch" aria-pressed="true"></button></div>
+          <div class="sw-row"><div><div class="lb">ツール</div><div class="sb2">教科書／資料集／動画／白地図</div></div><button class="switch" aria-pressed="true"></button></div>
+          <div class="sw-row"><div><div class="lb">場所</div><div class="sb2">自席／学びスペース</div></div><button class="switch" aria-pressed="false"></button></div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-h"><span class="h-badge">👀</span><h2>実行中の他者参照（みんなの様子）</h2></div>
+        <div class="card-h"><span class="h-badge">👀</span><h2>実行中の他者参照</h2></div>
         <div class="card-b">
-          <div class="sw-row"><div><div class="lb">他者参照を許可</div><div class="sub">やってみる中に、他児の目標・工夫・進み具合を見られる（🆘や無操作は非表示）</div></div><button class="switch" aria-pressed="true" aria-label="他者参照を許可"></button></div>
-          <div class="sw-row"><div><div class="lb">名前を伏せる（匿名）</div><div class="sub">オンにすると「ともだち A / B …」で表示</div></div><button class="switch" aria-pressed="false" aria-label="匿名にする"></button></div>
+          <div class="sw-row"><div><div class="lb">他者参照を許可</div><div class="sb2">いま取り組んでいる課題・進み具合・工夫が見える（🆘や停滞は非表示）</div></div><button class="switch" aria-pressed="true"></button></div>
+          <div class="sw-row"><div><div class="lb">名前を伏せる（匿名）</div><div class="sb2">「ともだち A / B …」で表示</div></div><button class="switch" aria-pressed="false"></button></div>
         </div>
       </div>
 
       <div class="card" style="grid-column:1/-1">
-        <div class="card-h"><span class="h-badge">📎</span><h2>本時の資料（児童の「資料コーナー」に表示）</h2></div>
-        <div class="card-b res-list">
-          <div class="res-row">
-            <span class="ic">📖</span>
-            <div><div class="ti">教科書 p.96–99「幕府の政治」</div><div class="sub">ページ指定のみ（リンクなし）</div></div>
-            <span class="rtag">手もと資料</span>
-            <button class="open-btn" data-toast="資料を削除しました（デモ）">削除</button>
-          </div>
-          <div class="res-row">
-            <span class="ic">🎬</span>
-            <div><div class="ti">NHK for School「参勤交代」</div><div class="sub">https://www2.nhk.or.jp/school/…</div></div>
-            <span class="rtag link">動画</span>
-            <button class="open-btn" data-toast="資料を削除しました（デモ）">削除</button>
-          </div>
-          <div class="res-row">
-            <span class="ic">🗺</span>
-            <div><div class="ti">白地図「大名の配置（1664年）」</div><div class="sub">Googleスライド ・ 児童ごとにコピーを配る</div></div>
-            <span class="rtag link">スライド</span>
-            <button class="open-btn" data-toast="資料を削除しました（デモ）">削除</button>
-          </div>
-          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:4px">
-            <input type="text" placeholder="URLを貼り付け（Docs / Slides / 動画 / Webサイト）" style="flex:1; min-width:220px">
-            <button class="btn ghost" data-toast="資料を追加しました（デモ）">＋ 資料を追加</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="card" style="grid-column:1/-1">
-        <div class="card-h"><span class="h-badge">🃏</span><h2>おすすめとして紐づける方略カード</h2></div>
-        <div class="card-b" style="display:flex; flex-direction:column; gap:12px">
-          <div class="chips">
-            <button class="chip" aria-pressed="true"><span class="cx">✓</span>🗺 まず全体、つぎに細かく</button>
-            <button class="chip" aria-pressed="true"><span class="cx">✓</span>🗣 友だちに説明してみる</button>
-            <button class="chip" aria-pressed="false"><span class="cx">✓</span>📝 キーワードメモ</button>
-            <button class="chip" aria-pressed="false"><span class="cx">✓</span>⏱ タイマーで区切る</button>
-            <button class="chip" aria-pressed="false"><span class="cx">✓</span>🙋 たすけてサイン</button>
-            <button class="chip" aria-pressed="false"><span class="cx">✓</span>🎯 ゴールを見返す</button>
-          </div>
-          <div style="display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap">
-            <button class="btn ghost" data-toast="AIが方略・活動案を3件提案しました（デモ）">🤖 AIに方略・活動案を提案してもらう</button>
-            <button class="btn" data-toast="本時を児童に公開しました">児童に公開する</button>
-          </div>
+        <div class="card-h"><span class="h-badge">🗂</span><h2>課題（学習カード）　<span class="sub-h">スイッチで段階的に公開できます</span></h2></div>
+        <div class="card-b"><div class="task-edit-list" id="task-edit-list"></div>
+          <div class="sub-h" style="margin-top:10px">課題・資料の追加はスプレッドシートの「課題」「資料」シートで行います。</div>
         </div>
       </div>
     </div>
@@ -903,22 +691,47 @@ textarea, input[type=text]{
   <!-- ふりかえり一覧 -->
   <div class="view" id="tv-refl">
     <div class="card">
-      <div class="card-h">
-        <span class="h-badge">📊</span><h2>前時（2/7）のふりかえり　<span style="font-size:11.5px; color:var(--muted); font-weight:700">☆を付けると児童の「みんなの工夫」に共有されます</span></h2>
+      <div class="card-h"><span class="h-badge">📊</span><h2>ふりかえり一覧</h2>
+        <select style="margin-left:auto; padding:6px 10px; border:1.5px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink)">
+          <option>2026-07-23</option><option>2026-07-22</option>
+        </select>
       </div>
       <div class="card-b" style="overflow-x:auto">
         <table class="refl-table">
-          <thead><tr>
-            <th style="width:90px">児童</th><th style="width:130px">達成度</th><th style="width:110px">原因</th><th>ひとこと・次への一手</th><th style="width:46px">共有</th>
-          </tr></thead>
+          <thead><tr><th style="width:96px">児童</th><th style="width:160px">達成度・計画</th><th style="width:150px">原因</th><th>ひとこと・次への一手</th><th style="width:46px">共有</th></tr></thead>
           <tbody>
-            <tr><td><b>1 青木</b></td><td><span class="bar-mini"><i style="width:85%"></i></span><span class="num">85</span> 😊</td><td><span class="attr-tag">やり方○</span></td><td>しくみ図に矢印で関係を書けた。次は「なぜ」を言葉にする。</td><td><button class="star-btn" aria-pressed="true" aria-label="共有する">⭐</button></td></tr>
-            <tr><td><b>2 石田</b></td><td><span class="bar-mini"><i style="width:55%"></i></span><span class="num">55</span> 😮‍💨</td><td><span class="attr-tag">時間△</span></td><td>図をていねいに描きすぎた。次は10分で下書きにする。</td><td><button class="star-btn" aria-pressed="false" aria-label="共有する">⭐</button></td></tr>
-            <tr><td><b>3 上野</b></td><td><span class="bar-mini"><i style="width:75%"></i></span><span class="num">75</span> 💪</td><td><span class="attr-tag">協力○</span></td><td>ペアの説明で気づけた。次も「説明してみる」を使う。</td><td><button class="star-btn" aria-pressed="true" aria-label="共有する">⭐</button></td></tr>
-            <tr><td><b>4 遠藤</b></td><td><span style="color:var(--muted)">未記入</span></td><td></td><td style="color:var(--muted)">—（声かけ対象）</td><td></td></tr>
-            <tr><td><b>5 大田</b></td><td><span class="bar-mini"><i style="width:90%"></i></span><span class="num">90</span> 😊</td><td><span class="attr-tag">やり方○</span></td><td>動画→教科書の順が合っていた。社会以外でも試したい。</td><td><button class="star-btn" aria-pressed="false" aria-label="共有する">⭐</button></td></tr>
+            <tr><td><b>1 青木</b></td><td><span class="bar-mini"><i style="width:70%"></i></span><span class="num">70</span> 🙂<div class="sub-h">計画：遅れた</div></td><td><span class="attr-tag">○やり方</span> <span class="attr-tag">△時間が</span></td><td>参勤交代のしくみは説明できた。白地図はまだとちゅう。<br><span class="muted">次：色分けの基準を先に決める</span></td><td><button class="star-btn" aria-pressed="true">⭐</button></td></tr>
+            <tr><td><b>2 石田</b></td><td><span class="bar-mini"><i style="width:55%"></i></span><span class="num">55</span> 😮‍💨<div class="sub-h">計画：遅れた</div></td><td><span class="attr-tag">△資料がむ</span></td><td>武家諸法度の言葉がむずかしかった<br><span class="muted">次：現代語やくを先に読む</span></td><td><button class="star-btn" aria-pressed="false">⭐</button></td></tr>
+            <tr><td><b>3 上野</b></td><td><span class="bar-mini"><i style="width:95%"></i></span><span class="num">95</span> 😊<div class="sub-h">計画：早く進んだ</div></td><td><span class="attr-tag">○やり方</span> <span class="attr-tag">○協力でき</span></td><td>発展の新聞づくりに入れた<br><span class="muted">次：見出しを工夫する</span></td><td><button class="star-btn" aria-pressed="true">⭐</button></td></tr>
+            <tr><td><b>4 遠藤</b></td><td class="muted">未記入</td><td></td><td class="muted">—（声かけ対象）</td><td></td></tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="card-h"><span class="h-badge">💡</span><h2>単元の改善リスト　<span class="sub-h">子どもの「こんな教材があれば分かった」を、次の単元づくりに使う</span></h2></div>
+      <div class="card-b">
+        <h3>子どもからの教材リクエスト</h3>
+        <div class="req-list">
+          <div class="req-row"><span class="rq-who">1 青木</span><span class="rq-t">白地図に県名が入っていると助かる</span><span class="rq-d">2026-07-23</span></div>
+          <div class="req-row"><span class="rq-who">2 石田</span><span class="rq-t">武家諸法度の現代語やくに、ふりがながほしい</span><span class="rq-d">2026-07-23</span></div>
+          <div class="req-row"><span class="rq-who">5 大田</span><span class="rq-t">年表がもう少し大きいと読みやすい</span><span class="rq-d">2026-07-22</span></div>
+        </div>
+        <h3 style="margin-top:14px">むずかしかった理由（単元全体）</h3>
+        <div class="d-chips">
+          <span class="d-chip">時間が足りなかった <b class="num">7</b></span>
+          <span class="d-chip">資料がむずかしかった <b class="num">5</b></span>
+          <span class="d-chip">やり方が合わなかった <b class="num">2</b></span>
+          <span class="d-chip">集中が切れた <b class="num">2</b></span>
+        </div>
+        <h3 style="margin-top:14px">計画とのズレの分布</h3>
+        <div class="d-chips">
+          <span class="d-chip">早く進んだ <b class="num">6</b></span>
+          <span class="d-chip">計画どおり <b class="num">11</b></span>
+          <span class="d-chip">遅れた <b class="num">9</b></span>
+        </div>
+        <div class="sub-h" style="margin-top:12px">1回目でうまくいく手引きはありません。ここに集まった声を、次の年の環境づくりに使ってください。</div>
       </div>
     </div>
   </div>
@@ -929,100 +742,154 @@ textarea, input[type=text]{
 <script>
 (function(){
   "use strict";
-  var $ = function(s,el){return (el||document).querySelector(s)};
-  var $$ = function(s,el){return Array.prototype.slice.call((el||document).querySelectorAll(s))};
+  var $ = function(s,el){ return (el||document).querySelector(s); };
+  var $$ = function(s,el){ return Array.prototype.slice.call((el||document).querySelectorAll(s)); };
 
   /* トースト */
   var toastEl = $("#toast"), toastT;
   function toast(msg){
     toastEl.textContent = msg; toastEl.classList.add("on");
-    clearTimeout(toastT); toastT = setTimeout(function(){toastEl.classList.remove("on")}, 2200);
+    clearTimeout(toastT); toastT = setTimeout(function(){ toastEl.classList.remove("on"); }, 2200);
   }
   document.addEventListener("click", function(e){
     var b = e.target.closest("[data-toast]");
     if(b) toast(b.getAttribute("data-toast"));
   });
 
-  /* 児童/教師 切替 */
-  var swS = $("#sw-student"), swT = $("#sw-teacher");
+  /* 役割の切替 */
   function setRole(student){
-    swS.setAttribute("aria-pressed", student);
-    swT.setAttribute("aria-pressed", !student);
+    $("#sw-student").setAttribute("aria-pressed", student);
+    $("#sw-teacher").setAttribute("aria-pressed", !student);
     $("#view-student").classList.toggle("on", student);
     $("#view-teacher").classList.toggle("on", !student);
     window.scrollTo(0,0);
   }
-  swS.addEventListener("click", function(){setRole(true)});
-  swT.addEventListener("click", function(){setRole(false)});
+  $("#sw-student").addEventListener("click", function(){ setRole(true); });
+  $("#sw-teacher").addEventListener("click", function(){ setRole(false); });
 
-  /* 児童: 3タブ */
-  $$(".big-tab").forEach(function(t,i){
-    t.addEventListener("click", function(){
-      $$(".big-tab").forEach(function(x,j){x.setAttribute("aria-selected", i===j)});
-      $$(".panel").forEach(function(p,j){p.classList.toggle("on", i===j)});
-    });
-  });
-
-  /* トグル群: chip / ccard / stamp / strat（data-single は単一選択） */
+  /* 汎用トグル */
   document.addEventListener("click", function(e){
     var b = e.target.closest(".chip,.ccard,.stamp,.strat,.switch,.star-btn");
     if(!b) return;
+    if(b.closest("#plangap")) return;   // 計画とのズレは専用処理
     var single = b.parentElement && b.parentElement.hasAttribute("data-single");
     if(single){
-      $$(".chip,.ccard,.stamp", b.parentElement).forEach(function(x){x.setAttribute("aria-pressed","false")});
+      $$(".chip,.ccard,.stamp", b.parentElement).forEach(function(x){ x.setAttribute("aria-pressed","false"); });
       b.setAttribute("aria-pressed","true");
-    }else{
+    } else {
       var on = b.getAttribute("aria-pressed")==="true";
       b.setAttribute("aria-pressed", String(!on));
-      if(b.hasAttribute("data-use") && !on) toast("「つかった！」を記録しました");
+      if(b.classList.contains("exec") && !on) toast("「つかった！」を記録しました");
+      if(b.classList.contains("switch")) toast(!on ? "公開しました（デモ）" : "閉じました（デモ）");
     }
   });
 
-  /* ---------- 課題中心の「やってみる」 ---------- */
-  var stLabel = ["未着手","取組中","完了"];
+  /* 自己効力感 */
+  function effFace(v){ return v>=80?'😄':v>=60?'🙂':v>=40?'😐':v>=20?'😟':'😞'; }
+  $("#eff").addEventListener("input", function(){
+    $("#eff-v").textContent = this.value; $("#eff-face").textContent = effFace(+this.value);
+  });
+  $("#ach").addEventListener("input", function(){ $("#ach-v").textContent = this.value; });
 
-  // 学習課題ごとに：取り組み方（だれと／何を使って）・その課題の資料・つかう工夫
+  /* 計画とのズレ（単一選択＋理由の出し分け） */
+  $$("#plangap .chip").forEach(function(c){
+    c.addEventListener("click", function(){
+      $$("#plangap .chip").forEach(function(x){ x.setAttribute("aria-pressed","false"); });
+      c.setAttribute("aria-pressed","true");
+      $("#gap-reason-wrap").style.display = (c.dataset.v === "計画どおり") ? "none" : "";
+    });
+  });
+
+  /* 確認タイム */
+  $("#ci-demo").addEventListener("click", function(){ $("#checkin").classList.add("on"); });
+  $("#ci-ok").addEventListener("click", function(){ $("#checkin").classList.remove("on"); toast("いい調子！記録したよ（デモ）"); });
+  $("#ci-adj").addEventListener("click", function(){ $("#checkin").classList.remove("on"); toast("調整して続けよう。記録したよ（デモ）"); });
+
+  /* 児童3タブ */
+  $$(".big-tab").forEach(function(t){
+    t.addEventListener("click", function(){
+      $$(".big-tab").forEach(function(x){ x.setAttribute("aria-selected", x===t); });
+      $$(".panel").forEach(function(p,j){ p.classList.toggle("on", String(j)===t.dataset.tab); });
+    });
+  });
+
+  /* 教師タブ */
+  $$(".t-tab").forEach(function(t){
+    t.addEventListener("click", function(){
+      $$(".t-tab").forEach(function(x){ x.setAttribute("aria-selected", x===t); });
+      ["tv-mon","tv-design","tv-refl"].forEach(function(id){ $("#"+id).classList.toggle("on", id===t.dataset.tv); });
+    });
+  });
+
+  /* ---------- 単元の課題（学習カード） ---------- */
+  var ST = ["未着手","取組中","できた"];
+  var KIND = {"必須":"★ 必須","選択":"えらべる","発展":"⚡ 発展"};
   var TASKS = [
-    { n:"①", title:"資料から幕府の政策を2つ以上見つける", mins:10, status:2,
-      who:"ペアで", tools:["教科書","資料集"],
-      res:[
-        {ic:"📖", ti:"教科書 p.96–99「幕府の政治」", sub:"机の上に用意しよう", tag:"手もとの資料"},
-        {ic:"🎬", ti:"NHK for School「参勤交代」", sub:"動画 6:32 ・ イヤホンを使おう", tag:"動画", link:1}
-      ],
-      strat:[{ic:"🗺", nm:"まず全体、つぎに細かく"}, {ic:"📝", nm:"キーワードメモ"}] },
-    { n:"②", title:"白地図に大名の配置を整理する", mins:15, status:1,
-      who:"ペアで", tools:["白地図","資料集"],
-      res:[
-        {ic:"🗺", ti:"白地図「大名の配置（1664年）」", sub:"自分用のコピーが作られます", tag:"スライド", link:1},
-        {ic:"📚", ti:"資料集 p.42–45「参勤交代の道のり」", sub:"大名行列の絵と地図がのっています", tag:"手もとの資料"}
-      ],
-      strat:[{ic:"🗺", nm:"まず全体、つぎに細かく"}] },
-    { n:"③", title:"「なぜ安定したか」の説明文を書く", mins:10, status:0,
-      who:"ひとりで", tools:["教科書"],
-      res:[
-        {ic:"🔗", ti:"「武家諸法度」現代語やく", sub:"むずかしい言葉のいいかえ付き", tag:"ドキュメント", link:1}
-      ],
-      strat:[{ic:"📝", nm:"キーワードメモ"}, {ic:"🎯", nm:"ゴールを見返す"}] },
-    { n:"④", title:"ペアで説明し合い、直す", mins:5, status:0,
-      who:"ペアで", tools:[],
-      res:[],
-      strat:[{ic:"🗣", nm:"友だちに説明してみる"}, {ic:"🙋", nm:"たすけてサイン"}] }
+    {n:1, kind:"必須", title:"幕府のしくみを図にまとめる", desc:"将軍・大名・老中などの関係を、矢印を使って図にしよう。", mins:15, status:1, pub:true,
+     who:"ペアで", tools:["教科書"],
+     res:[{ic:"🎬", ti:'NHK for School「江戸幕府のしくみ」', sub:"動画 6:32 ・ イヤホンを使おう", tag:"動画", link:1}],
+     strat:[{ic:"🗺", nm:"まず全体、つぎに細かく", note:"まず全体をながめてから、細かい関係を見よう"}]},
+    {n:2, kind:"必須", title:"大名の配置を白地図に整理する", desc:"親藩・譜代・外様を色分けして、気づいたことを書こう。", mins:20, status:0, pub:true,
+     who:"", tools:["資料集"],
+     res:[{ic:"🗺", ti:'白地図「大名の配置（1664年）」', sub:"自分用のコピーが作られます", tag:"スライド", link:1},
+          {ic:"📚", ti:"資料集 p.42–45", sub:"大名行列の絵と地図", tag:"手もと資料"}],
+     strat:[{ic:"🗺", nm:"まず全体、つぎに細かく", note:"地図全体を見てから色分けしよう"}]},
+    {n:3, kind:"必須", title:"参勤交代のしくみと大名への影響を読み取る", desc:"何年おきに、どのくらいの費用がかかったのかを調べよう。", mins:20, status:2, pub:true,
+     who:"ひとりで", tools:["教科書","資料集"],
+     res:[{ic:"🎬", ti:'NHK for School「参勤交代」', sub:"動画 6:32", tag:"動画", link:1}],
+     strat:[]},
+    {n:4, kind:"必須", title:"「なぜ安定したか」を説明する文を書く", desc:"ゴールの姿を見返しながら、3文以上で書こう。", mins:20, status:0, pub:true,
+     who:"", tools:[],
+     res:[{ic:"📝", ti:"説明文のかきかたシート", sub:"「はじめ・なか・おわり」の型", tag:"ドキュメント", link:1}],
+     strat:[{ic:"📝", nm:"キーワードメモ", note:"大事な言葉を3つメモしてから書き始めよう"},
+            {ic:"🗣", nm:"友だちに説明してみる", note:"書けたらペアで説明してみよう"}]},
+    {n:5, kind:"選択", title:"武家諸法度を現代語で読み比べる", desc:"どんな決まりが大名をしばっていたのかを見つけよう。", mins:15, status:0, pub:true,
+     who:"", tools:[],
+     res:[{ic:"🔗", ti:"「武家諸法度」現代語やく", sub:"むずかしい言葉のいいかえ付き", tag:"ドキュメント", link:1}],
+     strat:[]},
+    {n:6, kind:"選択", title:"江戸のまちのくらしを調べる", desc:"町人はどんな生活をしていたのだろう。", mins:15, status:0, pub:true,
+     who:"", tools:[], res:[], strat:[]},
+    {n:7, kind:"選択", title:"年表で幕府260年の動きをたどる", desc:"長く続いた理由を年表から考えよう。", mins:15, status:0, pub:true,
+     who:"", tools:[], res:[], strat:[]},
+    {n:8, kind:"発展", title:"「大名支配のしくみ新聞」をつくる", desc:"単元のゴール。調べたことを新聞にまとめよう。", mins:30, status:0, pub:true,
+     who:"", tools:[],
+     res:[{ic:"📰", ti:"新聞のわりつけテンプレート", sub:"見出し・記事・図の枠つき", tag:"スライド", link:1}],
+     strat:[{ic:"🗣", nm:"友だちに説明してみる", note:"友だちに説明すると、記事がはっきりするよ"}]},
+    {n:9, kind:"発展", title:"学んだことを説明動画にまとめる", desc:"1分で説明する動画をつくろう。", mins:30, status:0, pub:false,
+     who:"", tools:[], res:[], strat:[]}
   ];
   var WHO = [["🧑","ひとりで"],["🧑‍🤝‍🧑","ペアで"],["👥","グループで"]];
   var TOOLS = [["📖","教科書"],["📚","資料集"],["🎬","NHK for School"],["🗺","白地図"]];
-  var curTask = 1;   // ②を取組中として開いておく
+  var cur = 0;
 
-  function renderNav(){
-    $("#steps-nav").innerHTML = TASKS.map(function(t,i){
-      return '<button class="snav" role="tab" data-i="'+i+'" aria-selected="'+(i===curTask)+'">'+
-        '<span class="sn-n">課題 '+t.n+'</span>'+
-        '<span class="sn-t">'+t.title+'</span>'+
-        '<span class="sn-s s'+t.status+'">'+stLabel[t.status]+'</span></button>';
-    }).join("");
+  function visible(){ return TASKS.filter(function(t){ return t.pub; }); }
+  function mustDone(){ return TASKS.filter(function(t){ return t.kind==="必須" && t.status===2; }).length; }
+
+  function renderGuide(){
+    var groups = [["必須","かならずやること"],["選択","えらべる活動"],["発展","やりきったら挑戦"]];
+    $("#guide").innerHTML = groups.map(function(g){
+      var list = visible().filter(function(t){ return t.kind===g[0]; });
+      if(!list.length) return "";
+      return '<div style="margin-bottom:10px"><h3>'+g[1]+'（'+list.length+'）</h3><div class="guide-list">'+
+        list.map(function(t){
+          return '<div class="guide-row"><span class="gk k'+t.kind+'">'+KIND[t.kind]+'</span>'+
+            '<span class="gt">'+t.title+'</span><span class="gs s'+t.status+'">'+ST[t.status]+'</span>'+
+            '<span class="gm">めやす'+t.mins+'分</span></div>';
+        }).join("")+'</div></div>';
+    }).join("") + '<div class="sub-h">総時数 8時間。必須をやりきったら、えらべる活動と発展に進もう。</div>';
   }
 
-  function renderTask(){
-    var t = TASKS[curTask];
+  function renderTasks(){
+    var vis = visible();
+    if(cur >= vis.length) cur = 0;
+    $("#tasks-nav").innerHTML = vis.map(function(t,i){
+      return '<button class="snav" data-i="'+i+'" aria-selected="'+(i===cur)+'">'+
+        '<span class="sn-n k'+t.kind+'">'+KIND[t.kind]+'</span>'+
+        '<span class="sn-t">'+t.title+'</span>'+
+        '<span class="sn-s s'+t.status+'">'+ST[t.status]+'</span></button>';
+    }).join("");
+
+    var t = vis[cur];
     var whoCards = WHO.map(function(w){
       return '<button class="ccard" aria-pressed="'+(t.who===w[1])+'"><span class="ic">'+w[0]+'</span><span class="lb">'+w[1]+'</span></button>';
     }).join("");
@@ -1030,197 +897,199 @@ textarea, input[type=text]{
       return '<button class="ccard" aria-pressed="'+(t.tools.indexOf(w[1])>=0)+'"><span class="ic">'+w[0]+'</span><span class="lb">'+w[1]+'</span></button>';
     }).join("");
     var resRows = t.res.length ? t.res.map(function(r){
-      return '<div class="res-row"><span class="ic">'+r.ic+'</span>'+
-        '<div><div class="ti">'+r.ti+'</div><div class="sub">'+r.sub+'</div></div>'+
+      return '<div class="res-row"><span class="ic">'+r.ic+'</span><div><div class="ti">'+r.ti+'</div><div class="sub">'+r.sub+'</div></div>'+
         '<span class="rtag'+(r.link?" link":"")+'">'+r.tag+'</span>'+
         (r.link?'<button class="open-btn" data-toast="'+r.ti+' をひらきます（デモ）">ひらく</button>':'')+'</div>';
     }).join("") : '<div class="empty">この課題に紐づいた資料はありません（下の「いつでも使える資料」を使おう）</div>';
-    t.used = t.used || {};
-    var stratCards = t.strat.map(function(s){
-      return '<button class="strat exec" aria-pressed="'+(!!t.used[s.nm])+'" data-use><span class="ic">'+s.ic+'</span>'+
-        '<span class="nm">'+s.nm+'</span><span class="used">✔ つかった！</span></button>';
-    }).join("");
+    var stratCards = t.strat.length ? t.strat.map(function(s){
+      return '<button class="strat exec" aria-pressed="false"><span class="ic">'+s.ic+'</span><span class="nm">'+s.nm+'</span>'+
+        (s.note?'<span class="ds">'+s.note+'</span>':'')+'<span class="used">✔ つかった！</span></button>';
+    }).join("") : '<div class="empty">この課題のおすすめ工夫はありません</div>';
 
     $("#task-panel").innerHTML =
-      '<div class="card tcard">'+
-        '<div class="card-h"><span class="h-badge">'+t.n+'</span><h2>'+t.title+'</h2><span class="tmins">めやす '+t.mins+'分</span></div>'+
-        '<div class="card-b">'+
-          '<div class="tsec first"><h3>この課題の取り組み方をえらぶ</h3>'+
-            '<div class="choice-row" style="margin-bottom:10px"><h3 style="font-size:12px">だれと</h3><div class="choice-cards" data-single>'+whoCards+'</div></div>'+
-            '<div class="choice-row"><h3 style="font-size:12px">何を使って（いくつでも）</h3><div class="choice-cards">'+toolCards+'</div></div>'+
-          '</div>'+
-          '<div class="tsec"><h3>この課題でつかう資料</h3><div class="res-list">'+resRows+'</div></div>'+
-          '<div class="tsec"><h3>この課題でつかう工夫　<span style="font-weight:700;color:var(--muted);font-size:11.5px">使ったらタップ</span></h3><div class="strat-grid">'+stratCards+'</div></div>'+
-          '<div class="tsec tstate">'+
-            '<span class="now s'+t.status+'">いま：'+stLabel[t.status]+'</span>'+
-            '<button class="btn ghost" data-status="1">▶ 取りかかる</button>'+
-            '<button class="btn" data-status="2">✔ できた！</button>'+
-            (curTask < TASKS.length-1 ? '<button class="btn ghost" id="next-task">次の課題へ →</button>' : '')+
-          '</div>'+
-        '</div>'+
-      '</div>';
+      '<div class="card tcard"><div class="card-h"><span class="h-badge">'+t.n+'</span><h2>'+t.title+'</h2>'+
+        '<span class="tmins">めやす '+t.mins+'分</span></div><div class="card-b">'+
+        '<div class="tdesc">'+t.desc+'</div>'+
+        '<div class="tsec"><h3>この課題の取り組み方をえらぶ</h3>'+
+          '<div class="choice-row" style="margin-bottom:10px"><h3 style="font-size:12px">だれと</h3><div class="choice-cards" data-single>'+whoCards+'</div></div>'+
+          '<div class="choice-row"><h3 style="font-size:12px">何を使って（いくつでも）</h3><div class="choice-cards">'+toolCards+'</div></div></div>'+
+        '<div class="tsec"><h3>この課題でつかう資料</h3><div class="res-list">'+resRows+'</div></div>'+
+        '<div class="tsec"><h3>この課題でつかう工夫　<span class="sub-h">使ったらタップ</span></h3><div class="strat-grid">'+stratCards+'</div></div>'+
+        '<div class="tsec tstate"><span class="now s'+t.status+'">いま：'+ST[t.status]+'</span>'+
+          '<button class="btn ghost" data-status="1">▶ 取りかかる</button>'+
+          '<button class="btn" data-status="2">✔ できた！</button></div>'+
+      '</div></div>';
   }
 
-  function renderExec(){ renderNav(); renderTask(); }
-  renderExec();
+  function renderStudent(){
+    renderGuide(); renderTasks();
+    $("#h-must").textContent = "必須 " + mustDone() + "/4 ・ 青木さん";
+  }
 
   document.addEventListener("click", function(e){
-    // 選択・工夫の状態を課題ごとに保持（再描画で消えないように）
-    var panel = e.target.closest("#task-panel");
-    if(panel){
-      var t = TASKS[curTask];
-      var rows = $$(".choice-row", panel);
-      if(rows.length === 2){
-        var w = $(".ccard[aria-pressed='true']", rows[0]);
-        t.who = w ? $(".lb", w).textContent : "";
-        t.tools = $$(".ccard[aria-pressed='true']", rows[1]).map(function(c){ return $(".lb",c).textContent; });
-      }
-      t.used = {};
-      $$(".strat.exec", panel).forEach(function(s){
-        if(s.getAttribute("aria-pressed")==="true") t.used[$(".nm",s).textContent] = true;
-      });
-    }
-
     var nav = e.target.closest(".snav");
-    if(nav){ curTask = +nav.dataset.i; renderExec(); return; }
-    var stBtn = e.target.closest("[data-status]");
-    if(stBtn){
-      TASKS[curTask].status = +stBtn.dataset.status;
-      toast("課題"+TASKS[curTask].n+"を「"+stLabel[TASKS[curTask].status]+"」にしました");
-      renderExec(); return;
+    if(nav){ cur = +nav.dataset.i; renderTasks(); return; }
+    var sb = e.target.closest("[data-status]");
+    if(sb){
+      var t = visible()[cur];
+      t.status = +sb.dataset.status;
+      toast("「"+ST[t.status]+"」にしました");
+      renderStudent();
+      return;
     }
-    if(e.target.id === "next-task"){ curTask = Math.min(curTask+1, TASKS.length-1); renderExec(); return; }
+    if(e.target.closest("#help-btn")){
+      var b = $("#help-btn"), on = b.getAttribute("aria-pressed")==="true";
+      b.setAttribute("aria-pressed", String(!on));
+      b.textContent = !on ? "🆘 先生に知らせました（とどくまで待っていてね）" : "🆘 こまっています（先生に知らせる）";
+      toast(!on ? "先生の画面に表示されました" : "取り消しました");
+    }
   });
+  renderStudent();
 
-  /* こまったボタン */
-  $("#help-btn").addEventListener("click", function(){
-    var on = this.getAttribute("aria-pressed")==="true";
-    this.setAttribute("aria-pressed", String(!on));
-    this.textContent = !on ? "🆘 先生に知らせました（とどくまで待っていてね）" : "🆘 こまっています（先生に知らせる）";
-    toast(!on ? "先生の画面に表示されました" : "取り消しました");
-  });
-
-  /* 達成度スライダー */
-  var ach = $("#ach");
-  ach.addEventListener("input", function(){ $("#ach-v").textContent = ach.value });
-
-  /* 自己効力感スライダー */
-  function effFace(v){ return v>=80?'😄':v>=60?'🙂':v>=40?'😐':v>=20?'😟':'😞'; }
-  var eff = $("#eff");
-  if(eff) eff.addEventListener("input", function(){ $("#eff-v").textContent = eff.value; $("#eff-face").textContent = effFace(+eff.value); });
-
-  /* 確認タイム（デモ） */
-  $("#ci-demo") && $("#ci-demo").addEventListener("click", function(){ $("#checkin").classList.add("on"); });
-  function closeCheckin(msg){ $("#checkin").classList.remove("on"); toast(msg); }
-  $("#ci-ok") && $("#ci-ok").addEventListener("click", function(){ closeCheckin("いい調子！記録したよ（デモ）"); });
-  $("#ci-adj") && $("#ci-adj").addEventListener("click", function(){ closeCheckin("調整して続けよう。記録したよ（デモ）"); });
-
-  /* みんなの様子: タップで目標を展開 */
-  document.addEventListener("click", function(e){
-    var peer = e.target.closest(".peer");
-    if(peer) peer.classList.toggle("open");
-  });
-
-  /* ---------- 教師: タブ ---------- */
-  $$(".t-tab").forEach(function(t){
-    t.addEventListener("click", function(){
-      $$(".t-tab").forEach(function(x){x.setAttribute("aria-selected", x===t)});
-      ["tv-mon","tv-design","tv-refl"].forEach(function(id){
-        $("#"+id).classList.toggle("on", id===t.getAttribute("data-tv"));
-      });
-    });
-  });
-
-  /* ---------- 教師: モニタ（ダミーデータ生成） ---------- */
+  /* ---------- 教師：ダミーの30人 ---------- */
   var names = ["青木","石田","上野","遠藤","大田","加藤","木村","栗原","小林","斎藤",
                "佐藤","島田","鈴木","高橋","田中","塚本","寺田","中村","西村","野口",
                "橋本","林","藤井","星野","松本","三浦","村上","森田","山口","渡辺"];
-  var forms = ["🧑 ひとり","🧑‍🤝‍🧑 ペア","👥 グループ"];
-  var strats = ["🗺 全体→細かく","🗣 説明してみる","📝 キーワードメモ","⏱ タイマー","🙋 たすけてサイン","🎯 ゴール見返し"];
-  var bes = ["集中して","ねばり強く","協力して","資料をじっくり"];
-  var stepNames = ["① 政策を見つける","② 白地図に整理","③ 説明文を書く","④ ペアで説明"];
+  var forms = ["🧑 ひとりで","🧑‍🤝‍🧑 ペアで","👥 グループで"];
+  function mulberry(seed){ return function(){ seed|=0; seed=seed+0x6D2B79F5|0; var t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return((t^t>>>14)>>>0)/4294967296; }; }
+  var rnd = mulberry(20260805);
+  function pick(a){ return a[Math.floor(rnd()*a.length)]; }
 
-  function mulberry(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;var t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-  var rnd = mulberry(20260722);
-  function pick(a){return a[Math.floor(rnd()*a.length)]}
-
+  var pubTasks = TASKS.filter(function(t){ return t.pub; });
   var students = names.map(function(nm,i){
-    var prog = Math.floor(rnd()*5);            // 0..4 完了ステップ数
-    var st = prog===4 ? "done" : "busy";
-    return {no:i+1, name:nm, prog:prog, st:st, form:pick(forms),
-            be:pick(bes), doGoal:"白地図＋説明文"+(2+Math.floor(rnd()*2))+"文",
-            regs:[pick(strats),pick(strats)].filter(function(v,ix,a){return a.indexOf(v)===ix}),
-            eff:30+Math.floor(rnd()*70),
-            checks:(prog>=2?[{m:10,s:"順調"},{m:20,s:(prog>=3?"順調":"調整する")}]:(prog>=1?[{m:10,s:"順調"}]:[])),
-            idleMin:Math.floor(rnd()*9)};
+    var done = Math.floor(rnd()*5);                 // 必須の完了数
+    var ti = Math.min(done, pubTasks.length-1);
+    return { no:i+1, name:nm, done:done, doing:pubTasks[ti].title, taskIdx:ti,
+             st: done>=4 ? "done" : "busy", form:pick(forms), eff:35+Math.floor(rnd()*65),
+             checks: done>=2 ? [{m:15,s:"順調"},{m:30,s:"調整する"}] : (done>=1?[{m:15,s:"順調"}]:[]),
+             idleMin:Math.floor(rnd()*8) };
   });
-  /* シナリオ: 困り2名・無操作1名・未着手1名 */
-  students[7].st="help";  students[7].prog=1;
-  students[21].st="help"; students[21].prog=2;
-  students[13].st="idle"; students[13].idleMin=11;
-  students[3].st="none";  students[3].prog=0;
+  /* シナリオ：たすけて3・停滞4・未着手2（＝立ち止まり3割で review） */
+  [4,11,19].forEach(function(i){ students[i].st="help"; });
+  [7,13,22,26].forEach(function(i){ students[i].st="idle"; students[i].idleMin=12+Math.floor(rnd()*10); });
+  [3,17].forEach(function(i){ students[i].st="none"; students[i].done=0; students[i].doing=""; students[i].form=""; });
+  /* 課題②に止まっている子をかためる（診断の材料） */
+  [4,7,13].forEach(function(i){ students[i].doing = TASKS[1].title; students[i].taskIdx = 1; });
 
-  var grid = $("#mon-grid");
-  var flags = {help:"🆘 こまった", idle:"⏳ 11分 無操作", none:"未着手", busy:"", done:"✔ 完了"};
-  students.forEach(function(s,ix){
-    var b = document.createElement("button");
-    b.className = "tile"; b.setAttribute("data-st", s.st);
-    b.innerHTML =
-      '<span class="nm"><span class="no num">'+s.no+'</span>'+s.name+
-      (flags[s.st] ? '<span class="flag" style="margin-left:auto">'+flags[s.st]+'</span>' : '')+'</span>'+
-      '<span class="meta">'+s.form+'<span class="num" style="margin-left:auto">'+s.prog+'/4</span></span>'+
-      '<span class="pbar"><i style="width:'+(s.prog/4*100)+'%"></i></span>';
-    b.addEventListener("click", function(){ select(ix, b) });
-    grid.appendChild(b);
-  });
-
-  function count(st){return students.filter(function(s){return s.st===st}).length}
+  function count(st){ return students.filter(function(s){ return s.st===st; }).length; }
   $("#c-busy").textContent = count("busy"); $("#c-done").textContent = count("done");
   $("#c-help").textContent = count("help"); $("#c-idle").textContent = count("idle");
   $("#c-none").textContent = count("none");
 
-  /* I/You/We バー */
+  /* 環境の診断 */
+  (function(){
+    var help = count("help"), idle = count("idle"), stopped = help + idle;
+    var adjust = students.filter(function(s){ return s.checks.some(function(c){ return c.s==="調整する"; }); }).length;
+    var stuck = {};
+    students.filter(function(s){ return s.st==="help"||s.st==="idle"; }).forEach(function(s){
+      if(s.doing) stuck[s.doing] = (stuck[s.doing]||0)+1;
+    });
+    var top = Object.keys(stuck).map(function(k){ return {t:k,c:stuck[k]}; }).sort(function(a,b){ return b.c-a.c; })[0];
+    $("#dg-m").textContent = "立ち止まっている子が"+stopped+"人。手引きや資料が足りていないサインかもしれません。"+
+      "個々に教えて回る前に、環境（資料の追加・課題の分割）を見直してみませんか。";
+    var notes = ["たすけてサイン "+help+"人", "手が止まっている "+idle+"人", "確認タイムで「調整する」 "+adjust+"人"];
+    if(top && top.c>=2) notes.push("「"+top.t+"」で "+top.c+"人");
+    $("#dg-n").innerHTML = notes.map(function(n){ return '<span class="d-chip">'+n+'</span>'; }).join("");
+  })();
+
+  /* I/You/We */
   (function(){
     var I=0,You=0,We=0;
-    students.forEach(function(s){ if(s.form.indexOf("ひとり")>=0)I++; else if(s.form.indexOf("ペア")>=0)You++; else We++; });
-    var seg=function(cls,n){ return n>0?'<div class="iw-seg '+cls+'" style="flex:'+n+'">'+n+'</div>':''; };
+    students.forEach(function(s){
+      if(!s.form) return;
+      if(s.form.indexOf("ひとり")>=0) I++; else if(s.form.indexOf("ペア")>=0) You++; else We++;
+    });
+    var seg = function(cls,n){ return n>0 ? '<div class="iw-seg '+cls+'" style="flex:'+n+'">'+n+'</div>' : ''; };
     $("#iw-bar").innerHTML = seg("I",I)+seg("You",You)+seg("We",We);
   })();
 
-  function select(ix, tile){
-    $$(".tile").forEach(function(t){t.classList.remove("sel")});
-    tile.classList.add("sel");
+  /* 課題分布 */
+  (function(){
+    $("#dist-list").innerHTML = TASKS.map(function(t,idx){
+      var doing = students.filter(function(s){ return s.taskIdx===idx && s.st!=="none" && s.st!=="done"; }).length;
+      var done  = students.filter(function(s){ return s.done > idx && t.kind==="必須"; }).length;
+      return '<div class="dist-row'+(t.pub?"":" unpub")+'">'+
+        '<span class="gk k'+t.kind+'">'+KIND[t.kind]+'</span>'+
+        '<span class="dt">'+t.title+'</span>'+
+        (t.pub?'':'<span class="rtag">未公開</span>')+
+        '<span class="dbar">'+
+          (doing?'<i class="doing" style="flex:'+doing+'"></i>':'')+
+          (done?'<i class="done" style="flex:'+done+'"></i>':'')+
+          ((doing+done)===0?'<i style="flex:1"></i>':'')+
+        '</span>'+
+        '<span class="dnum num">取組中 '+doing+' ／ できた '+done+'</span>'+
+        '<button class="open-btn" data-toast="'+(t.pub?"課題を閉じました":"課題を公開しました")+'（デモ）">'+(t.pub?"閉じる":"公開する")+'</button>'+
+      '</div>';
+    }).join("");
+  })();
+
+  /* タイル */
+  var FLAG = { help:"🆘 たすけて", idle:"", none:"まだ始めていない", busy:"", done:"✔ 必須やりきり" };
+  var grid = $("#mon-grid");
+  grid.innerHTML = students.map(function(s,ix){
+    var flag = s.st==="idle" ? ("⏳ "+s.idleMin+"分 動きなし") : (FLAG[s.st]||"");
+    return '<button class="tile" data-ix="'+ix+'" data-st="'+s.st+'">'+
+      '<span class="nm"><span class="no num">'+s.no+'</span>'+s.name+(flag?'<span class="flag">'+flag+'</span>':'')+'</span>'+
+      '<span class="meta">'+(s.doing||"—")+'</span>'+
+      '<span class="meta">'+(s.form||"")+'<span class="num" style="margin-left:auto">必須 '+s.done+'/4</span></span>'+
+      '<span class="pbar"><i style="width:'+(s.done/4*100)+'%"></i></span></button>';
+  }).join("");
+
+  document.addEventListener("click", function(e){
+    var tile = e.target.closest(".tile");
+    if(tile) openDetail(+tile.dataset.ix, tile);
+    if(e.target.id === "obs-save"){ toast("見取りメモを残しました（デモ）"); }
+  });
+
+  function openDetail(ix, tile){
+    $$(".tile").forEach(function(t){ t.classList.remove("sel"); });
+    if(tile) tile.classList.add("sel");
     var s = students[ix];
     $("#d-name").textContent = s.no+"番 "+s.name+"さん";
-    var stepsHtml = stepNames.map(function(n,i){
-      var done = i < s.prog, cur = i === s.prog && s.st!=="none";
-      return '<span class="d-chip" style="'+(done?'color:var(--ok)':'')+(cur?'color:var(--busy)':'')+'">'+
-             (done?"✔ ":cur?"▶ ":"・ ")+n+'</span>';
+    var taskChips = TASKS.filter(function(t){ return t.pub; }).map(function(t,i){
+      var st = i < s.done ? 2 : (i === s.taskIdx && s.st!=="none" ? 1 : 0);
+      var col = st===2?"var(--ok)":(st===1?"var(--busy)":"");
+      var mk = st===2?"✔ ":(st===1?"▶ ":"・ ");
+      return '<span class="d-chip" style="color:'+col+'">'+mk+t.title+'</span>';
     }).join("");
     $("#d-body").innerHTML =
-      (s.st==="help" ? '<div style="background:var(--danger-soft); color:var(--danger); font-weight:800; border-radius:8px; padding:8px 12px">🆘 たすけてサインが出ています（2分前）</div>' : '')+
-      (s.st==="idle" ? '<div style="background:var(--warn-soft); color:var(--warn); font-weight:800; border-radius:8px; padding:8px 12px">⏳ '+s.idleMin+'分間 操作がありません</div>' : '')+
-      '<div class="d-row"><b>目標（BE / DO）</b>'+s.be+'取り組む ／ '+s.doGoal+'</div>'+
+      (s.st==="help" ? '<div style="background:var(--danger-soft); color:var(--danger); font-weight:800; border-radius:8px; padding:8px 12px">🆘 たすけてサインが出ています</div>' : "")+
+      '<div class="d-row"><b>きょうの計画（BE / DO）</b>集中して ／ 必須①と②を終える</div>'+
       '<div class="d-row"><b>できそう度（自己効力感）</b><span class="bar-mini"><i style="width:'+s.eff+'%"></i></span><span class="num">'+s.eff+'</span> ％</div>'+
       (s.checks.length ? '<div class="d-row"><b>確認タイム</b><span class="d-chips">'+
-        s.checks.map(function(c){var col=c.s==="調整する"?"var(--warn)":"var(--ok)";return '<span class="d-chip" style="color:'+col+'">'+c.m+'分:'+c.s+'</span>';}).join("")+'</span></div>' : '')+
-      '<div class="d-row"><b>工夫カード（REGULATE）</b><span class="d-chips">'+
-        s.regs.map(function(r){return '<span class="d-chip acc">'+r+'</span>'}).join("")+'</span></div>'+
-      '<div class="d-row"><b>えらんだ学び方</b>'+s.form+' ・ 教科書＋資料集</div>'+
-      '<div class="d-row"><b>進度</b><span class="d-chips">'+stepsHtml+'</span></div>'+
+        s.checks.map(function(c){ var col=c.s==="調整する"?"var(--warn)":"var(--ok)";
+          return '<span class="d-chip" style="color:'+col+'">'+c.m+'分:'+c.s+'</span>'; }).join("")+'</span></div>' : "")+
+      '<div class="d-row"><b>課題の進み方</b><span class="d-chips">'+taskChips+'</span></div>'+
+      '<div class="obs"><b>見取りメモ　<span class="sub-h">見取りは仮説。事実と解釈を分けて書くと、あとで同僚と語り合えます</span></b>'+
+        '<input type="text" placeholder="事実：見えたこと（例：白地図を3分見て、色をぬらずに手が止まった）">'+
+        '<input type="text" placeholder="解釈（仮説）：たぶん…（例：色分けの基準が決められないのかも）">'+
+        '<div style="display:flex; gap:6px; align-items:center; margin-top:6px">'+
+          '<button class="btn ghost" id="obs-save" style="padding:6px 14px; font-size:12.5px">メモを残す</button>'+
+          '<span class="sub-h">介入する前に、まず環境で支えられないか考えてみましょう</span></div>'+
+        '<div class="obs-list"><div class="obs-row"><span class="of">事実</span>資料集を開いたまま5分動きがない<span class="oi">仮説</span>どのページを見ればよいか分からないのかも</div></div>'+
+      '</div>'+
       '<div class="d-row"><b>ひとことコメントを送る</b>'+
         '<div class="quick">'+
-          '<button data-toast="コメントを送信しました">👍 いい工夫！</button>'+
-          '<button data-toast="コメントを送信しました">🗺 白地図の色分けが◎</button>'+
-          '<button data-toast="コメントを送信しました">🙋 先生が行くね</button>'+
-        '</div>'+
+          '<button data-toast="コメントを送信しました">👍 いい判断</button>'+
+          '<button data-toast="コメントを送信しました">🙌 よく進めた</button>'+
+          '<button data-toast="コメントを送信しました">🙋 先生が行くね</button></div>'+
         '<div style="display:flex; gap:6px; margin-top:8px">'+
           '<input type="text" placeholder="自由に入力…" style="flex:1">'+
-          '<button class="btn" style="padding:8px 14px" data-toast="コメントを送信しました">送信</button>'+
-        '</div></div>';
+          '<button class="btn" style="padding:8px 14px" data-toast="コメントを送信しました">送信</button></div></div>';
   }
-  /* 初期表示: 困っている児童を選択 */
-  select(7, grid.children[7]);
-  grid.children[7].scrollIntoView({block:"nearest"});
+  openDetail(4, grid.children[4]);
+
+  /* 単元デザイン：課題リスト */
+  $("#task-edit-list").innerHTML = TASKS.map(function(t){
+    var res = t.res.length ? t.res.map(function(r){ return '<span class="d-chip">'+r.ic+' '+r.ti+'</span>'; }).join("") : '<span class="sub-h">資料なし</span>';
+    var st = t.strat.length ? t.strat.map(function(s){ return '<span class="d-chip acc">'+s.ic+' '+s.nm+'</span>'; }).join("") : '<span class="sub-h">おすすめ工夫なし</span>';
+    return '<div class="task-edit'+(t.pub?"":" unpub")+'">'+
+      '<div class="te-h"><span class="gk k'+t.kind+'">'+KIND[t.kind]+'</span>'+
+        '<span class="te-t">'+t.n+'. '+t.title+'</span>'+
+        '<span class="te-m">めやす'+t.mins+'分</span>'+
+        '<button class="switch" aria-pressed="'+t.pub+'"></button></div>'+
+      '<div class="te-b"><div class="te-d">'+t.desc+'</div>'+
+        '<div class="d-chips">'+res+'</div><div class="d-chips" style="margin-top:4px">'+st+'</div></div></div>';
+  }).join("");
 })();
 </script>
