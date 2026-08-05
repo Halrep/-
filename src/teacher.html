@@ -11,86 +11,94 @@
 
   <div class="t-tabs" role="tablist">
     <button class="t-tab" role="tab" aria-selected="true" data-tv="tv-mon">授業モニタ</button>
-    <button class="t-tab" role="tab" aria-selected="false" data-tv="tv-design">本時デザイン</button>
+    <button class="t-tab" role="tab" aria-selected="false" data-tv="tv-design">単元デザイン</button>
     <button class="t-tab" role="tab" aria-selected="false" data-tv="tv-refl">ふりかえり一覧</button>
   </div>
 
   <!-- モニタ -->
   <div class="view on" id="tv-mon">
-    <div id="mon-nolesson" class="card hidden"><div class="card-b center empty">
-      公開中の授業がありません。「本時デザイン」タブで本時を公開してください。
+    <div id="mon-nounit" class="card hidden"><div class="card-b center empty">
+      公開中の単元がありません。「単元デザイン」タブで単元を公開してください。
     </div></div>
-    <div id="mon-body" class="mon-wrap hidden">
-      <div>
-        <div class="card" style="margin-bottom:10px"><div class="card-b" style="padding:10px 16px; display:flex; align-items:center; gap:16px; flex-wrap:wrap">
-          <div class="legend">
-            <span><i class="dot" style="background:var(--busy)"></i>取組中 <b class="num" id="c-busy">0</b></span>
-            <span><i class="dot" style="background:var(--ok)"></i>完了 <b class="num" id="c-done">0</b></span>
-            <span><i class="dot" style="background:var(--danger)"></i>🆘 <b class="num" id="c-help">0</b></span>
-            <span><i class="dot" style="background:var(--warn)"></i>無操作 <b class="num" id="c-idle">0</b></span>
-            <span><i class="dot" style="background:var(--idle)"></i>未着手 <b class="num" id="c-none">0</b></span>
+    <div id="mon-body" class="hidden">
+      <div class="card" style="margin-bottom:10px"><div class="card-b" style="padding:10px 16px; display:flex; align-items:center; gap:16px; flex-wrap:wrap">
+        <div class="legend">
+          <span><i class="dot" style="background:var(--busy)"></i>取組中 <b class="num" id="c-busy">0</b></span>
+          <span><i class="dot" style="background:var(--ok)"></i>必須やりきり <b class="num" id="c-done">0</b></span>
+          <span><i class="dot" style="background:var(--danger)"></i>🆘 <b class="num" id="c-help">0</b></span>
+          <span><i class="dot" style="background:var(--warn)"></i>停滞 <b class="num" id="c-idle">0</b></span>
+          <span><i class="dot" style="background:var(--idle)"></i>未着手 <b class="num" id="c-none">0</b></span>
+        </div>
+        <span style="margin-left:auto; font-size:11.5px; color:var(--muted)" id="mon-updated"></span>
+      </div></div>
+
+      <div class="card" style="margin-bottom:10px"><div class="card-b" style="padding:12px 16px">
+        <div class="iyouwe">
+          <div class="iw-h">調整層バランス（I / You / We）</div>
+          <div class="iw-bar" id="iw-bar"></div>
+          <div class="iw-key">
+            <span><i style="background:var(--busy)"></i>I 一人で調整</span>
+            <span><i style="background:var(--accent)"></i>You ペアで共調整</span>
+            <span><i style="background:var(--ok)"></i>We 集団で調整</span>
+            <span id="iw-none" class="muted"></span>
           </div>
-          <span style="margin-left:auto; font-size:11.5px; color:var(--muted)" id="mon-updated"></span>
-        </div></div>
-        <div class="card" style="margin-bottom:10px"><div class="card-b" style="padding:12px 16px">
-          <div class="iyouwe">
-            <div class="iw-h">調整層バランス（I / You / We）</div>
-            <div class="iw-bar" id="iw-bar"></div>
-            <div class="iw-key">
-              <span><i style="background:var(--busy)"></i>I 一人で調整</span>
-              <span><i style="background:var(--accent)"></i>You ペアで共調整</span>
-              <span><i style="background:var(--ok)"></i>We 集団で調整</span>
-              <span id="iw-none" class="muted"></span>
-            </div>
-          </div>
-        </div></div>
-        <div class="mon-grid" id="mon-grid"></div>
+        </div>
+      </div></div>
+
+      <div class="card" style="margin-bottom:10px">
+        <div class="card-h"><span class="h-badge">🗂</span><h2>いま誰がどの課題にいるか</h2></div>
+        <div class="card-b"><div class="dist-list" id="dist-list"></div></div>
       </div>
-      <div class="card detail" id="detail">
-        <div class="card-h"><span class="h-badge">👤</span><h2 id="d-name">児童をえらんでください</h2></div>
-        <div class="card-b" id="d-body"><div class="empty">左のタイルをタップすると、目標・えらんだ学び方・進度がここに表示されます。</div></div>
+
+      <div class="mon-wrap">
+        <div class="mon-grid" id="mon-grid"></div>
+        <div class="card detail" id="detail">
+          <div class="card-h"><span class="h-badge">👤</span><h2 id="d-name">児童をえらんでください</h2></div>
+          <div class="card-b" id="d-body"><div class="empty">タイルをタップすると、計画・課題の進み方・確認タイムが表示されます。</div></div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- 本時デザイン -->
+  <!-- 単元デザイン -->
   <div class="view" id="tv-design">
     <div class="card" style="margin-bottom:14px"><div class="card-b" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap">
-      <label style="font-weight:700; font-size:13px">対象の本時：</label>
-      <select id="lesson-select" style="padding:8px 10px; border:1.5px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink)"></select>
-      <span id="lesson-state" class="rtag"></span>
+      <label style="font-weight:700; font-size:13px">単元：</label>
+      <select id="unit-select" style="padding:8px 10px; border:1.5px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink)"></select>
+      <span id="unit-state" class="rtag"></span>
       <div style="margin-left:auto; display:flex; gap:8px">
-        <button class="btn ghost" id="btn-close">授業を終了</button>
-        <button class="btn" id="btn-publish">この本時を公開</button>
+        <button class="btn ghost" id="btn-close">単元を終了</button>
+        <button class="btn" id="btn-publish">この単元を公開</button>
       </div>
     </div></div>
-    <div class="design-grid" id="design-grid"></div>
+    <div id="design-body"></div>
   </div>
 
   <!-- ふりかえり一覧 -->
   <div class="view" id="tv-refl">
-    <div class="card"><div class="card-h"><span class="h-badge">📊</span><h2 id="refl-title">ふりかえり一覧</h2><span class="sub-h" style="margin-left:6px">☆で「みんなの工夫」に共有</span></div>
+    <div class="card">
+      <div class="card-h"><span class="h-badge">📊</span><h2 id="refl-title">ふりかえり一覧</h2>
+        <select id="refl-day" style="margin-left:auto; padding:6px 10px; border:1.5px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink)"></select>
+      </div>
       <div class="card-b" style="overflow-x:auto" id="refl-body"></div>
     </div>
   </div>
 </div>
 
 <script>
-var META = null;         // 現在公開中の本時メタ
-var monTimer = null;
-var selectedUser = null;
+var META = null, selectedUser = null, monTimer = null;
+var ST_LABEL = ['未着手','取組中','できた'];
+var KIND_MARK = {'必須':'★ 必須','選択':'えらべる','発展':'⚡ 発展'};
 
 /* ---- タブ ---- */
 document.addEventListener('click', function(e){
   var t = e.target.closest('.t-tab');
-  if(t){
-    $$('.t-tab').forEach(function(x){ x.setAttribute('aria-selected', x===t); });
-    ['tv-mon','tv-design','tv-refl'].forEach(function(id){ $('#'+id).classList.toggle('on', id===t.dataset.tv); });
-    if(t.dataset.tv==='tv-design') loadDesign();
-    if(t.dataset.tv==='tv-refl') loadReflections();
-    if(t.dataset.tv==='tv-mon') startMonitor(); else stopMonitor();
-    return;
-  }
+  if(!t) return;
+  $$('.t-tab').forEach(function(x){ x.setAttribute('aria-selected', x===t); });
+  ['tv-mon','tv-design','tv-refl'].forEach(function(id){ $('#'+id).classList.toggle('on', id===t.dataset.tv); });
+  if(t.dataset.tv==='tv-design'){ stopMonitor(); loadDesign(); }
+  else if(t.dataset.tv==='tv-refl'){ stopMonitor(); loadReflections(); }
+  else startMonitor();
 });
 
 /* ---- モニタ ---- */
@@ -99,60 +107,76 @@ function stopMonitor(){ if(monTimer){ clearInterval(monTimer); monTimer=null; } 
 
 function pollMonitor(){
   callServer('teacher_getMonitor').then(function(res){
-    if(!res.hasLesson){ $('#mon-nolesson').classList.remove('hidden'); $('#mon-body').classList.add('hidden'); return; }
-    $('#mon-nolesson').classList.add('hidden'); $('#mon-body').classList.remove('hidden');
-    META = res.meta;
-    setHeader(res.meta);
+    if(!res.hasUnit){ $('#mon-nounit').classList.remove('hidden'); $('#mon-body').classList.add('hidden'); return; }
+    $('#mon-nounit').classList.add('hidden'); $('#mon-body').classList.remove('hidden');
+    META = res.meta; setHeader(res.meta);
     $('#c-busy').textContent = res.counts.busy; $('#c-done').textContent = res.counts.done;
     $('#c-help').textContent = res.counts.help; $('#c-idle').textContent = res.counts.idle; $('#c-none').textContent = res.counts.none;
     $('#mon-updated').textContent = '最終更新 ' + new Date(res.serverMs).toLocaleTimeString('ja-JP');
     renderRegulation(res.regulation);
+    renderDistribution(res.taskDistribution);
     renderTiles(res.tiles);
-  }).catch(function(e){ /* ポーリング中の一時エラーは無視 */ });
+  }).catch(function(){});
 }
 
 function renderRegulation(r){
-  if(!r){ $('#iw-bar').innerHTML=''; return; }
+  if(!r){ return; }
   var total = r.I + r.You + r.We;
-  if(total === 0){ $('#iw-bar').innerHTML = '<div class="iw-seg" style="background:var(--idle);flex:1">まだ選択なし</div>'; $('#iw-none').textContent=''; return; }
-  var seg = function(cls, n){ return n>0 ? '<div class="iw-seg '+cls+'" style="flex:'+n+'" title="'+n+'人">'+n+'</div>' : ''; };
-  $('#iw-bar').innerHTML = seg('I', r.I) + seg('You', r.You) + seg('We', r.We);
+  if(!total){ $('#iw-bar').innerHTML = '<div class="iw-seg" style="background:var(--idle);flex:1">まだ選択なし</div>'; $('#iw-none').textContent=''; return; }
+  var seg = function(cls,n){ return n>0 ? '<div class="iw-seg '+cls+'" style="flex:'+n+'">'+n+'</div>' : ''; };
+  $('#iw-bar').innerHTML = seg('I',r.I)+seg('You',r.You)+seg('We',r.We);
   $('#iw-none').textContent = r.none>0 ? ('未選択 '+r.none) : '';
 }
 
-var FLAG = { help:'🆘 こまった', idle:'⏳ 無操作', none:'未着手', busy:'', done:'✔ 完了' };
+function renderDistribution(dist){
+  $('#dist-list').innerHTML = dist.map(function(d){
+    var total = d.doing + d.done;
+    return '<div class="dist-row'+(d.published?'':' unpub')+'">'+
+      '<span class="gk k'+esc(d.kind)+'">'+esc(KIND_MARK[d.kind]||d.kind)+'</span>'+
+      '<span class="dt">'+esc(d.title)+'</span>'+
+      (d.published?'':'<span class="rtag">未公開</span>')+
+      '<span class="dbar">'+
+        (d.doing?'<i class="doing" style="flex:'+d.doing+'" title="取組中'+d.doing+'"></i>':'')+
+        (d.done?'<i class="done" style="flex:'+d.done+'" title="できた'+d.done+'"></i>':'')+
+        (total===0?'<i class="zero" style="flex:1"></i>':'')+
+      '</span>'+
+      '<span class="dnum num">取組中 '+d.doing+' ／ できた '+d.done+'</span>'+
+      '<button class="open-btn" data-pub="'+esc(d.taskId)+'" data-on="'+(!d.published)+'">'+(d.published?'閉じる':'公開する')+'</button>'+
+    '</div>';
+  }).join('');
+}
+
+var FLAG = { help:'🆘 こまった', idle:'⏳ 停滞', none:'未着手', busy:'', done:'✔ 必須やりきり' };
 function renderTiles(tiles){
   $('#mon-grid').innerHTML = tiles.map(function(s){
     var flag = s.status==='idle' ? ('⏳ '+s.idleMin+'分') : (FLAG[s.status]||'');
-    var pct = s.total ? (s.doneCount/s.total*100) : 0;
+    var pct = s.mustTotal ? (s.doneMust/s.mustTotal*100) : 0;
     return '<button class="tile'+(s.userId===selectedUser?' sel':'')+'" data-uid="'+esc(s.userId)+'" data-st="'+s.status+'">'+
-      '<span class="nm"><span class="no num">'+esc(s.number)+'</span>'+esc(s.name)+
-        (flag?'<span class="flag">'+flag+'</span>':'')+'</span>'+
-      '<span class="meta">'+esc(s.form||'—')+'<span class="num" style="margin-left:auto">'+s.doneCount+'/'+s.total+'</span></span>'+
+      '<span class="nm"><span class="no num">'+esc(s.number)+'</span>'+esc(s.name)+(flag?'<span class="flag">'+flag+'</span>':'')+'</span>'+
+      '<span class="meta">'+esc(s.doingTitle||'—')+'</span>'+
+      '<span class="meta">'+esc(s.form||'')+'<span class="num" style="margin-left:auto">必須 '+s.doneMust+'/'+s.mustTotal+'</span></span>'+
       '<span class="pbar"><i style="width:'+pct+'%"></i></span></button>';
   }).join('');
 }
 
 document.addEventListener('click', function(e){
   var tile = e.target.closest('.tile');
-  if(tile){ openDetail(tile.dataset.uid); }
+  if(tile){ openDetail(tile.dataset.uid); return; }
+  var pub = e.target.closest('[data-pub]');
+  if(pub){ save('teacher_setTaskPublish', pub.dataset.pub, pub.dataset.on==='true').then(function(){ toast(pub.dataset.on==='true'?'課題を公開しました':'課題を閉じました'); pollMonitor(); }); return; }
 });
 
 function openDetail(uid){
   selectedUser = uid;
   $$('.tile').forEach(function(t){ t.classList.toggle('sel', t.dataset.uid===uid); });
   callServer('teacher_getStudentDetail', uid).then(function(d){
-    if(!d.hasLesson) return;
+    if(!d.hasUnit) return;
     $('#d-name').textContent = d.number + '番 ' + d.name + 'さん';
-    var lbl=['未着手','取組中','完了'];
-    var steps = d.checklist.map(function(c){
-      var col = c.status===2?'var(--ok)':(c.status===1?'var(--busy)':'');
-      var mk = c.status===2?'✔ ':(c.status===1?'▶ ':'・ ');
-      return '<span class="d-chip" style="color:'+col+'">'+mk+esc(c.name)+'</span>';
+    var taskChips = d.tasks.map(function(t){
+      var col = t.status===2?'var(--ok)':(t.status===1?'var(--busy)':'');
+      var mk = t.status===2?'✔ ':(t.status===1?'▶ ':'・ ');
+      return '<span class="d-chip" style="color:'+col+'">'+mk+esc(t.title)+(t.form?('（'+esc(t.form)+'）'):'')+'</span>';
     }).join('');
-    var sels = Object.keys(d.selections||{}).map(function(cat){
-      var v = d.selections[cat]; return esc(Array.isArray(v)?v.join('・'):v);
-    }).join(' ・ ');
     var effHtml = (d.goal && d.goal.efficacy != null)
       ? '<div class="d-row"><b>できそう度（自己効力感）</b><span class="bar-mini"><i style="width:'+esc(d.goal.efficacy)+'%"></i></span><span class="num">'+esc(d.goal.efficacy)+'</span> ％</div>' : '';
     var chkHtml = (d.checkpoints && d.checkpoints.length)
@@ -162,17 +186,16 @@ function openDetail(uid){
         }).join('') +'</span></div>' : '';
     $('#d-body').innerHTML =
       (d.help ? '<div style="background:var(--danger-soft); color:var(--danger); font-weight:800; border-radius:8px; padding:8px 12px">🆘 たすけてサインが出ています</div>' : '')+
-      '<div class="d-row"><b>目標（BE / DO）</b>'+(d.goal? esc(d.goal.be)+'取り組む ／ '+esc(d.goal.doText) : '<span class="muted">未設定</span>')+'</div>'+
-      effHtml + chkHtml +
-      '<div class="d-row"><b>工夫カード（REGULATE）</b><span class="d-chips">'+
-        (d.regulateNames.length? d.regulateNames.map(function(r){ return '<span class="d-chip acc">'+esc(r)+'</span>'; }).join('') : '<span class="muted">未選択</span>')+'</span></div>'+
-      (d.usedNames.length? '<div class="d-row"><b>使った工夫</b>'+esc(d.usedNames.join('、'))+'</div>' : '')+
-      '<div class="d-row"><b>えらんだ学び方</b>'+(sels||'<span class="muted">未選択</span>')+'</div>'+
-      '<div class="d-row"><b>進度</b><span class="d-chips">'+(steps||'<span class="muted">—</span>')+'</span></div>'+
+      '<div class="d-row"><b>きょうの計画（BE / DO）</b>'+(d.goal? esc(d.goal.be)+' ／ '+esc(d.goal.doText) : '<span class="muted">未設定</span>')+'</div>'+
+      effHtml +
+      (d.goal && d.goal.regulateNames.length ? '<div class="d-row"><b>つかう工夫</b><span class="d-chips">'+d.goal.regulateNames.map(function(r){ return '<span class="d-chip acc">'+esc(r)+'</span>'; }).join('')+'</span></div>' : '')+
+      (d.usedNames.length ? '<div class="d-row"><b>使った工夫</b>'+esc(d.usedNames.join('、'))+'</div>' : '')+
+      chkHtml +
+      '<div class="d-row"><b>課題の進み方</b><span class="d-chips">'+taskChips+'</span></div>'+
       '<div class="d-row"><b>ひとことコメントを送る</b>'+
         '<div class="quick">'+
-          '<button data-fb="いい工夫だね！">👍 いい工夫！</button>'+
-          '<button data-fb="その調子でがんばろう">🙌 その調子</button>'+
+          '<button data-fb="その順番でやってみたの、いい判断だね">👍 いい判断</button>'+
+          '<button data-fb="ここまでよく進めたね">🙌 よく進めた</button>'+
           '<button data-fb="先生がそちらに行くね">🙋 先生が行くね</button>'+
         '</div>'+
         '<div style="display:flex; gap:6px; margin-top:8px">'+
@@ -192,113 +215,130 @@ function sendFeedback(text){
   save('teacher_sendFeedback', selectedUser, text).then(function(){ toast('コメントを送信しました'); if($('#fb-input')) $('#fb-input').value=''; });
 }
 
-/* ---- 本時デザイン ---- */
-function loadDesign(lessonId){
-  callServer('teacher_getDesign', lessonId||null).then(function(d){
-    if(!d.hasLesson){ $('#design-grid').innerHTML = '<div class="card"><div class="card-b empty">本時がありません。スプレッドシートのメニューから初期セットアップを実行してください。</div></div>'; return; }
-    // セレクタ
-    $('#lesson-select').innerHTML = d.lessonList.map(function(l){
-      return '<option value="'+esc(l.lessonId)+'"'+(l.lessonId===d.lesson.lessonId?' selected':'')+'>'+esc(l.period)+'時：'+esc(l.title||'')+'（'+esc(l.state)+'）</option>';
+/* ---- 単元デザイン ---- */
+function loadDesign(unitId){
+  callServer('teacher_getDesign', unitId||null).then(function(d){
+    if(!d.hasUnit){ $('#design-body').innerHTML='<div class="card"><div class="card-b empty">単元がありません。スプレッドシートのメニューから初期セットアップを実行してください。</div></div>'; return; }
+    $('#unit-select').innerHTML = d.unitList.map(function(u){
+      return '<option value="'+esc(u.unitId)+'"'+(u.unitId===d.unit.unitId?' selected':'')+'>'+esc(u.subject)+'／'+esc(u.name)+'（'+esc(u.state)+'）</option>';
     }).join('');
-    $('#lesson-state').textContent = d.lesson.state;
+    $('#unit-state').textContent = d.unit.state;
     renderDesign(d);
   });
 }
 
 function renderDesign(d){
-  var L = d.lesson;
-  var choiceRows = ['学習形態','ツール','順序','場所'].map(function(cat){
-    var on = !!d.openCats[cat];
-    var sub = ({'学習形態':'ひとり／ペア／グループ','ツール':'教科書／資料集／動画／白地図','順序':'調べてから／構想してから','場所':'自席／学びスペース'})[cat];
+  var U = d.unit;
+  var taskRows = d.tasks.map(function(t){
+    var res = t.resources.map(function(r){ return '<span class="d-chip">'+esc(r.icon)+' '+esc(r.title)+'</span>'; }).join('') || '<span class="sub-h">資料なし</span>';
+    var st = t.strategies.map(function(s){ return '<span class="d-chip acc">'+esc(s.icon)+' '+esc(s.name)+'</span>'; }).join('') || '<span class="sub-h">おすすめ工夫なし</span>';
+    return '<div class="task-edit'+(t.published?'':' unpub')+'">'+
+      '<div class="te-h"><span class="gk k'+esc(t.kind)+'">'+esc(KIND_MARK[t.kind]||t.kind)+'</span>'+
+        '<span class="te-t">'+esc(t.order)+'. '+esc(t.title)+'</span>'+
+        '<span class="te-m">めやす'+esc(t.mins)+'分</span>'+
+        '<button class="switch" data-pub2="'+esc(t.taskId)+'" aria-pressed="'+t.published+'" aria-label="公開"></button></div>'+
+      '<div class="te-b"><div class="te-d">'+esc(t.desc||'')+'</div>'+
+        '<div class="d-chips">'+res+'</div><div class="d-chips" style="margin-top:4px">'+st+'</div></div>'+
+    '</div>';
+  }).join('');
+
+  var choiceRows = ['学習形態','ツール','場所'].map(function(cat){
+    var sub = ({'学習形態':'ひとり／ペア／グループ','ツール':'教科書／資料集／動画／白地図','場所':'自席／学びスペース'})[cat];
     return '<div class="sw-row"><div><div class="lb">'+cat+'</div><div class="sb2">'+sub+'</div></div>'+
-      '<button class="switch" data-choice="'+cat+'" aria-pressed="'+on+'"></button></div>';
+      '<button class="switch" data-choice="'+cat+'" aria-pressed="'+(!!d.openCats[cat])+'"></button></div>';
   }).join('');
 
-  var stratChips = d.strategies.map(function(s){
-    return '<button class="chip" data-strat="'+esc(s.strategyId)+'" aria-pressed="'+s.linked+'"><span class="cx">✓</span>'+esc(s.icon)+' '+esc(s.name)+'</button>';
-  }).join('');
-
-  var resList = d.resources.length ? d.resources.map(function(r){
-    var tagCls = (r.kind && r.kind!=='手もと資料')?'rtag link':'rtag';
-    return '<div class="res-row"><span class="ic">'+esc(r.icon)+'</span><div><div class="ti">'+esc(r.title)+'</div><div class="sub">'+esc(r.url||r.sub||'')+'</div></div><span class="'+tagCls+'">'+esc(r.kind||'')+'</span></div>';
-  }).join('') : '<div class="empty">資料は未登録（スプレッドシートの「本時_資料」で追加できます）</div>';
-
-  $('#design-grid').innerHTML =
-    '<div class="card"><div class="card-h"><span class="h-badge">❓</span><h2>本時の課題とゴール</h2></div><div class="card-b stack">'+
-      '<div><h3>学習課題</h3><textarea rows="2" data-lf="学習課題">'+esc(L.task)+'</textarea></div>'+
-      '<div><h3>ゴール（評価基準）</h3><textarea rows="2" data-lf="ゴール">'+esc(L.goal)+'</textarea></div>'+
-      '<div><h3>進度チェック項目（1行に1つ）</h3><textarea rows="4" data-lf="進度チェック項目">'+esc(L.checklist)+'</textarea></div>'+
-      '<div><h3>確認タイムの間隔（分・0で無効）</h3><input type="text" inputmode="numeric" data-lf="確認タイム間隔" value="'+esc(L.checkInterval)+'" style="max-width:120px"></div>'+
-      '<div><h3>裁量レベル</h3><div class="chips" id="discretion">'+
-        [1,2,3].map(function(n){ return '<button class="chip" data-disc="'+n+'" aria-pressed="'+(String(n)===String(L.discretion))+'"><span class="cx">✓</span>'+n+'（'+({1:'指定',2:'選択',3:'自由'})[n]+'調整型）</button>'; }).join('')+
+  $('#design-body').innerHTML =
+    '<div class="design-grid">'+
+      '<div class="card"><div class="card-h"><span class="h-badge">🏁</span><h2>学習の手引き（子どもとの契約）</h2></div><div class="card-b stack">'+
+        '<div><h3>単元の問い・目標</h3><textarea rows="2" data-uf="単元目標">'+esc(U.unitGoal)+'</textarea></div>'+
+        '<div><h3>単元の出口（成果物イメージ）</h3><textarea rows="2" data-uf="成果物イメージ">'+esc(U.outcome)+'</textarea></div>'+
+        '<div style="display:flex; gap:12px; flex-wrap:wrap">'+
+          '<div><h3>総時数</h3><input type="text" inputmode="numeric" data-uf="総時数" value="'+esc(U.totalHours)+'" style="max-width:90px"></div>'+
+          '<div><h3>確認タイム間隔（分・0で無効）</h3><input type="text" inputmode="numeric" data-uf="確認タイム間隔" value="'+esc(U.checkInterval)+'" style="max-width:110px"></div>'+
+        '</div>'+
+        '<div><h3>裁量レベル</h3><div class="chips" id="discretion">'+
+          [1,2,3].map(function(n){ return '<button class="chip" data-disc="'+n+'" aria-pressed="'+(String(n)===String(U.discretion))+'"><span class="cx">✓</span>'+n+'（'+({1:'指定',2:'選択',3:'自由'})[n]+'調整型）</button>'; }).join('')+
+        '</div></div>'+
       '</div></div>'+
-    '</div></div>'+
-    '<div class="card"><div class="card-h"><span class="h-badge">🎛</span><h2>児童に開放する選択肢</h2></div><div class="card-b">'+choiceRows+'</div></div>'+
-    '<div class="card"><div class="card-h"><span class="h-badge">👀</span><h2>実行中の他者参照（みんなの様子）</h2></div><div class="card-b">'+
-      '<div class="sw-row"><div><div class="lb">他者参照を許可</div><div class="sb2">やってみる中に、他児の目標・工夫・進み具合を見られる（🆘や無操作は非表示）</div></div>'+
-        '<button class="switch" id="pref-on" aria-pressed="'+d.lesson.peerRef+'"></button></div>'+
-      '<div class="sw-row"><div><div class="lb">名前を伏せる（匿名）</div><div class="sb2">オンにすると「ともだち A / B …」で表示</div></div>'+
-        '<button class="switch" id="pref-anon" aria-pressed="'+d.lesson.peerAnon+'"></button></div>'+
-    '</div></div>'+
-    '<div class="card" style="grid-column:1/-1"><div class="card-h"><span class="h-badge">📎</span><h2>本時の資料（児童の「資料コーナー」に表示）</h2></div><div class="card-b res-list">'+resList+'</div></div>'+
-    '<div class="card" style="grid-column:1/-1"><div class="card-h"><span class="h-badge">🃏</span><h2>おすすめとして紐づける方略カード</h2></div><div class="card-b"><div class="chips">'+stratChips+'</div></div></div>';
+
+      '<div class="card"><div class="card-h"><span class="h-badge">🎛</span><h2>児童に開放する選択肢</h2></div><div class="card-b">'+choiceRows+'</div></div>'+
+
+      '<div class="card"><div class="card-h"><span class="h-badge">👀</span><h2>実行中の他者参照</h2></div><div class="card-b">'+
+        '<div class="sw-row"><div><div class="lb">他者参照を許可</div><div class="sb2">いま取り組んでいる課題・進み具合・工夫が見える（🆘や停滞は非表示）</div></div>'+
+          '<button class="switch" id="pref-on" aria-pressed="'+U.peerRef+'"></button></div>'+
+        '<div class="sw-row"><div><div class="lb">名前を伏せる（匿名）</div><div class="sb2">「ともだち A / B …」で表示</div></div>'+
+          '<button class="switch" id="pref-anon" aria-pressed="'+U.peerAnon+'"></button></div>'+
+      '</div></div>'+
+
+      '<div class="card" style="grid-column:1/-1"><div class="card-h"><span class="h-badge">🗂</span><h2>課題（学習カード）　<span class="sub-h">スイッチで段階的に公開できます</span></h2></div>'+
+        '<div class="card-b"><div class="task-edit-list">'+taskRows+'</div>'+
+        '<div class="sub-h" style="margin-top:10px">課題・資料の追加はスプレッドシートの「課題」「資料」シートで行います。</div></div></div>'+
+
+      (d.commonResources.length ? '<div class="card" style="grid-column:1/-1"><div class="card-h"><span class="h-badge">📎</span><h2>いつでも使える資料</h2></div><div class="card-b d-chips">'+
+        d.commonResources.map(function(r){ return '<span class="d-chip">'+esc(r.icon)+' '+esc(r.title)+'</span>'; }).join('')+'</div></div>' : '')+
+    '</div>';
 }
 
-function currentLessonId(){ return $('#lesson-select') ? $('#lesson-select').value : null; }
+function currentUnitId(){ return $('#unit-select') ? $('#unit-select').value : null; }
 
 document.addEventListener('change', function(e){
-  if(e.target.id==='lesson-select'){ loadDesign(e.target.value); }
+  if(e.target.id==='unit-select') loadDesign(e.target.value);
+  if(e.target.id==='refl-day') loadReflections(e.target.value);
 });
-document.addEventListener('input', function(e){
-  var lf = e.target.dataset && e.target.dataset.lf;
-  if(lf){ saveLessonFieldDebounced(currentLessonId(), lf, e.target.value); }
-});
-var saveLessonFieldDebounced = debounce(function(lid, field, val){
-  var patch = {}; patch[field] = val; save('teacher_updateLesson', lid, patch);
+var saveUnitFieldDebounced = debounce(function(uid, field, val){
+  var patch = {}; patch[field] = val; save('teacher_updateUnit', uid, patch);
 }, 700);
+document.addEventListener('input', function(e){
+  var uf = e.target.dataset && e.target.dataset.uf;
+  if(uf) saveUnitFieldDebounced(currentUnitId(), uf, e.target.value);
+});
 
 document.addEventListener('click', function(e){
   var sw = e.target.closest('.switch[data-choice]');
-  if(sw){ var on = sw.getAttribute('aria-pressed')!=='true'; sw.setAttribute('aria-pressed', String(on)); save('teacher_setChoice', currentLessonId(), sw.dataset.choice, on); return; }
+  if(sw){ var on = sw.getAttribute('aria-pressed')!=='true'; sw.setAttribute('aria-pressed', String(on)); save('teacher_setChoice', currentUnitId(), sw.dataset.choice, on); return; }
+
+  var pub2 = e.target.closest('[data-pub2]');
+  if(pub2){ var pon = pub2.getAttribute('aria-pressed')!=='true'; pub2.setAttribute('aria-pressed', String(pon));
+    save('teacher_setTaskPublish', pub2.dataset.pub2, pon).then(function(){ toast(pon?'課題を公開しました':'課題を閉じました'); }); return; }
 
   if(e.target.id==='pref-on' || e.target.id==='pref-anon'){
-    var t = e.target; t.setAttribute('aria-pressed', String(t.getAttribute('aria-pressed')!=='true'));
-    var refOn = $('#pref-on').getAttribute('aria-pressed')==='true';
-    var anon = $('#pref-anon').getAttribute('aria-pressed')==='true';
-    save('teacher_setPeerRef', currentLessonId(), refOn, anon);
+    var t2 = e.target; t2.setAttribute('aria-pressed', String(t2.getAttribute('aria-pressed')!=='true'));
+    save('teacher_setPeerRef', currentUnitId(),
+      $('#pref-on').getAttribute('aria-pressed')==='true',
+      $('#pref-anon').getAttribute('aria-pressed')==='true');
     return;
   }
 
   var disc = e.target.closest('[data-disc]');
-  if(disc){ $$('#discretion .chip').forEach(function(x){ x.setAttribute('aria-pressed','false'); }); disc.setAttribute('aria-pressed','true'); save('teacher_updateLesson', currentLessonId(), {'裁量レベル': Number(disc.dataset.disc)}); return; }
+  if(disc){ $$('#discretion .chip').forEach(function(x){ x.setAttribute('aria-pressed','false'); }); disc.setAttribute('aria-pressed','true');
+    save('teacher_updateUnit', currentUnitId(), {'裁量レベル': Number(disc.dataset.disc)}); return; }
 
-  var st = e.target.closest('[data-strat]');
-  if(st){ var son = st.getAttribute('aria-pressed')!=='true'; st.setAttribute('aria-pressed', String(son)); save('teacher_setStrategyLink', currentLessonId(), st.dataset.strat, son); return; }
-
-  if(e.target.id==='btn-publish'){ save('teacher_setLessonState', currentLessonId(), '公開中').then(function(){ toast('本時を児童に公開しました'); loadDesign(currentLessonId()); }); return; }
-  if(e.target.id==='btn-close'){ save('teacher_setLessonState', currentLessonId(), '終了').then(function(){ toast('授業を終了しました'); loadDesign(currentLessonId()); }); return; }
+  if(e.target.id==='btn-publish'){ save('teacher_setUnitState', currentUnitId(), '公開中').then(function(){ toast('単元を児童に公開しました'); loadDesign(currentUnitId()); }); return; }
+  if(e.target.id==='btn-close'){ save('teacher_setUnitState', currentUnitId(), '終了').then(function(){ toast('単元を終了しました'); loadDesign(currentUnitId()); }); return; }
 });
 
 /* ---- ふりかえり一覧 ---- */
-var reflLessonId = null;
-function loadReflections(){
-  callServer('teacher_getReflections', null).then(function(d){
-    if(!d.hasLesson){ $('#refl-body').innerHTML = '<div class="empty">本時がありません。</div>'; return; }
-    reflLessonId = d.lessonId;
-    $('#refl-title').textContent = d.period + '時のふりかえり一覧';
+var reflDay = null;
+function loadReflections(day){
+  callServer('teacher_getReflections', day||null).then(function(d){
+    if(!d.hasUnit){ $('#refl-body').innerHTML='<div class="empty">単元がありません。</div>'; return; }
+    reflDay = d.day;
+    $('#refl-title').textContent = 'ふりかえり一覧';
+    var days = d.days.length ? d.days : [d.day];
+    $('#refl-day').innerHTML = days.map(function(x){ return '<option value="'+esc(x)+'"'+(x===d.day?' selected':'')+'>'+esc(x)+'</option>'; }).join('');
     var rows = d.rows.map(function(r){
-      if(!r.hasRefl){
-        return '<tr><td><b>'+esc(r.number)+' '+esc(r.name)+'</b></td><td class="muted">未記入</td><td></td><td class="muted">—（声かけ対象）</td><td></td></tr>';
-      }
+      if(!r.hasRefl) return '<tr><td><b>'+esc(r.number)+' '+esc(r.name)+'</b></td><td class="muted">未記入</td><td></td><td class="muted">—（声かけ対象）</td><td></td></tr>';
       var tags = r.attrGood.map(function(t){ return '<span class="attr-tag">○'+esc(short_(t))+'</span>'; })
         .concat(r.attrHard.map(function(t){ return '<span class="attr-tag">△'+esc(short_(t))+'</span>'; })).join(' ');
       return '<tr><td><b>'+esc(r.number)+' '+esc(r.name)+'</b></td>'+
-        '<td><span class="bar-mini"><i style="width:'+esc(r.achievement)+'%"></i></span><span class="num">'+esc(r.achievement)+'</span> '+esc(r.mood||'')+'</td>'+
+        '<td><span class="bar-mini"><i style="width:'+esc(r.achievement)+'%"></i></span><span class="num">'+esc(r.achievement)+'</span> '+esc(r.mood||'')+
+          (r.planGap?'<div class="sub-h">計画：'+esc(r.planGap)+'</div>':'')+'</td>'+
         '<td>'+(tags||'')+'</td>'+
         '<td>'+esc(r.selfEval||'')+(r.nextPlan?'<br><span class="muted">次：'+esc(r.nextPlan)+'</span>':'')+'</td>'+
         '<td><button class="star-btn" data-share="'+esc(r.userId)+'" aria-pressed="'+r.shared+'">⭐</button></td></tr>';
     }).join('');
-    $('#refl-body').innerHTML = '<table class="refl-table"><thead><tr><th style="width:96px">児童</th><th style="width:130px">達成度</th><th style="width:150px">原因</th><th>ひとこと・次への一手</th><th style="width:46px">共有</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    $('#refl-body').innerHTML = '<table class="refl-table"><thead><tr><th style="width:96px">児童</th><th style="width:150px">達成度・計画</th><th style="width:150px">原因</th><th>ひとこと・次への一手</th><th style="width:46px">共有</th></tr></thead><tbody>'+rows+'</tbody></table>';
   });
 }
 function short_(t){ return t.replace(/（.*?）/g,'').slice(0,6); }
@@ -306,22 +346,20 @@ function short_(t){ return t.replace(/（.*?）/g,'').slice(0,6); }
 document.addEventListener('click', function(e){
   var sb = e.target.closest('[data-share]');
   if(sb){ var on = sb.getAttribute('aria-pressed')!=='true'; sb.setAttribute('aria-pressed', String(on));
-    save('teacher_toggleShare', sb.dataset.share, reflLessonId, on).then(function(){ toast(on?'「みんなの工夫」に共有しました':'共有を取り消しました'); }); }
+    save('teacher_toggleShare', sb.dataset.share, reflDay, on).then(function(){ toast(on?'「みんなの工夫」に共有しました':'共有を取り消しました'); }); }
 });
 
 /* ---- 共通 ---- */
 function setHeader(meta){
   if(!meta) return;
   $('#h-class').textContent = meta.grade + ' ' + (meta.subject||'');
-  $('#h-title').textContent = meta.unitName + ' ' + meta.period + '/' + meta.total;
+  $('#h-title').textContent = meta.unitName + '（全' + meta.totalHours + '時間）';
   $('#h-meta').textContent = meta.state;
 }
 
-/* 起動 */
 callServer('teacher_bootstrap').then(function(res){
   $('#h-class').textContent = '先生';
-  if(res.lessonMeta) setHeader(res.lessonMeta);
-  else { $('#h-title').textContent = '公開中の授業はありません'; }
+  if(res.unitMeta) setHeader(res.unitMeta); else $('#h-title').textContent = '公開中の単元はありません';
   startMonitor();
 }).catch(function(e){ $('#h-title').textContent='エラー'; toast('読み込みに失敗しました: '+(e&&e.message||e)); });
 </script>

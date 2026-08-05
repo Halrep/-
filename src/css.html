@@ -216,6 +216,46 @@ textarea, input[type=text]{width:100%; border:1.5px solid var(--line); border-ra
 .savebar{position:fixed; right:16px; bottom:16px; font-size:12px; color:var(--muted); background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:5px 14px; box-shadow:var(--shadow); opacity:0; transition:opacity .2s}
 .savebar.on{opacity:1}
 
+/* 学習の手引き（契約書） */
+.guide-list{display:flex; flex-direction:column; gap:5px}
+.guide-row{display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:8px; padding:6px 10px; background:var(--surface)}
+.guide-row .gt{font-weight:700; font-size:13px}
+.guide-row .gm{margin-left:auto; font-size:11px; color:var(--muted); white-space:nowrap}
+.gk{font-size:10px; font-weight:800; border-radius:5px; padding:2px 8px; white-space:nowrap; flex:none}
+.gk.k必須, .sn-n.k必須{background:var(--primary-soft); color:var(--primary)}
+.gk.k選択, .sn-n.k選択{background:var(--surface2); color:var(--muted)}
+.gk.k発展, .sn-n.k発展{background:var(--accent-soft); color:var(--accent)}
+.gs{font-size:10.5px; font-weight:800; border-radius:5px; padding:1px 7px; white-space:nowrap}
+.gs.s0{background:var(--idle-soft); color:var(--idle)}
+.gs.s1{background:var(--busy-soft); color:var(--busy)}
+.gs.s2{background:var(--ok-soft); color:var(--ok)}
+
+/* 課題中心の「やってみる」 */
+.task-hero{border-left:5px solid var(--primary); margin-bottom:14px}
+.task-hero .tq{font-size:18px; font-weight:800; line-height:1.7; text-wrap:balance; margin:4px 0 0}
+.task-hero .hgoal{margin-top:10px; background:var(--accent-soft); border:1.5px solid var(--accent); border-radius:8px; padding:8px 12px; font-size:12.5px}
+.task-hero .hgoal b{color:var(--accent); font-size:10.5px; letter-spacing:.14em; margin-right:6px}
+.eyebrow{font-size:11px; font-weight:800; letter-spacing:.16em; color:var(--muted)}
+.steps-nav{display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; margin-bottom:12px}
+.snav{flex:none; width:172px; border:2px solid var(--line); background:var(--surface); border-radius:10px; padding:8px 12px; text-align:left; display:flex; flex-direction:column; gap:3px; transition:border-color .15s, background .15s}
+.snav[aria-selected="true"]{border-color:var(--primary); background:var(--primary-soft)}
+.sn-n{font-size:10px; font-weight:800; border-radius:5px; padding:1px 7px; align-self:flex-start}
+.snav .sn-t{font-size:12.5px; font-weight:700; line-height:1.4}
+.sn-s{font-size:10.5px; font-weight:800; border-radius:5px; padding:1px 7px; align-self:flex-start}
+.sn-s.s0{background:var(--idle-soft); color:var(--idle)}
+.sn-s.s1{background:var(--busy-soft); color:var(--busy)}
+.sn-s.s2{background:var(--ok-soft); color:var(--ok)}
+.tcard .card-h{align-items:flex-start}
+.tcard .tmins{margin-left:auto; font-size:11.5px; color:var(--muted); font-weight:700; white-space:nowrap}
+.tdesc{font-size:13.5px; line-height:1.7; margin-bottom:4px}
+.tsec{border-top:1px dashed var(--line); padding-top:12px; margin-top:12px}
+.tstate{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+.tstate .now{font-size:12px; font-weight:800; border-radius:6px; padding:4px 12px}
+.tstate .now.s0{background:var(--idle-soft); color:var(--idle)}
+.tstate .now.s1{background:var(--busy-soft); color:var(--busy)}
+.tstate .now.s2{background:var(--ok-soft); color:var(--ok)}
+.always-res{display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:12px; color:var(--muted)}
+
 /* ① 単元の出口 */
 .outcome{display:flex; gap:12px; align-items:flex-start; background:var(--primary-soft); border:1.5px solid var(--primary-line); border-radius:var(--r); padding:12px 16px}
 .outcome .flag{font-size:22px; flex:none}
@@ -260,6 +300,29 @@ textarea, input[type=text]{width:100%; border:1.5px solid var(--line); border-ra
 .peer .picons{font-size:15px; letter-spacing:1px; min-height:18px}
 .peer .pgoal{display:none; font-size:11.5px; color:var(--ink); border-top:1px dashed var(--line); padding-top:5px; margin-top:2px}
 .peer.open .pgoal{display:block}
+
+/* 課題ごとの分布（教師モニタ） */
+.dist-list{display:flex; flex-direction:column; gap:6px}
+.dist-row{display:flex; align-items:center; gap:10px; font-size:12.5px; border-bottom:1px dashed var(--line); padding-bottom:6px}
+.dist-row:last-child{border-bottom:0}
+.dist-row.unpub{opacity:.55}
+.dist-row .dt{font-weight:700; min-width:180px}
+.dist-row .dbar{display:flex; flex:1; min-width:80px; height:14px; border-radius:4px; overflow:hidden; background:var(--surface2)}
+.dist-row .dbar i{display:block}
+.dist-row .dbar i.doing{background:var(--busy)}
+.dist-row .dbar i.done{background:var(--ok)}
+.dist-row .dbar i.zero{background:transparent}
+.dist-row .dnum{font-size:11px; color:var(--muted); white-space:nowrap}
+
+/* 課題の編集リスト（単元デザイン） */
+.task-edit-list{display:flex; flex-direction:column; gap:8px}
+.task-edit{border:1.5px solid var(--line); border-radius:10px; padding:10px 12px; background:var(--surface)}
+.task-edit.unpub{opacity:.6; border-style:dashed}
+.task-edit .te-h{display:flex; align-items:center; gap:10px}
+.task-edit .te-t{font-weight:800; font-size:13.5px}
+.task-edit .te-m{margin-left:auto; font-size:11px; color:var(--muted); white-space:nowrap}
+.task-edit .te-b{margin-top:6px}
+.task-edit .te-d{font-size:12px; color:var(--muted); margin-bottom:5px}
 
 /* ③ I/You/We バー（教師モニタ） */
 .iyouwe{display:flex; flex-direction:column; gap:6px; min-width:220px}

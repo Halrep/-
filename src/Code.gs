@@ -9,7 +9,7 @@ function onOpen() {
     .createMenu(C.APP_NAME)
     .addItem('初期セットアップ（シート作成＋サンプル）', 'setupSheets')
     .addSeparator()
-    .addItem('デモ用の本時を「公開中」にする', 'setupPublishDemo')
+    .addItem('デモ単元を「公開中」にする', 'setupPublishDemo')
     .addItem('記録系データを全消去（マスタは残す）', 'setupClearRecords')
     .addToUi();
 }
@@ -46,20 +46,25 @@ function include(name) {
 /* ------- サーバー内共通ヘルパー ------- */
 
 /**
- * いま児童に見せるべき本時を1件返す。
+ * いま児童に見せるべき単元を1件返す。
  * 「公開中」を優先し、複数あれば更新時刻が新しいもの。無ければ null。
  */
-function currentLesson_() {
-  var lessons = Repo.readAll(C.SH.LESSON);
-  var open = lessons.filter(function (l) { return l['状態'] === C.LESSON_STATE.OPEN; });
+function currentUnit_() {
+  var units = Repo.readAll(C.SH.UNIT);
+  var open = units.filter(function (u) { return u['状態'] === C.UNIT_STATE.OPEN; });
   if (open.length === 0) return null;
   open.sort(function (a, b) { return toMs_(b['更新時刻']) - toMs_(a['更新時刻']); });
   return open[0];
 }
 
-/** 進度チェック項目（改行区切り文字列）を配列に */
-function parseChecklist_(text) {
-  if (!text) return [];
-  return String(text).split(/\r?\n/).map(function (s) { return s.trim(); })
-    .filter(function (s) { return s.length > 0; });
+/** 公開中の単元。無ければ例外 */
+function requireCurrentUnit_() {
+  var u = currentUnit_();
+  if (!u) throw new Error('いま公開されている単元がありません。');
+  return u;
+}
+
+/** きょうの日付キー（Asia/Tokyo, yyyy-MM-dd）。目標・確認タイム・振り返りの単位 */
+function today_() {
+  return Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd');
 }

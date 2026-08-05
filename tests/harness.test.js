@@ -1,323 +1,302 @@
 /**
  * GASサーバーロジックの結合テスト用ハーネス。
  * 実際の src/*.gs を、GASグローバルを模したサンドボックスに読み込んで実行する。
+ *
+ * 単元内自由進度学習のモデル（公開単位＝単元、進度は課題ごと）を検証する。
  */
 const fs = require('fs');
 const vm = require('vm');
 const path = require('path');
 
 const SRC = path.join(__dirname, '..', 'src');
-const GS_ORDER = ['Constants.gs','Repo.gs','Auth.gs','Code.gs','Setup.gs','StudentApi.gs','TeacherApi.gs'];
+const GS_ORDER = ['Constants.gs', 'Repo.gs', 'Auth.gs', 'Code.gs', 'Setup.gs', 'StudentApi.gs', 'TeacherApi.gs'];
 
 /* ---------- インメモリ・スプレッドシート ---------- */
-function makeSheet(name){
-  let data = []; // 2D配列（各セルはそのままの値）
-  const width = () => data.reduce((m,r)=>Math.max(m,r.length),0);
-  function pad(row, n){ const r=row.slice(); while(r.length<n) r.push(''); return r; }
-  function range(row,col,numRows,numCols){
+function makeSheet(name) {
+  let data = [];
+  const width = () => data.reduce((m, r) => Math.max(m, r.length), 0);
+  function pad(row, n) { const r = row.slice(); while (r.length < n) r.push(''); return r; }
+  function range(row, col, numRows, numCols) {
     numRows = numRows || 1; numCols = numCols || 1;
     const R = {
-      getValues(){
-        const out=[];
-        for(let i=0;i<numRows;i++){
-          const src = data[row-1+i] || [];
-          const line=[];
-          for(let j=0;j<numCols;j++) line.push(src[col-1+j] !== undefined ? src[col-1+j] : '');
+      getValues() {
+        const out = [];
+        for (let i = 0; i < numRows; i++) {
+          const src = data[row - 1 + i] || [];
+          const line = [];
+          for (let j = 0; j < numCols; j++) line.push(src[col - 1 + j] !== undefined ? src[col - 1 + j] : '');
           out.push(line);
         }
         return out;
       },
-      setValues(vals){
-        for(let i=0;i<vals.length;i++){
-          const r = row-1+i;
-          if(!data[r]) data[r]=[];
-          for(let j=0;j<vals[i].length;j++) data[r][col-1+j]=vals[i][j];
+      setValues(vals) {
+        for (let i = 0; i < vals.length; i++) {
+          const r = row - 1 + i;
+          if (!data[r]) data[r] = [];
+          for (let j = 0; j < vals[i].length; j++) data[r][col - 1 + j] = vals[i][j];
         }
         return R;
       },
-      setValue(v){
-        const r=row-1; if(!data[r]) data[r]=[]; data[r][col-1]=v; return R;
-      },
-      setFontWeight(){return R;}, setBackground(){return R;},
-      setNumberFormat(){return R;}, setFontColor(){return R;}
+      setValue(v) { const r = row - 1; if (!data[r]) data[r] = []; data[r][col - 1] = v; return R; },
+      setFontWeight() { return R; }, setBackground() { return R; },
+      setNumberFormat() { return R; }, setFontColor() { return R; }
     };
     return R;
   }
   return {
-    getName(){return name;},
-    getRange(r,c,nr,nc){ return range(r,c,nr,nc); },
-    getDataRange(){ return range(1,1,Math.max(data.length,1),Math.max(width(),1)); },
-    getLastRow(){ return data.length; },
-    getLastColumn(){ return width(); },
-    appendRow(row){ data.push(pad(row, Math.max(width(), row.length))); },
-    deleteRow(r){ data.splice(r-1,1); },
-    deleteRows(start,count){ data.splice(start-1,count); },
-    setFrozenRows(){}, autoResizeColumns(){},
-    _dump(){ return data; }
+    getName() { return name; },
+    getRange(r, c, nr, nc) { return range(r, c, nr, nc); },
+    getDataRange() { return range(1, 1, Math.max(data.length, 1), Math.max(width(), 1)); },
+    getLastRow() { return data.length; },
+    getLastColumn() { return width(); },
+    appendRow(row) { data.push(pad(row, Math.max(width(), row.length))); },
+    deleteRow(r) { data.splice(r - 1, 1); },
+    deleteRows(start, count) { data.splice(start - 1, count); },
+    setFrozenRows() {}, autoResizeColumns() {},
+    _dump() { return data; }
   };
 }
 
-function makeSpreadsheet(){
+function makeSpreadsheet() {
   const sheets = {};
   const ui = {
-    alert: (...a)=>{ lastAlert = a; return ui.Button.OK; },
-    ButtonSet:{ OK:'OK', YES_NO:'YES_NO' },
-    Button:{ OK:'OK', YES:'YES', NO:'NO' },
-    createMenu(){ const m={ addItem(){return m;}, addSeparator(){return m;}, addToUi(){} }; return m; }
+    alert: () => ui.Button.OK,
+    ButtonSet: { OK: 'OK', YES_NO: 'YES_NO' },
+    Button: { OK: 'OK', YES: 'YES', NO: 'NO' },
+    createMenu() { const m = { addItem() { return m; }, addSeparator() { return m; }, addToUi() {} }; return m; }
   };
-  let lastAlert=null;
   const ss = {
-    getSheetByName(n){ return sheets[n]; },
-    insertSheet(n){ sheets[n]=makeSheet(n); return sheets[n]; },
-    deleteSheet(s){ delete sheets[s.getName()]; },
-    getUi(){ return ui; },
-    toast(){},
-    _sheets:sheets
+    getSheetByName(n) { return sheets[n]; },
+    insertSheet(n) { sheets[n] = makeSheet(n); return sheets[n]; },
+    deleteSheet(s) { delete sheets[s.getName()]; },
+    getUi() { return ui; },
+    toast() {},
+    _sheets: sheets
   };
   return { ss, ui };
 }
 
 /* ---------- GASサービスのモック ---------- */
-let CURRENT_EMAIL = '';           // ログイン中ユーザー（テストで差し替え）
+let CURRENT_EMAIL = '';
 let uuidCounter = 0;
 const { ss, ui } = makeSpreadsheet();
 
+function pad2(n) { return n < 10 ? '0' + n : String(n); }
+
 const sandbox = {
   console,
-  SpreadsheetApp: {
-    getActive(){ return ss; },
-    getUi(){ return ui; },
-    getActiveSpreadsheet(){ return ss; }
-  },
-  LockService: { getScriptLock(){ return { waitLock(){return true;}, releaseLock(){} }; } },
+  SpreadsheetApp: { getActive() { return ss; }, getUi() { return ui; }, getActiveSpreadsheet() { return ss; } },
+  LockService: { getScriptLock() { return { waitLock() { return true; }, releaseLock() {} }; } },
   Session: {
-    getActiveUser(){ return { getEmail(){ return CURRENT_EMAIL; } }; },
-    getEffectiveUser(){ return { getEmail(){ return CURRENT_EMAIL; } }; }
+    getActiveUser() { return { getEmail() { return CURRENT_EMAIL; } }; },
+    getEffectiveUser() { return { getEmail() { return CURRENT_EMAIL; } }; }
   },
-  Utilities: { getUuid(){ return 'uuid-' + (++uuidCounter); } },
-  PropertiesService: { getScriptProperties(){ return { getProperty(){ return null; } }; } },
-  CacheService: { getScriptCache(){ return { get(){return null;}, put(){} }; } },
+  Utilities: {
+    getUuid() { return 'uuid-' + (++uuidCounter); },
+    // 'yyyy-MM-dd' だけ対応すれば足りる
+    formatDate(d, tz, fmt) {
+      return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+    }
+  },
+  PropertiesService: { getScriptProperties() { return { getProperty() { return null; } }; } },
+  CacheService: { getScriptCache() { return { get() { return null; }, put() {} }; } },
   HtmlService: {
-    createTemplateFromFile(){ return { evaluate(){ return { setTitle(){return this;}, addMetaTag(){return this;}, setXFrameOptionsMode(){return this;} }; } }; },
-    createHtmlOutputFromFile(){ return { getContent(){ return ''; } }; },
-    XFrameOptionsMode:{ ALLOWALL:'ALLOWALL' }
+    createTemplateFromFile() { return { evaluate() { return { setTitle() { return this; }, addMetaTag() { return this; }, setXFrameOptionsMode() { return this; } }; } }; },
+    createHtmlOutputFromFile() { return { getContent() { return ''; } }; },
+    XFrameOptionsMode: { ALLOWALL: 'ALLOWALL' }
   }
 };
 vm.createContext(sandbox);
 
-// 全 .gs を1つの共有スコープに読み込む（GASの挙動を再現）
 let code = '';
-for(const f of GS_ORDER) code += fs.readFileSync(path.join(SRC,f),'utf8') + '\n';
-vm.runInContext(code, sandbox, { filename:'all.gs' });
+for (const f of GS_ORDER) code += fs.readFileSync(path.join(SRC, f), 'utf8') + '\n';
+vm.runInContext(code, sandbox, { filename: 'all.gs' });
 
 /* ---------- テストユーティリティ ---------- */
-let pass=0, fail=0; const fails=[];
-function ok(cond, label){ if(cond){pass++; console.log('  ✓ '+label);} else {fail++; fails.push(label); console.log('  ✗ '+label);} }
-function run(fn){ return vm.runInContext('('+fn+')()', sandbox); }
-function call(fnName, ...args){
+let pass = 0, fail = 0; const fails = [];
+function ok(cond, label) {
+  if (cond) { pass++; console.log('  ✓ ' + label); }
+  else { fail++; fails.push(label); console.log('  ✗ ' + label); }
+}
+function call(fnName, ...args) {
   sandbox.__args = args;
-  return vm.runInContext(fnName+'.apply(null, __args)', sandbox);
+  return vm.runInContext(fnName + '.apply(null, __args)', sandbox);
 }
-function asUser(email){ CURRENT_EMAIL = email; }
-function sheetRows(name){ // 見出しキーのオブジェクト配列
-  return vm.runInContext('Repo.readAll('+JSON.stringify(name)+')', sandbox);
-}
+function asUser(email) { CURRENT_EMAIL = email; }
+function sheetRows(name) { return vm.runInContext('Repo.readAll(' + JSON.stringify(name) + ')', sandbox); }
+function backdate(min) { return vm.runInContext('new Date(Date.now()-' + min + '*60000)', sandbox); }
 
 /* =================== テスト本体 =================== */
 console.log('\n【1】初期セットアップ');
 call('setupSheets');
 const names = Object.keys(ss._sheets);
-ok(names.length === 16, 'シートが16枚生成された（実際: '+names.length+'）');
+ok(names.length === 16, 'シートが16枚生成された（実際: ' + names.length + '）');
 ok(sheetRows('方略マスタ').length === 6, '方略マスタに6枚のサンプル');
-ok(sheetRows('選択肢マスタ').length === 11, '選択肢マスタに11件');
 ok(sheetRows('単元').length === 1, 'デモ単元が1件');
-ok(sheetRows('本時').length === 1, 'デモ本時が1件');
-ok(sheetRows('本時_資料').length === 5, '資料が5件');
-ok(sheetRows('本時_選択肢設定').length === 4, '選択肢設定4カテゴリ');
+const allTasks = sheetRows('課題');
+ok(allTasks.length === 9, '課題が9件（必須4・選択3・発展2）');
+ok(allTasks.filter(t => t['種別'] === '必須').length === 4, '必須ミッションが4件');
+ok(allTasks.filter(t => t['種別'] === '発展').length === 2, '発展問題が2件');
+ok(sheetRows('資料').filter(r => !r['task_id']).length === 2, 'いつでも使える資料が2件');
+ok(sheetRows('資料').filter(r => r['task_id']).length === 6, '課題に紐づく資料が6件');
 
 console.log('\n【2】名簿を登録（教師1・児童4）');
-const roster = [
-  ['T01','山田先生','山田先生','0','teacher','teacher@school.jp'],
-  ['U01','青木','青木','1','student','a@school.jp'],
-  ['U02','石田','石田','2','student','b@school.jp'],
-  ['U03','上野','上野','3','student','c@school.jp'],
-  ['U04','遠藤','遠藤','4','student','d@school.jp']
-];
-roster.forEach(r=> ss._sheets['名簿'].appendRow(r));
+[
+  ['T01', '山田先生', '山田先生', '0', 'teacher', 'teacher@school.jp'],
+  ['U01', '青木', '青木', '1', 'student', 'a@school.jp'],
+  ['U02', '石田', '石田', '2', 'student', 'b@school.jp'],
+  ['U03', '上野', '上野', '3', 'student', 'c@school.jp'],
+  ['U04', '遠藤', '遠藤', '4', 'student', 'd@school.jp']
+].forEach(r => ss._sheets['名簿'].appendRow(r));
 ok(sheetRows('名簿').length === 5, '名簿5名を登録');
 
-console.log('\n【3】ロール判定（doGetの出し分け根拠）');
-asUser('teacher@school.jp');
-ok(call('getContext').role === 'teacher', '教師メール→ roleがteacher');
-asUser('a@school.jp');
-ok(call('getContext').role === 'student', '児童メール→ roleがstudent');
-asUser('unknown@school.jp');
-ok(call('getContext').user === null, '名簿外→ user=null（unauthorized画面へ）');
+console.log('\n【3】ロール判定');
+asUser('teacher@school.jp'); ok(call('getContext').role === 'teacher', '教師メール→ teacher');
+asUser('a@school.jp'); ok(call('getContext').role === 'student', '児童メール→ student');
+asUser('unknown@school.jp'); ok(call('getContext').user === null, '名簿外→ user=null');
 
-console.log('\n【4】本時を公開（教師）');
+console.log('\n【4】単元を公開（本時ではなく単元が公開単位）');
 asUser('teacher@school.jp');
 const design = call('teacher_getDesign', null);
-const lessonId = design.lesson.lessonId;
-ok(design.lesson.state === '下書き', '初期状態は下書き');
-call('teacher_setLessonState', lessonId, '公開中');
-ok(call('currentLesson_')['状態'] === '公開中', '公開中になり currentLesson_ が拾える');
+const unitId = design.unit.unitId;
+ok(design.unit.state === '準備中', '初期状態は準備中');
+call('teacher_setUnitState', unitId, '公開中');
+ok(call('currentUnit_')['状態'] === '公開中', '公開中の単元を currentUnit_ が拾える');
 
-console.log('\n【5】児童Aの見通す→やってみる');
+console.log('\n【5】児童に課題プールが届く');
 asUser('a@school.jp');
 let st = call('student_getState');
-ok(st.hasLesson === true, '公開中の本時が見える');
-ok(st.lesson.task.indexOf('大名') >= 0, '課題文が届く');
-ok(st.recommendedStrategies.length === 2, 'おすすめ方略が2枚');
-ok(st.choices.length === 3, '開放カテゴリは3つ（場所は非開放）');
-ok(st.checklist.length === 4, 'チェック項目が4つ');
-call('student_saveGoal', '集中して・協力して', '白地図に色分け＋説明文3文', ['S01','S03']);
-call('student_saveSelection', '学習形態', 'ペアで');
-call('student_saveSelection', 'ツール', '教科書,資料集');   // 複数選択
-call('student_useStrategy', 'S01', true);
-// 4項目すべて完了 → done 判定を狙う
-[0,1,2,3].forEach(i=> call('student_setProgress', i, 2, '項目'+i));
+ok(st.hasUnit === true, '公開中の単元が見える');
+ok(st.unit.outcome.indexOf('新聞') >= 0, '単元の出口（成果物イメージ）が届く');
+ok(st.tasks.length === 8, '公開済みの課題8件だけが見える（⑨は非公開）');
+ok(st.mustProgress.total === 4, '必須は4件');
+ok(st.commonResources.length === 2, 'いつでも使える資料が2件');
+const t1 = st.tasks[0], t4 = st.tasks[3];
+ok(t1.resources.length === 1 && t1.resources[0].kind === '動画', '課題①に動画資料が紐づく');
+ok(t4.strategies.length === 2, '課題④に推奨方略が2件紐づく');
+ok(st.commonStrategies.length === 1, '単元共通の方略が1件');
+
+console.log('\n【6】自分のペース・自分の順序で進める');
+// ③ → ① の順に取り組む（教師の刻んだ順に縛られない）
+const t3 = st.tasks[2];
+call('student_setProgress', t3.taskId, 2);        // ③ 完了
+call('student_setProgress', t1.taskId, 1);        // ① 取組中
+call('student_saveSelection', t3.taskId, '学習形態', 'ひとりで');
+call('student_saveSelection', t1.taskId, '学習形態', 'ペアで');   // 課題ごとに違う形態
+call('student_useStrategy', t1.taskId, 'S01', true);
 st = call('student_getState');
-ok(st.my.goal && st.my.goal.regulate.length === 2, '目標のRegulateが保存・復元される');
-ok(Array.isArray(st.my.selections['ツール']) && st.my.selections['ツール'].length === 2, '複数選択が配列で復元される');
-ok(st.my.selections['学習形態'] === 'ペアで', '単一選択が復元される');
-ok(st.my.strategyUse['S01'] === true, '「つかった！」が復元される');
-ok(st.checklist.every(c=>c.status===2), '進度が全完了で復元される');
+ok(st.tasks[2].status === 2 && st.tasks[0].status === 1, '課題ごとに違う進度を保持（③完了・①取組中）');
+ok(st.tasks[2].selections['学習形態'] === 'ひとりで', '③はひとりで');
+ok(st.tasks[0].selections['学習形態'] === 'ペアで', '①はペアで（課題ごとに取り組み方が変えられる）');
+ok(st.tasks[0].strategyUse['S01'] === true, '課題ごとの「つかった！」を保持');
+ok(st.mustProgress.done === 1, '必須の達成は1件');
 
-console.log('\n【6】選択の変更履歴（調整の記録）');
-call('student_saveSelection', '学習形態', 'ひとりで');  // ペア→ひとり
-const sels = sheetRows('選択').filter(r=> r['user_id']==='U01' && r['カテゴリ']==='学習形態');
-ok(sels.length === 2, '学習形態の選択が2件（履歴が残る）');
-const changed = sels.find(r=> r['選んだ値']==='ひとりで');
-ok(changed && changed['変更前の値']==='ペアで', '変更前の値が記録されている');
+console.log('\n【7】選択の変更履歴（調整の記録）');
+call('student_saveSelection', t1.taskId, '学習形態', 'グループで');
+const sels = sheetRows('選択').filter(r => r['user_id'] === 'U01' && r['task_id'] === t1.taskId && r['カテゴリ'] === '学習形態');
+ok(sels.length === 2, '同じ課題の学習形態が2件（履歴が残る）');
+ok(sels.find(r => r['選んだ値'] === 'グループで')['変更前の値'] === 'ペアで', '変更前の値が記録される');
 
-console.log('\n【7】児童B=こまった / C=busy / D=none');
-asUser('b@school.jp'); call('student_saveGoal','','途中まで',[]); call('student_raiseHelp', true);
-asUser('c@school.jp'); call('student_saveGoal','ねばり強く','取組中',['S02']); call('student_setProgress',0,1,'項目0');
-// D は何もしない
+console.log('\n【8】同じ時間に、子どもによって違う課題にいる');
+asUser('b@school.jp');
+const stB = call('student_getState');
+call('student_setProgress', stB.tasks[4].taskId, 1);   // Bは選択課題⑤に取り組み中
+call('student_saveSelection', stB.tasks[4].taskId, '学習形態', 'ひとりで');
+asUser('c@school.jp');
+const stC = call('student_getState');
+[0, 1, 2, 3].forEach(i => call('student_setProgress', stC.tasks[i].taskId, 2));  // Cは必須を全部完了
+call('student_setProgress', stC.tasks[7].taskId, 1);   // 発展⑧へ
+call('student_saveSelection', stC.tasks[7].taskId, '学習形態', 'グループで');
+// D は未着手のまま
 
-console.log('\n【8】教師の授業モニタ');
+console.log('\n【9】教師モニタ：誰がどの課題にいるか');
 asUser('teacher@school.jp');
 const mon = call('teacher_getMonitor');
-ok(mon.hasLesson === true, 'モニタに本時あり');
+ok(mon.hasUnit === true, 'モニタに単元あり');
 ok(mon.tiles.length === 4, 'タイルは児童4名');
-const byNo = {}; mon.tiles.forEach(t=> byNo[t.number]=t);
-ok(byNo['1'].status === 'done', 'A（全完了）→ done');
-ok(byNo['2'].status === 'help', 'B（こまった）→ help');
-ok(byNo['3'].status === 'busy', 'C（取組中）→ busy');
-ok(byNo['4'].status === 'none', 'D（未着手）→ none');
-ok(mon.counts.done===1 && mon.counts.help===1 && mon.counts.busy===1 && mon.counts.none===1, 'カウント集計が一致');
-ok(byNo['1'].doneCount===4 && byNo['1'].total===4, 'Aの進度 4/4');
+const byNo = {}; mon.tiles.forEach(t => byNo[t.number] = t);
+ok(byNo['1'].doingTitle.indexOf('しくみを図に') >= 0, 'Aがいま取り組んでいる課題名が出る');
+ok(byNo['2'].doingTitle.indexOf('武家諸法度') >= 0, 'Bは選択課題に取り組み中');
+ok(byNo['3'].status === 'done' && byNo['3'].doneMust === 4, 'Cは必須を全部終えて done');
+ok(byNo['4'].status === 'none', 'Dは未着手');
+ok(mon.taskDistribution.length === 9, '課題分布は9件（非公開も教師には見える）');
+const distT1 = mon.taskDistribution.find(d => d.title.indexOf('しくみを図に') >= 0);
+ok(distT1.doing === 1 && distT1.done === 1, '課題①に 取組中1・完了1');
+ok(mon.regulation.I === 1 && mon.regulation.We === 2, 'I/You/We の集計（Aはグループに変更済）');
 
-console.log('\n【9】無操作検知（10分）');
-// コンテキスト内realmでバックデートDateを生成（GASの単一realmを再現）
-const backdated = () => vm.runInContext('new Date(Date.now()-20*60000)', sandbox);
-// Cの目標更新時刻を20分前に書き換えて idle を誘発
-const goalSheet = ss._sheets['目標'];
-const gvals = goalSheet.getDataRange().getValues();
-const h = gvals[0]; const uidCol=h.indexOf('user_id'); const upCol=h.indexOf('更新時刻');
-for(let i=1;i<gvals.length;i++){ if(gvals[i][uidCol]==='U03'){ goalSheet.getRange(i+1, upCol+1).setValue(backdated()); } }
-// Cの進度も20分前に
-const progSheet = ss._sheets['進度'];
-const pvals = progSheet.getDataRange().getValues(); const ph=pvals[0]; const puid=ph.indexOf('user_id'); const pup=ph.indexOf('更新時刻');
-for(let i=1;i<pvals.length;i++){ if(pvals[i][puid]==='U03'){ progSheet.getRange(i+1,pup+1).setValue(backdated()); } }
-const mon2 = call('teacher_getMonitor');
-const c2 = mon2.tiles.find(t=>t.number==='3');
-ok(c2.status === 'idle', 'C（20分無操作）→ idle');
-ok(c2.idleMin >= 10, 'idleMin が10分以上（実際: '+c2.idleMin+'）');
-
-console.log('\n【10】児童詳細とフィードバック');
-const detail = call('teacher_getStudentDetail', 'U01');
-ok(detail.goal.doText.indexOf('白地図')>=0, '詳細に目標が出る');
-ok(detail.regulateNames.length === 2, '詳細にRegulate方略名が2件');
-call('teacher_sendFeedback', 'U01', 'しくみ図の色分けがいいね！');
-ok(sheetRows('フィードバック').length === 1, 'フィードバックが保存された');
-
-console.log('\n【11】振り返りとポートフォリオ');
+console.log('\n【10】段階的公開（環境は変えないと風景になる）');
+const hidden = mon.taskDistribution.find(d => !d.published);
+ok(!!hidden, '非公開の課題が1件ある（説明動画）');
+call('teacher_setTaskPublish', hidden.taskId, true);
 asUser('a@school.jp');
-call('student_saveReflection', { achievement:80, selfEval:'参勤交代を説明できた', attrGood:['やり方（工夫）がよかった'], attrHard:['時間が足りなかった'], mood:'😊', nextPlan:'次は先に時間配分を決める' });
-const pf = call('student_getPortfolio');
-ok(pf.items.length === 1, 'ポートフォリオに振り返り1件');
-ok(pf.items[0].feedback.length === 1, '先生コメントがポートフォリオに反映');
-ok(pf.items[0].achievement === 80, '達成度80が記録');
+ok(call('student_getState').tasks.length === 9, '教師が公開すると児童に9件目が現れる');
 
-console.log('\n【12】振り返り一覧と共有');
+console.log('\n【11】実行中の他者参照');
+const peers = call('student_getPeers');
+ok(peers.enabled === true, '他者参照が有効');
+ok(peers.cards.length === 4, 'クラス4名分');
+const meCard = peers.cards.find(c => c.isMe);
+ok(meCard && meCard.name === 'あなた', '自分は「あなた」と表示');
+const cCard = peers.cards.find(c => c.number === '3');
+ok(cCard.doneMust === 4 && cCard.stage === 'できた', 'Cの必須達成が見える');
+ok(peers.cards.find(c => c.number === '2').doingTitle.indexOf('武家諸法度') >= 0, '他児がいま取り組む課題が見える');
+ok(peers.cards[0].helpOn === undefined, 'こまった状態は他児に渡さない');
+
+console.log('\n【12】きょうの計画と振り返り（日ごと）');
+call('student_saveGoal', '集中して', '必須①と②を終える', ['S01', 'S03'], 70);
+call('student_saveCheckpoint', 15, '調整する', '思ったより時間がかかる');
+call('student_saveReflection', {
+  achievement: 80, planGap: '遅れた', planGapReason: '資料を読むのに時間がかかった',
+  selfEval: '参勤交代のしくみは説明できた', attrGood: ['やり方（工夫）がよかった'],
+  attrHard: ['時間が足りなかった'], materialRequest: '年表がもう少し大きいと読みやすい',
+  mood: '💪', nextPlan: '次は先に時間配分を決める'
+});
+const stR = call('student_getState');
+ok(stR.my.goal.efficacy === 70, '自己効力感が保存される');
+ok(stR.my.checkpoints.length === 1, '確認タイムが記録される');
+ok(stR.my.reflection.planGap === '遅れた', '計画とのズレが保存される');
+ok(stR.my.reflection.materialRequest.indexOf('年表') >= 0, '教材リクエストが保存される');
+const pf = call('student_getPortfolio');
+ok(pf.items.length === 1 && pf.items[0].achievement === 80, 'ポートフォリオに当日の振り返り');
+
+console.log('\n【13】教師：ふりかえり一覧とフィードバック');
 asUser('teacher@school.jp');
 const refl = call('teacher_getReflections', null);
-ok(refl.rows.length === 4, 'ふりかえり一覧は4名分');
-const a = refl.rows.find(r=>r.userId==='U01');
-ok(a.hasRefl === true && a.achievement === 80, 'Aは記入済み・達成度80');
-const undone = refl.rows.find(r=>r.userId==='U04');
-ok(undone.hasRefl === false, 'D（未記入）を把握できる');
-call('teacher_toggleShare', 'U01', refl.lessonId, true);
-const refl2 = call('teacher_getReflections', null);
-ok(refl2.rows.find(r=>r.userId==='U01').shared === true, '「みんなの工夫」への共有が反映');
-
-console.log('\n【13】本時デザインの編集（選択肢の開放トグル）');
-call('teacher_setChoice', lessonId, '場所', true);
-asUser('c@school.jp');
-const stc = call('student_getState');
-ok(stc.choices.length === 4, '場所を開放すると児童の選択カテゴリが4つに増える');
-
-console.log('\n【14】①単元の出口の可視化');
+ok(refl.rows.length === 4, '一覧は4名分');
+const rA = refl.rows.find(r => r.userId === 'U01');
+ok(rA.hasRefl && rA.planGap === '遅れた', 'Aは記入済み・計画とのズレが見える');
+ok(rA.materialRequest.indexOf('年表') >= 0, '教材リクエストが教師に届く');
+ok(refl.rows.find(r => r.userId === 'U04').hasRefl === false, 'D（未記入）を把握できる');
+call('teacher_toggleShare', 'U01', refl.day, true);
+ok(call('teacher_getReflections', null).rows.find(r => r.userId === 'U01').shared === true, '共有トグルが反映');
+call('teacher_sendFeedback', 'U01', '③から始めた判断がよかったね');
 asUser('a@school.jp');
-const stA = call('student_getState');
-ok(!!stA.lesson.unitGoal, '児童に単元目標が渡る');
-ok(stA.lesson.outcome.indexOf('新聞') >= 0, '児童に成果物イメージ（出口）が渡る');
+ok(call('student_getPortfolio').feedback.length === 1, '先生のコメントが児童に届く');
 
-console.log('\n【15】②自己効力感の保存・復元');
-call('student_saveGoal', '集中して', '白地図＋説明文', ['S01'], 75);
-const stEff = call('student_getState');
-ok(stEff.my.goal.efficacy === 75, '自己効力感75が保存・復元される');
-
-console.log('\n【16】④確認タイムの記録');
-ok(stEff.lesson.checkInterval === 10, '確認タイム間隔10分が児童に渡る');
-call('student_saveCheckpoint', 10, '順調', 'いい調子');
-call('student_saveCheckpoint', 20, '調整する', '時間がたりない');
-const stChk = call('student_getState');
-ok(stChk.my.checkpoints.length === 2, '確認タイムが2件記録される');
-ok(stChk.my.checkpoints[1].status === '調整する', '2件目の状態が調整する');
+console.log('\n【14】無操作の検知');
+const progSheet = ss._sheets['進度'];
+const pv = progSheet.getDataRange().getValues(); const ph = pv[0];
+const puid = ph.indexOf('user_id'), pup = ph.indexOf('更新時刻');
+for (let i = 1; i < pv.length; i++) if (pv[i][puid] === 'U02') progSheet.getRange(i + 1, pup + 1).setValue(backdate(25));
+const selSheet = ss._sheets['選択'];
+const sv = selSheet.getDataRange().getValues(); const sh = sv[0];
+const suid = sh.indexOf('user_id'), sat = sh.indexOf('選択時刻');
+for (let i = 1; i < sv.length; i++) if (sv[i][suid] === 'U02') selSheet.getRange(i + 1, sat + 1).setValue(backdate(25));
 asUser('teacher@school.jp');
-const detEff = call('teacher_getStudentDetail', 'U01');
-ok(detEff.goal.efficacy === 75, '教師詳細に自己効力感が出る');
-ok(detEff.checkpoints.length === 2, '教師詳細に確認タイム2件が出る');
+const monIdle = call('teacher_getMonitor').tiles.find(t => t.number === '2');
+ok(monIdle.status === 'idle' && monIdle.idleMin >= 10, 'B（25分無操作）→ idle');
 
-console.log('\n【17】③ I/You/We の集計');
-// A=ひとりで（【6】で変更済）, B/C/D=学習形態未選択 → I=1, none=3。Cにグループ選択を足す
-asUser('c@school.jp'); call('student_saveSelection', '学習形態', 'グループで');
-asUser('teacher@school.jp');
-const monR = call('teacher_getMonitor');
-ok(monR.regulation.I === 1, 'I（ひとり）が1名');
-ok(monR.regulation.We === 1, 'We（グループ）が1名');
-ok(monR.regulation.none === 2, '学習形態 未選択が2名');
-
-console.log('\n【18】実行中の他者参照（みんなの様子）');
+console.log('\n【15】単元の設定（教師）');
+call('teacher_setChoice', unitId, '場所', true);
 asUser('a@school.jp');
-const peers = call('student_getPeers');
-ok(peers.enabled === true, 'デモは他者参照が有効');
-ok(peers.cards.length === 4, 'クラス4名分のカード');
-const meCard = peers.cards.find(c=>c.isMe);
-ok(meCard && meCard.name === 'あなた', '自分は「あなた」と表示');
-const aCardPeer = peers.cards.find(c=>c.number==='1');
-ok(aCardPeer.usedIcons.length >= 1, 'Aの使っている工夫アイコンが見える');
-ok(aCardPeer.stage === 'できた', 'Aの段階は できた（全完了）');
-// ネガティブ情報を漏らさない：Bはこまった中だが、他者参照に help/idle フィールドは無い
-const bCardPeer = peers.cards.find(c=>c.number==='2');
-ok(bCardPeer.helpOn === undefined && bCardPeer.status === undefined, 'こまった/無操作は他児に見せない');
-
-console.log('\n【19】記名/匿名の切替と無効化（教師）');
+ok(call('student_getState').choices.length === 3, '場所を開放すると選択カテゴリが3つに');
 asUser('teacher@school.jp');
-call('teacher_setPeerRef', lessonId, true, true);   // 匿名ON
-asUser('b@school.jp');
-const peersAnon = call('student_getPeers');
-const other = peersAnon.cards.find(c=>!c.isMe);
-ok(peersAnon.anon === true && other.name.indexOf('ともだち') === 0, '匿名モードで氏名が伏せられる');
-asUser('teacher@school.jp');
-call('teacher_setPeerRef', lessonId, false, false);  // 無効化
-asUser('b@school.jp');
+call('teacher_setPeerRef', unitId, false, false);
+asUser('a@school.jp');
 ok(call('student_getPeers').enabled === false, '教師が無効化すると他者参照が閉じる');
 
 /* =================== 結果 =================== */
 console.log('\n========================================');
-console.log('  PASS: '+pass+'   FAIL: '+fail);
-if(fail){ console.log('  失敗: '+fails.join(' / ')); process.exit(1); }
+console.log('  PASS: ' + pass + '   FAIL: ' + fail);
+if (fail) { console.log('  失敗: ' + fails.join(' / ')); process.exit(1); }
 else console.log('  すべての結合テストに合格しました 🎉');

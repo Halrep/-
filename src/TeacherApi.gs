@@ -1,40 +1,45 @@
 /**
  * TeacherApi.gs
  * 教師向けサーバー関数。入口で requireTeacher_()。
+ *
+ * 単元内自由進度学習のため、モニタは「全員が同じ1時間にいる」前提を取らない。
+ * 誰がいまどの課題にいるか（分布）を把握できるようにしている。
  */
 
-/** 教師アプリの初期情報（本人・現在の本時メタ・セットアップ済みか） */
+/** 教師アプリの初期情報 */
 function teacher_bootstrap() {
   var ctx = requireTeacher_();
-  var lesson = currentLesson_();
-  return {
-    ok: true,
-    me: ctx.user,
-    lessonMeta: lesson ? lessonMeta_(lesson) : null
-  };
+  var unit = currentUnit_();
+  return { ok: true, me: ctx.user, unitMeta: unit ? unitMeta_(unit) : null };
 }
 
-/**
- * 授業モニタ。公開中の本時について、児童ごとのタイル情報を返す。
- * Phase1は全員分を毎回返す（30人規模なら軽量）。since を後で差分化できる形に留めてある。
- */
+/** 授業モニタ。児童ごとのタイル＋課題ごとの分布 */
 function teacher_getMonitor() {
   requireTeacher_();
-  var lesson = currentLesson_();
-  if (!lesson) return { ok: true, hasLesson: false };
-  var lessonId = lesson['lesson_id'];
+  var unit = currentUnit_();
+  if (!unit) return { ok: true, hasUnit: false };
+  var unitId = unit['unit_id'];
   var now = Date.now();
 
-  var students = Repo.readAll(C.SH.USERS).filter(function (u) { return u['役割'] === C.ROLE.STUDENT; });
-  var checklistLen = parseChecklist_(lesson['進度チェック項目']).length;
+  var tasks = Repo.where(C.SH.TASK, { unit_id: unitId })
+    .sort(function (a, b) { return Number(a['並び']) - Number(b['並び']); });
+  var taskById = indexBy_(tasks, 'task_id');
+  var mustTotal = tasks.filter(function (t) { return t['種別'] === C.TASK_KIND.MUST; }).length;
 
-  // 一括読み込みしてメモリで結合
-  var goals = indexBy_(Repo.where(C.SH.GOAL, { lesson_id: lessonId }), 'user_id');
-  var help = indexBy_(Repo.where(C.SH.HELP, { lesson_id: lessonId }), 'user_id');
-  var refl = indexBy_(Repo.where(C.SH.REFL, { lesson_id: lessonId }), 'user_id');
-  var progByUser = groupBy_(Repo.where(C.SH.PROG, { lesson_id: lessonId }), 'user_id');
-  var selByUser = groupBy_(Repo.where(C.SH.SEL, { lesson_id: lessonId }), 'user_id');
-  var useByUser = groupBy_(Repo.where(C.SH.SUSE, { lesson_id: lessonId }), 'user_id');
+  var students = Repo.readAll(C.SH.USERS).filter(function (u) { return u['役割'] === C.ROLE.STUDENT; });
+  var day = today_();
+
+  var goals = {};
+  Repo.where(C.SH.GOAL, { unit_id: unitId, '日付': day }).forEach(function (g) { goals[g['user_id']] = g; });
+  var help = indexBy_(Repo.where(C.SH.HELP, { unit_id: unitId }), 'user_id');
+  var progByUser = groupBy_(Repo.where(C.SH.PROG, { unit_id: unitId }), 'user_id');
+  var selByUser = groupBy_(Repo.where(C.SH.SEL, { unit_id: unitId }), 'user_id');
+  var useByUser = groupBy_(Repo.where(C.SH.SUSE, { unit_id: unitId }), 'user_id');
+  var checkByUser = groupBy_(Repo.where(C.SH.CHECK, { unit_id: unitId, '日付': day }), 'user_id');
+
+  // 課題ごとの分布（取組中／完了の人数）
+  var dist = {};
+  tasks.forEach(function (t) { dist[t['task_id']] = { doing: 0, done: 0 }; });
 
   var tiles = students.map(function (u) {
     var uid = u['user_id'];
@@ -42,11 +47,25 @@ function teacher_getMonitor() {
     var h = help[uid];
     var progs = progByUser[uid] || [];
     var sels = selByUser[uid] || [];
-    var uses = useByUser[uid] || [];
 
-    var doneCount = progs.filter(function (p) { return Number(p['状態']) === C.PROGRESS.DONE; }).length;
+    var doneMust = 0;
+    var doing = null;
+    progs.forEach(function (p) {
+      var t = taskById[p['task_id']];
+      var st = Number(p['状態']);
+      if (!t) return;
+      if (dist[p['task_id']]) {
+        if (st === C.PROGRESS.DOING) dist[p['task_id']].doing++;
+        if (st === C.PROGRESS.DONE) dist[p['task_id']].done++;
+      }
+      if (t['種別'] === C.TASK_KIND.MUST && st === C.PROGRESS.DONE) doneMust++;
+      if (st === C.PROGRESS.DOING) {
+        if (!doing || toMs_(p['更新時刻']) > toMs_(doing['更新時刻'])) doing = p;
+      }
+    });
+
     var helpOn = h && truthy_(h['状態']);
-    var hasStarted = !!g || progs.some(function (p) { return Number(p['状態']) > 0; }) || sels.length > 0;
+    var started = !!g || progs.length > 0 || sels.length > 0;
 
     // 最終操作時刻
     var last = 0;
@@ -54,42 +73,39 @@ function teacher_getMonitor() {
     if (h) last = Math.max(last, toMs_(h['更新時刻']));
     progs.forEach(function (p) { last = Math.max(last, toMs_(p['更新時刻'])); });
     sels.forEach(function (s) { last = Math.max(last, toMs_(s['選択時刻'])); });
-    uses.forEach(function (x) { last = Math.max(last, toMs_(x['更新時刻'])); });
-    if (refl[uid]) last = Math.max(last, toMs_(refl[uid]['更新時刻']));
+    (useByUser[uid] || []).forEach(function (x) { last = Math.max(last, toMs_(x['更新時刻'])); });
+    (checkByUser[uid] || []).forEach(function (c) { last = Math.max(last, toMs_(c['時刻'])); });
 
     var idleMin = last ? Math.floor((now - last) / 60000) : null;
-    var done = checklistLen > 0 && doneCount >= checklistLen;
+    var allMustDone = mustTotal > 0 && doneMust >= mustTotal;
 
     var status;
     if (helpOn) status = 'help';
-    else if (done) status = 'done';
-    else if (!hasStarted) status = 'none';
+    else if (allMustDone) status = 'done';
+    else if (!started) status = 'none';
     else if (idleMin !== null && idleMin >= C.IDLE_MINUTES) status = 'idle';
     else status = 'busy';
-
-    // 学習形態（最新の選択）
-    var form = latestOf_(sels, '学習形態');
 
     return {
       userId: uid,
       number: u['出席番号'],
       name: u['表示名'] || u['氏名'],
       status: status,
-      doneCount: doneCount,
-      total: checklistLen,
-      form: form || '',
+      doingTitle: doing && taskById[doing['task_id']] ? taskById[doing['task_id']]['タイトル'] : '',
+      doneMust: doneMust,
+      mustTotal: mustTotal,
+      form: latestOf_(sels, '学習形態') || '',
       idleMin: idleMin,
       helpOn: helpOn
     };
   });
 
-  // 出席番号順
   tiles.sort(function (a, b) { return Number(a.number) - Number(b.number); });
 
   var counts = { busy: 0, done: 0, help: 0, idle: 0, none: 0 };
   tiles.forEach(function (t) { counts[t.status]++; });
 
-  // ③ 調整層 I/You/We（学習形態の最新選択から集計）
+  // 調整層 I/You/We
   var regulation = { I: 0, You: 0, We: 0, none: 0 };
   students.forEach(function (u) {
     var form = latestOf_(selByUser[u['user_id']] || [], '学習形態');
@@ -101,69 +117,87 @@ function teacher_getMonitor() {
 
   return {
     ok: true,
-    hasLesson: true,
+    hasUnit: true,
     serverMs: now,
-    meta: lessonMeta_(lesson),
+    meta: unitMeta_(unit),
     counts: counts,
     regulation: regulation,
-    tiles: tiles
+    tiles: tiles,
+    taskDistribution: tasks.map(function (t) {
+      return {
+        taskId: t['task_id'], order: t['並び'], kind: t['種別'], title: t['タイトル'],
+        published: truthy_(t['公開']),
+        doing: dist[t['task_id']].doing, done: dist[t['task_id']].done
+      };
+    })
   };
 }
 
-/** 児童1人の詳細（モニタでタイルを開いたとき） */
+/** 児童1人の詳細 */
 function teacher_getStudentDetail(userId) {
   requireTeacher_();
-  var lesson = currentLesson_();
-  if (!lesson) return { ok: true, hasLesson: false };
-  var lessonId = lesson['lesson_id'];
+  var unit = currentUnit_();
+  if (!unit) return { ok: true, hasUnit: false };
+  var unitId = unit['unit_id'], day = today_();
   var strat = getStrategiesMap_();
 
-  var g = firstWhere_(C.SH.GOAL, { lesson_id: lessonId, user_id: userId });
-  var sels = latestSelectionByCategory_(lessonId, userId);
-  var progs = Repo.where(C.SH.PROG, { lesson_id: lessonId, user_id: userId });
+  var tasks = Repo.where(C.SH.TASK, { unit_id: unitId })
+    .sort(function (a, b) { return Number(a['並び']) - Number(b['並び']); });
   var progMap = {};
-  progs.forEach(function (p) { progMap[String(p['項目index'])] = Number(p['状態']); });
-  var checklist = parseChecklist_(lesson['進度チェック項目']).map(function (n, i) {
-    return { name: n, status: progMap[String(i)] || 0 };
-  });
-  var help = firstWhere_(C.SH.HELP, { lesson_id: lessonId, user_id: userId });
-  var checks = Repo.where(C.SH.CHECK, { lesson_id: lessonId, user_id: userId }).map(function (c) {
-    return { elapsedMin: c['経過分'], status: c['状態'], memo: c['メモ'] };
+  Repo.where(C.SH.PROG, { unit_id: unitId, user_id: userId }).forEach(function (p) {
+    progMap[p['task_id']] = Number(p['状態']);
   });
 
-  var regulateNames = g ? splitCsv_(g['Regulate']).map(function (id) {
-    return strat[id] ? (strat[id]['アイコン'] + ' ' + strat[id]['カード名']) : id;
-  }) : [];
-  var usedNames = Repo.where(C.SH.SUSE, { lesson_id: lessonId, user_id: userId })
+  var g = firstWhere_(C.SH.GOAL, { unit_id: unitId, user_id: userId, '日付': day });
+  var helpRow = firstWhere_(C.SH.HELP, { unit_id: unitId, user_id: userId });
+  var checks = Repo.where(C.SH.CHECK, { unit_id: unitId, user_id: userId, '日付': day })
+    .map(function (c) { return { elapsedMin: c['経過分'], status: c['状態'], memo: c['メモ'] }; });
+
+  var usedNames = Repo.where(C.SH.SUSE, { unit_id: unitId, user_id: userId })
     .filter(function (u) { return truthy_(u['状態']); })
-    .map(function (u) { return strat[u['strategy_id']] ? strat[u['strategy_id']]['カード名'] : u['strategy_id']; });
+    .map(function (u) { return strat[u['strategy_id']] ? strat[u['strategy_id']]['カード名'] : u['strategy_id']; })
+    .filter(function (v, i, a) { return a.indexOf(v) === i; });
 
   var u = firstWhere_(C.SH.USERS, { user_id: userId });
+  var selByTask = latestSelectionsByTask_(unitId, userId);
 
   return {
     ok: true,
-    hasLesson: true,
+    hasUnit: true,
     userId: userId,
     name: u ? (u['表示名'] || u['氏名']) : userId,
     number: u ? u['出席番号'] : '',
-    help: help ? truthy_(help['状態']) : false,
-    goal: g ? { be: g['Be'], doText: g['Do'], efficacy: (g['自己効力感'] === '' ? null : Number(g['自己効力感'])) } : null,
-    regulateNames: regulateNames,
+    help: helpRow ? truthy_(helpRow['状態']) : false,
+    goal: g ? {
+      be: g['Be'], doText: g['Do'],
+      efficacy: g['自己効力感'] === '' ? null : Number(g['自己効力感']),
+      regulateNames: splitCsv_(g['Regulate']).map(function (id) {
+        return strat[id] ? (strat[id]['アイコン'] + ' ' + strat[id]['カード名']) : id;
+      })
+    } : null,
     usedNames: usedNames,
-    selections: sels,
-    checklist: checklist,
-    checkpoints: checks
+    checkpoints: checks,
+    tasks: tasks.map(function (t) {
+      var tid = t['task_id'];
+      var sel = selByTask[tid] || {};
+      var form = sel['学習形態'];
+      return {
+        kind: t['種別'], title: t['タイトル'],
+        status: progMap[tid] || 0,
+        form: Array.isArray(form) ? form.join('・') : (form || '')
+      };
+    })
   };
 }
 
 /** フィードバック送信 */
 function teacher_sendFeedback(toUserId, comment) {
   var ctx = requireTeacher_();
-  var lesson = requireCurrentLesson_();
+  var unit = requireCurrentUnit_();
   if (!comment || !String(comment).trim()) throw new Error('コメントが空です。');
   Repo.append(C.SH.FB, {
     feedback_id: Repo.uuid(),
-    lesson_id: lesson['lesson_id'],
+    unit_id: unit['unit_id'],
     from_user_id: ctx.user.userId,
     to_user_id: toUserId,
     'コメント': comment,
@@ -173,72 +207,113 @@ function teacher_sendFeedback(toUserId, comment) {
   return { ok: true };
 }
 
-/** 本時デザイン画面用：本時の全情報＋マスタ＋本時一覧 */
-function teacher_getDesign(lessonId) {
+/** 単元デザイン画面用：単元＝学習の手引きの全情報 */
+function teacher_getDesign(unitId) {
   requireTeacher_();
-  var lessons = Repo.readAll(C.SH.LESSON);
-  if (lessons.length === 0) return { ok: true, hasLesson: false };
+  var units = Repo.readAll(C.SH.UNIT);
+  if (units.length === 0) return { ok: true, hasUnit: false };
 
-  var lesson = lessonId ? firstWhere_(C.SH.LESSON, { lesson_id: lessonId }) : (currentLesson_() || newestLesson_(lessons));
-  if (!lesson) lesson = newestLesson_(lessons);
-  var unit = firstWhere_(C.SH.UNIT, { unit_id: lesson['unit_id'] });
+  var unit = unitId ? firstWhere_(C.SH.UNIT, { unit_id: unitId }) : (currentUnit_() || units[0]);
+  if (!unit) unit = units[0];
+  var uid = unit['unit_id'];
 
   var openCats = {};
-  Repo.where(C.SH.LCHOICE, { lesson_id: lesson['lesson_id'] }).forEach(function (c) {
-    openCats[c['カテゴリ']] = truthy_(c['開放']);
-  });
+  Repo.where(C.SH.UCHOICE, { unit_id: uid }).forEach(function (c) { openCats[c['カテゴリ']] = truthy_(c['開放']); });
 
   var strat = getStrategiesMap_();
-  var linked = {};
-  Repo.where(C.SH.LSTRAT, { lesson_id: lesson['lesson_id'] }).forEach(function (ls) { linked[ls['strategy_id']] = true; });
-
-  var resources = Repo.where(C.SH.LRES, { lesson_id: lesson['lesson_id'] }).map(function (r) {
-    return { icon: r['アイコン'], title: r['タイトル'], sub: r['補足'], kind: r['種別'], url: r['URL'] };
+  var resByTask = {}, resCommon = [];
+  Repo.where(C.SH.RES, { unit_id: uid }).forEach(function (r) {
+    var item = { icon: r['アイコン'], title: r['タイトル'], kind: r['種別'], url: r['URL'], published: truthy_(r['公開']) };
+    if (r['task_id']) (resByTask[r['task_id']] = resByTask[r['task_id']] || []).push(item);
+    else resCommon.push(item);
   });
+  var stByTask = {}, stCommon = [];
+  Repo.where(C.SH.USTRAT, { unit_id: uid }).forEach(function (s) {
+    var m = strat[s['strategy_id']];
+    var item = { strategyId: s['strategy_id'], name: m ? m['カード名'] : s['strategy_id'], icon: m ? m['アイコン'] : '' };
+    if (s['task_id']) (stByTask[s['task_id']] = stByTask[s['task_id']] || []).push(item);
+    else stCommon.push(item);
+  });
+
+  var tasks = Repo.where(C.SH.TASK, { unit_id: uid })
+    .sort(function (a, b) { return Number(a['並び']) - Number(b['並び']); })
+    .map(function (t) {
+      return {
+        taskId: t['task_id'], order: t['並び'], kind: t['種別'], title: t['タイトル'],
+        desc: t['説明'], mins: t['めやす分'], published: truthy_(t['公開']),
+        resources: resByTask[t['task_id']] || [],
+        strategies: stByTask[t['task_id']] || []
+      };
+    });
 
   return {
     ok: true,
-    hasLesson: true,
-    lessonList: lessons.sort(function (a, b) { return Number(a['時数']) - Number(b['時数']); })
-      .map(function (l) { return { lessonId: l['lesson_id'], period: l['時数'], state: l['状態'], title: l['本時の目標'] }; }),
-    lesson: {
-      lessonId: lesson['lesson_id'],
-      unitName: unit ? unit['単元名'] : '',
-      period: lesson['時数'],
-      objective: lesson['本時の目標'],
-      task: lesson['学習課題'],
-      goal: lesson['ゴール'],
-      discretion: String(lesson['裁量レベル']),
-      checklist: lesson['進度チェック項目'],
-      checkInterval: Number(lesson['確認タイム間隔']) || 0,
-      peerRef: truthy_(lesson['他者参照']),
-      peerAnon: lesson['他者参照モード'] === '匿名',
-      state: lesson['状態']
-    },
-    openCats: openCats,
-    strategies: Object.keys(strat).map(function (id) {
-      var s = strat[id];
-      return { strategyId: id, name: s['カード名'], icon: s['アイコン'], category: s['分類'], linked: !!linked[id] };
+    hasUnit: true,
+    unitList: units.map(function (u) {
+      return { unitId: u['unit_id'], name: u['単元名'], subject: u['教科'], state: u['状態'] };
     }),
-    resources: resources
+    unit: {
+      unitId: uid,
+      subject: unit['教科'], grade: unit['学年'], unitName: unit['単元名'],
+      unitGoal: unit['単元目標'], outcome: unit['成果物イメージ'],
+      totalHours: unit['総時数'], discretion: String(unit['裁量レベル']),
+      checkInterval: Number(unit['確認タイム間隔']) || 0,
+      peerRef: truthy_(unit['他者参照']), peerAnon: unit['他者参照モード'] === '匿名',
+      state: unit['状態']
+    },
+    tasks: tasks,
+    commonResources: resCommon,
+    commonStrategies: stCommon,
+    openCats: openCats
   };
 }
 
-/** 本時の中核フィールドを更新 */
-function teacher_updateLesson(lessonId, patch) {
+/** 単元（学習の手引き）の更新 */
+function teacher_updateUnit(unitId, patch) {
   requireTeacher_();
-  var allowed = ['本時の目標', '学習課題', 'ゴール', '裁量レベル', '進度チェック項目', '確認タイム間隔'];
+  var allowed = ['単元名', '単元目標', '成果物イメージ', '総時数', '裁量レベル', '確認タイム間隔'];
   var clean = {};
   allowed.forEach(function (k) { if (patch.hasOwnProperty(k)) clean[k] = patch[k]; });
   clean['更新時刻'] = Repo.now();
-  Repo.updateByKey(C.SH.LESSON, 'lesson_id', lessonId, clean);
+  Repo.updateByKey(C.SH.UNIT, 'unit_id', unitId, clean);
   return { ok: true };
 }
 
-/** 実行中の他者参照の有効化と、記名/匿名モードの設定 */
-function teacher_setPeerRef(lessonId, on, anon) {
+/** 単元の状態（準備中/公開中/終了）。公開は1件に絞る */
+function teacher_setUnitState(unitId, state) {
   requireTeacher_();
-  Repo.updateByKey(C.SH.LESSON, 'lesson_id', lessonId, {
+  if (state === C.UNIT_STATE.OPEN) {
+    Repo.readAll(C.SH.UNIT).forEach(function (u) {
+      if (u['unit_id'] !== unitId && u['状態'] === C.UNIT_STATE.OPEN) {
+        Repo.updateByKey(C.SH.UNIT, 'unit_id', u['unit_id'], { '状態': C.UNIT_STATE.CLOSED, '更新時刻': Repo.now() });
+      }
+    });
+  }
+  Repo.updateByKey(C.SH.UNIT, 'unit_id', unitId, { '状態': state, '更新時刻': Repo.now() });
+  return { ok: true };
+}
+
+/**
+ * 課題の公開/非公開（段階的公開）。
+ * 環境は変えないと風景になる ── 最初に全部を見せず、動きが鈍ったら新しい課題を投入する。
+ */
+function teacher_setTaskPublish(taskId, on) {
+  requireTeacher_();
+  Repo.updateByKey(C.SH.TASK, 'task_id', taskId, { '公開': on ? 'TRUE' : 'FALSE' });
+  return { ok: true };
+}
+
+/** 選択肢カテゴリの開放/非開放 */
+function teacher_setChoice(unitId, category, open) {
+  requireTeacher_();
+  Repo.upsert(C.SH.UCHOICE, { unit_id: unitId, 'カテゴリ': category }, { '開放': open ? 'TRUE' : 'FALSE' });
+  return { ok: true };
+}
+
+/** 実行中の他者参照の有効化と、記名/匿名モード */
+function teacher_setPeerRef(unitId, on, anon) {
+  requireTeacher_();
+  Repo.updateByKey(C.SH.UNIT, 'unit_id', unitId, {
     '他者参照': on ? 'TRUE' : 'FALSE',
     '他者参照モード': anon ? '匿名' : '記名',
     '更新時刻': Repo.now()
@@ -246,54 +321,34 @@ function teacher_setPeerRef(lessonId, on, anon) {
   return { ok: true };
 }
 
-/** 選択肢カテゴリの開放/非開放 */
-function teacher_setChoice(lessonId, category, open) {
+/** 課題への推奨方略の紐づけ（taskId 空文字なら単元共通） */
+function teacher_setStrategyLink(unitId, taskId, strategyId, on) {
   requireTeacher_();
-  Repo.upsert(C.SH.LCHOICE, { lesson_id: lessonId, 'カテゴリ': category }, { '開放': open ? 'TRUE' : 'FALSE' });
-  return { ok: true };
-}
-
-/** おすすめ方略の紐づけ ON/OFF */
-function teacher_setStrategyLink(lessonId, strategyId, on) {
-  requireTeacher_();
+  var match = { unit_id: unitId, task_id: taskId || '', strategy_id: strategyId };
   if (on) {
-    var exists = firstWhere_(C.SH.LSTRAT, { lesson_id: lessonId, strategy_id: strategyId });
-    if (!exists) Repo.append(C.SH.LSTRAT, { lesson_id: lessonId, strategy_id: strategyId, '教師の一言': '' });
+    if (!firstWhere_(C.SH.USTRAT, match)) {
+      Repo.append(C.SH.USTRAT, { unit_id: unitId, task_id: taskId || '', strategy_id: strategyId, '教師の一言': '' });
+    }
   } else {
-    // 該当行を削除
-    var rows = Repo.where(C.SH.LSTRAT, { lesson_id: lessonId, strategy_id: strategyId });
+    var rows = Repo.where(C.SH.USTRAT, match);
     if (rows.length) {
-      var s = Repo.sheet(C.SH.LSTRAT);
-      // 下の行から消す
+      var s = Repo.sheet(C.SH.USTRAT);
       rows.sort(function (a, b) { return b.__row - a.__row; }).forEach(function (r) { s.deleteRow(r.__row); });
     }
   }
   return { ok: true };
 }
 
-/** 本時の状態を変更（下書き/公開中/終了）。公開は1件に絞る運用のため、他の公開中を終了にする */
-function teacher_setLessonState(lessonId, state) {
+/** ふりかえり一覧（指定日。未指定ならきょう） */
+function teacher_getReflections(day) {
   requireTeacher_();
-  if (state === C.LESSON_STATE.OPEN) {
-    Repo.readAll(C.SH.LESSON).forEach(function (l) {
-      if (l['lesson_id'] !== lessonId && l['状態'] === C.LESSON_STATE.OPEN) {
-        Repo.updateByKey(C.SH.LESSON, 'lesson_id', l['lesson_id'], { '状態': C.LESSON_STATE.CLOSED, '更新時刻': Repo.now() });
-      }
-    });
-  }
-  Repo.updateByKey(C.SH.LESSON, 'lesson_id', lessonId, { '状態': state, '更新時刻': Repo.now() });
-  return { ok: true };
-}
-
-/** ふりかえり一覧（指定した本時。未指定なら現在の本時） */
-function teacher_getReflections(lessonId) {
-  requireTeacher_();
-  var lesson = lessonId ? firstWhere_(C.SH.LESSON, { lesson_id: lessonId }) : currentLesson_();
-  if (!lesson) return { ok: true, hasLesson: false };
-  var lid = lesson['lesson_id'];
+  var unit = currentUnit_();
+  if (!unit) return { ok: true, hasUnit: false };
+  var unitId = unit['unit_id'];
+  var target = day || today_();
 
   var students = Repo.readAll(C.SH.USERS).filter(function (u) { return u['役割'] === C.ROLE.STUDENT; });
-  var refl = indexBy_(Repo.where(C.SH.REFL, { lesson_id: lid }), 'user_id');
+  var refl = indexBy_(Repo.where(C.SH.REFL, { unit_id: unitId, '日付': target }), 'user_id');
 
   var rows = students.map(function (u) {
     var r = refl[u['user_id']];
@@ -303,6 +358,9 @@ function teacher_getReflections(lessonId) {
       name: u['表示名'] || u['氏名'],
       hasRefl: !!r,
       achievement: r ? r['達成度'] : null,
+      planGap: r ? r['計画とのズレ'] : '',
+      planGapReason: r ? r['ズレの理由'] : '',
+      materialRequest: r ? r['教材リクエスト'] : '',
       mood: r ? r['気持ち'] : '',
       attrGood: r ? splitCsv_(r['原因帰属良']) : [],
       attrHard: r ? splitCsv_(r['原因帰属難']) : [],
@@ -312,51 +370,34 @@ function teacher_getReflections(lessonId) {
     };
   });
   rows.sort(function (a, b) { return Number(a.number) - Number(b.number); });
-  return { ok: true, hasLesson: true, lessonId: lid, period: lesson['時数'], rows: rows };
+
+  // 記録のある日付一覧（日付切替用）
+  var days = Repo.where(C.SH.REFL, { unit_id: unitId })
+    .map(function (r) { return r['日付']; })
+    .filter(function (v, i, a) { return v && a.indexOf(v) === i; })
+    .sort().reverse();
+
+  return { ok: true, hasUnit: true, day: target, days: days, rows: rows };
 }
 
 /** 「みんなの工夫」への共有トグル */
-function teacher_toggleShare(userId, lessonId, share) {
+function teacher_toggleShare(userId, day, share) {
   requireTeacher_();
-  Repo.upsert(C.SH.REFL, { lesson_id: lessonId, user_id: userId }, { '共有': share ? 'TRUE' : 'FALSE' });
+  var unit = requireCurrentUnit_();
+  Repo.upsert(C.SH.REFL, { unit_id: unit['unit_id'], user_id: userId, '日付': day || today_() },
+    { '共有': share ? 'TRUE' : 'FALSE' });
   return { ok: true };
 }
 
-/* ------- TeacherApi 内ヘルパー ------- */
+/* ------- 内部ヘルパー ------- */
 
-function lessonMeta_(lesson) {
-  var unit = firstWhere_(C.SH.UNIT, { unit_id: lesson['unit_id'] });
+function unitMeta_(unit) {
   return {
-    lessonId: lesson['lesson_id'],
-    unitName: unit ? unit['単元名'] : '',
-    subject: unit ? unit['教科'] : '',
-    grade: unit ? unit['学年'] : '',
-    period: lesson['時数'],
-    total: unit ? unit['総時数'] : '',
-    state: lesson['状態']
+    unitId: unit['unit_id'],
+    subject: unit['教科'],
+    grade: unit['学年'],
+    unitName: unit['単元名'],
+    totalHours: unit['総時数'],
+    state: unit['状態']
   };
-}
-
-function newestLesson_(lessons) {
-  return lessons.slice().sort(function (a, b) { return toMs_(b['更新時刻']) - toMs_(a['更新時刻']); })[0];
-}
-
-function indexBy_(arr, key) {
-  var m = {};
-  arr.forEach(function (r) { m[r[key]] = r; });
-  return m;
-}
-
-function groupBy_(arr, key) {
-  var m = {};
-  arr.forEach(function (r) { (m[r[key]] = m[r[key]] || []).push(r); });
-  return m;
-}
-
-/** 選択行配列から指定カテゴリの最新値 */
-function latestOf_(sels, category) {
-  var rows = sels.filter(function (s) { return s['カテゴリ'] === category; });
-  if (!rows.length) return null;
-  rows.sort(function (a, b) { return toMs_(b['選択時刻']) - toMs_(a['選択時刻']); });
-  return rows[0]['選んだ値'];
 }
