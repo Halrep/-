@@ -88,6 +88,11 @@
       </div>
       <div class="card-b" style="overflow-x:auto" id="refl-body"></div>
     </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="card-h"><span class="h-badge">💡</span><h2>単元の改善リスト　<span class="sub-h">子どもの「こんな教材があれば分かった」を、次の単元づくりに使う</span></h2></div>
+      <div class="card-b" id="improve-body"></div>
+    </div>
   </div>
 </div>
 
@@ -380,6 +385,39 @@ function loadReflections(day){
         '<td><button class="star-btn" data-share="'+esc(r.userId)+'" aria-pressed="'+r.shared+'">⭐</button></td></tr>';
     }).join('');
     $('#refl-body').innerHTML = '<table class="refl-table"><thead><tr><th style="width:96px">児童</th><th style="width:150px">達成度・計画</th><th style="width:150px">原因</th><th>ひとこと・次への一手</th><th style="width:46px">共有</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    loadImprovements();
+  });
+}
+
+/** 単元の改善リスト（教材リクエスト・つまずきの傾向・計画とのズレ） */
+function loadImprovements(){
+  callServer('teacher_getImprovements').then(function(d){
+    if(!d.hasUnit){ $('#improve-body').innerHTML = '<div class="empty">単元がありません。</div>'; return; }
+    var reqs = d.requests.length
+      ? '<div class="req-list">'+ d.requests.map(function(r){
+          return '<div class="req-row"><span class="rq-who">'+esc(r.number)+' '+esc(r.name)+'</span>'+
+                 '<span class="rq-t">'+esc(r.request)+'</span><span class="rq-d">'+esc(r.day)+'</span></div>';
+        }).join('') +'</div>'
+      : '<div class="empty">まだリクエストはありません。児童の振り返りに「こんな資料があれば」の欄があります。</div>';
+
+    var hard = d.hardTop.length
+      ? '<div class="d-chips">'+ d.hardTop.map(function(h){
+          return '<span class="d-chip">'+esc(h.label)+' <b class="num">'+h.count+'</b></span>';
+        }).join('') +'</div>'
+      : '<span class="sub-h">まだデータがありません</span>';
+
+    var gapKeys = Object.keys(d.planGap);
+    var gaps = gapKeys.length
+      ? '<div class="d-chips">'+ gapKeys.map(function(k){
+          return '<span class="d-chip">'+esc(k)+' <b class="num">'+d.planGap[k]+'</b></span>';
+        }).join('') +'</div>'
+      : '<span class="sub-h">まだデータがありません</span>';
+
+    $('#improve-body').innerHTML =
+      '<h3>子どもからの教材リクエスト</h3>'+ reqs +
+      '<h3 style="margin-top:14px">むずかしかった理由（単元全体）</h3>'+ hard +
+      '<h3 style="margin-top:14px">計画とのズレの分布</h3>'+ gaps +
+      '<div class="sub-h" style="margin-top:12px">1回目でうまくいく手引きはありません。ここに集まった声を、次の年の環境づくりに使ってください。</div>';
   });
 }
 function short_(t){ return t.replace(/（.*?）/g,'').slice(0,6); }

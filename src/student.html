@@ -84,11 +84,22 @@
     <div class="panel" id="pn2" role="tabpanel">
       <div class="card">
         <div class="card-h"><span class="h-badge">📏</span><h2>きょうの計画はどうだった？</h2></div>
-        <div class="card-b">
-          <div class="muted" id="r-goalref" style="font-size:12.5px; margin-bottom:6px"></div>
-          <div class="slider-wrap">
-            <input type="range" min="0" max="100" value="70" id="ach" aria-label="達成度">
-            <div class="slider-val"><span id="ach-v" class="num">70</span><small> /100</small></div>
+        <div class="card-b stack">
+          <div class="muted" id="r-goalref" style="font-size:12.5px"></div>
+          <div>
+            <h3>計画とくらべて、どうだった？　<span class="sub-h">できた・できないではなく、計画とのズレを見よう</span></h3>
+            <div class="chips" id="plangap"></div>
+          </div>
+          <div id="gap-reason-wrap" style="display:none">
+            <h3>そのズレは、何が理由だと思う？</h3>
+            <input type="text" id="gapreason" placeholder="例：資料を読むのに思ったより時間がかかった">
+          </div>
+          <div>
+            <h3>どこまで進んだ？</h3>
+            <div class="slider-wrap">
+              <input type="range" min="0" max="100" value="70" id="ach" aria-label="達成度">
+              <div class="slider-val"><span id="ach-v" class="num">70</span><small> /100</small></div>
+            </div>
           </div>
         </div>
       </div>
@@ -105,6 +116,11 @@
           <div><h3>今日の気持ち（いちばん近いものを1つ）</h3><div class="stamp-row" id="mood-row"></div></div>
           <div><h3>ひとことふりかえり</h3><textarea rows="2" id="selfeval" placeholder="できたこと・むずかしかったことを書こう"></textarea></div>
           <div><h3>次はどうする？（次の時間・ほかの教科で）</h3><textarea rows="2" id="nextplan" placeholder="使えた工夫、次にためすことを書こう"></textarea></div>
+          <div class="req-box">
+            <h3>💡 先生へ：こんな資料や道具があれば、もっと分かりそう</h3>
+            <div class="sub-h" style="margin-bottom:6px">きみの「分かりにくかった」は、次の授業をよくするための大事な情報です。反省ではありません。</div>
+            <input type="text" id="materialreq" placeholder="例：年表がもう少し大きいと読みやすい／白地図に県名があると助かる">
+          </div>
           <div class="row-end"><button class="btn" id="refl-save">ふりかえりを記録する</button></div>
         </div>
       </div>
@@ -155,11 +171,15 @@ function effFace(v){ return v>=80?'😄':v>=60?'🙂':v>=40?'😐':v>=20?'😟':
 
 function saveReflection(){
   var moodEl = $('#mood-row .stamp[aria-pressed="true"]');
+  var gapEl = $('#plangap .chip[aria-pressed="true"]');
   return save('student_saveReflection', {
     achievement: Number($('#ach').value),
+    planGap: gapEl ? gapEl.dataset.v : '',
+    planGapReason: $('#gapreason').value,
     selfEval: $('#selfeval').value,
     attrGood: $$('#attr-good .chip[aria-pressed="true"]').map(function(b){ return b.dataset.v; }),
     attrHard: $$('#attr-hard .chip[aria-pressed="true"]').map(function(b){ return b.dataset.v; }),
+    materialRequest: $('#materialreq').value,
     mood: moodEl ? moodEl.dataset.v : '',
     nextPlan: $('#nextplan').value
   });
@@ -311,9 +331,20 @@ function renderCommonRes(){
     }).join('');
 }
 
+var PLAN_GAP = [
+  {v:'早く進んだ', ic:'🚀'},
+  {v:'計画どおり', ic:'🎯'},
+  {v:'遅れた',     ic:'🐢'}
+];
 function renderReflection(){
   var r = S.my.reflection;
   $('#r-goalref').textContent = S.my.goal ? ('きょうの計画：' + (S.my.goal.doText||'')) : '';
+  $('#plangap').innerHTML = PLAN_GAP.map(function(g){
+    return '<button class="chip" data-v="'+esc(g.v)+'" aria-pressed="'+(!!(r && r.planGap===g.v))+'"><span class="cx">✓</span>'+g.ic+' '+esc(g.v)+'</button>';
+  }).join('');
+  $('#gapreason').value = r ? (r.planGapReason||'') : '';
+  $('#materialreq').value = r ? (r.materialRequest||'') : '';
+  updateGapReason(r ? r.planGap : '');
   $('#ach').value = r ? r.achievement : 70; $('#ach-v').textContent = r ? r.achievement : 70;
   $('#attr-good').innerHTML = ATTR_GOOD.map(function(t){ return chipHtml(t, r && r.attrGood.indexOf(t)>=0); }).join('');
   $('#attr-hard').innerHTML = ATTR_HARD.map(function(t){ return chipHtml(t, r && r.attrHard.indexOf(t)>=0); }).join('');
@@ -324,6 +355,11 @@ function renderReflection(){
   $('#nextplan').value = r ? (r.nextPlan||'') : '';
 }
 function chipHtml(t, on){ return '<button class="chip" data-v="'+esc(t)+'" aria-pressed="'+(!!on)+'"><span class="cx">✓</span>'+esc(t)+'</button>'; }
+
+/** 「計画どおり」以外のときだけ理由を聞く */
+function updateGapReason(gap){
+  $('#gap-reason-wrap').style.display = (gap && gap !== '計画どおり') ? '' : 'none';
+}
 
 function setHelp(on, silent){
   var b = $('#help-btn');
@@ -460,6 +496,15 @@ document.addEventListener('click', function(e){
   var beChip = e.target.closest('#be-chips .chip');
   if(beChip){ toggle(beChip); saveGoalDebounced(); return; }
 
+  var gapChip = e.target.closest('#plangap .chip');
+  if(gapChip){
+    $$('#plangap .chip').forEach(function(x){ x.setAttribute('aria-pressed','false'); });
+    gapChip.setAttribute('aria-pressed','true');
+    updateGapReason(gapChip.dataset.v);
+    saveReflDebounced();
+    return;
+  }
+
   var attrChip = e.target.closest('#attr-good .chip, #attr-hard .chip');
   if(attrChip){ toggle(attrChip); saveReflDebounced(); return; }
 
@@ -477,7 +522,7 @@ function toggle(el){ el.setAttribute('aria-pressed', el.getAttribute('aria-press
 
 document.addEventListener('input', function(e){
   if(e.target.id==='ach'){ $('#ach-v').textContent = e.target.value; saveReflDebounced(); }
-  if(e.target.id==='selfeval' || e.target.id==='nextplan'){ saveReflDebounced(); }
+  if(e.target.id==='selfeval' || e.target.id==='nextplan' || e.target.id==='gapreason' || e.target.id==='materialreq'){ saveReflDebounced(); }
   if(e.target.id==='do-input'){ saveGoalDebounced(); }
   if(e.target.id==='eff'){ $('#eff-v').textContent = e.target.value; $('#eff-face').textContent = effFace(Number(e.target.value)); saveGoalDebounced(); }
 });

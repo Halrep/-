@@ -322,6 +322,24 @@ let obsErr = '';
 try { call('teacher_saveObservation', 'U01', '', ''); } catch (e) { obsErr = String(e.message || e); }
 ok(obsErr.length > 0, '事実も解釈も空なら保存を拒否する');
 
+console.log('\n【18】振り返りの作り替え：計画とのズレと改善リスト');
+asUser('c@school.jp');
+call('student_saveReflection', {
+  achievement: 95, planGap: '早く進んだ', planGapReason: '動画が分かりやすかった',
+  selfEval: '発展に進めた', attrGood: ['やり方（工夫）がよかった'], attrHard: [],
+  materialRequest: '白地図に県名が入っていると助かる', mood: '😊', nextPlan: '新聞の下書きを進める'
+});
+asUser('teacher@school.jp');
+const imp = call('teacher_getImprovements');
+ok(imp.hasUnit === true, '改善リストが返る');
+ok(imp.requests.length === 2, '教材リクエストが2件集まる（A・C）');
+ok(imp.requests.every(r => r.name && r.request), 'リクエストに児童名と内容が入る');
+ok(imp.planGap['遅れた'] === 1 && imp.planGap['早く進んだ'] === 1, '計画とのズレの分布が集計される');
+ok(imp.hardTop.length >= 1 && imp.hardTop[0].count >= 1, 'むずかしかった理由が集計される');
+const reflC = call('teacher_getReflections', null).rows.find(r => r.userId === 'U03');
+ok(reflC.planGap === '早く進んだ', '一覧に計画とのズレが出る');
+ok(reflC.planGapReason.indexOf('動画') >= 0, 'ズレの理由が保存される');
+
 /* =================== 結果 =================== */
 console.log('\n========================================');
 console.log('  PASS: ' + pass + '   FAIL: ' + fail);

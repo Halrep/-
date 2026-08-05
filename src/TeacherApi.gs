@@ -458,6 +458,48 @@ function teacher_getReflections(day) {
   return { ok: true, hasUnit: true, day: target, days: days, rows: rows };
 }
 
+/**
+ * 単元の改善リスト。
+ * 「振り返りは反省をしない。代わりに『こういう教材があったら分かった』を聞き、翌年の改善に使う」
+ * 児童の教材リクエストを単元全体から集め、次年度の手引き・環境づくりの材料として返す。
+ */
+function teacher_getImprovements() {
+  requireTeacher_();
+  var unit = currentUnit_();
+  if (!unit) return { ok: true, hasUnit: false };
+  var unitId = unit['unit_id'];
+
+  var users = indexBy_(Repo.readAll(C.SH.USERS), 'user_id');
+  var requests = Repo.where(C.SH.REFL, { unit_id: unitId })
+    .filter(function (r) { return String(r['教材リクエスト'] || '').trim(); })
+    .map(function (r) {
+      var u = users[r['user_id']];
+      return {
+        day: r['日付'],
+        name: u ? (u['表示名'] || u['氏名']) : r['user_id'],
+        number: u ? u['出席番号'] : '',
+        request: r['教材リクエスト']
+      };
+    })
+    .sort(function (a, b) { return String(b.day).localeCompare(String(a.day)); });
+
+  // 「むずかしかった理由」も環境改善の材料として集計する
+  var hardCount = {};
+  Repo.where(C.SH.REFL, { unit_id: unitId }).forEach(function (r) {
+    splitCsv_(r['原因帰属難']).forEach(function (t) { hardCount[t] = (hardCount[t] || 0) + 1; });
+  });
+  var hardTop = Object.keys(hardCount).map(function (k) { return { label: k, count: hardCount[k] }; })
+    .sort(function (a, b) { return b.count - a.count; });
+
+  // 計画とのズレの分布
+  var gap = {};
+  Repo.where(C.SH.REFL, { unit_id: unitId }).forEach(function (r) {
+    var g = r['計画とのズレ']; if (g) gap[g] = (gap[g] || 0) + 1;
+  });
+
+  return { ok: true, hasUnit: true, unitName: unit['単元名'], requests: requests, hardTop: hardTop, planGap: gap };
+}
+
 /** 「みんなの工夫」への共有トグル */
 function teacher_toggleShare(userId, day, share) {
   requireTeacher_();
