@@ -225,6 +225,13 @@ textarea, input[type=text]{width:100%; border:1.5px solid var(--line); border-ra
 .d-memos{display:flex; flex-direction:column; gap:4px}
 .d-memo{background:var(--surface2); border-radius:8px; padding:6px 10px; font-size:12px; white-space:pre-wrap}
 .d-memo .mt{display:block; font-weight:800; font-size:10.5px; color:var(--muted)}
+.t-logs{display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px}
+.t-log{margin:0; border:1px solid var(--line); border-radius:8px; overflow:hidden; background:var(--surface)}
+.t-log .tl-img{aspect-ratio:4/3; background:var(--surface2); display:grid; place-items:center; overflow:hidden}
+.t-log .tl-img img{width:100%; height:100%; object-fit:cover; display:block}
+.t-log figcaption{padding:4px 6px; font-size:10.5px; color:var(--muted)}
+.t-priv{margin-left:4px}
+.t-c{display:block; color:var(--ink); font-size:11.5px; margin-top:2px}
 .quick{display:flex; flex-wrap:wrap; gap:6px}
 .quick button{border:1.5px solid var(--primary-line); background:var(--surface); color:var(--primary); border-radius:999px; padding:5px 12px; font-size:12px; font-weight:700}
 .empty{color:var(--muted); font-size:13px; text-align:center; padding:30px 10px}
@@ -319,6 +326,45 @@ textarea, input[type=text]{width:100%; border:1.5px solid var(--line); border-ra
 .checkin .ci-btn.ok{border-color:var(--ok); color:var(--ok)}
 .checkin .ci-btn.adj{border-color:var(--warn); color:var(--warn)}
 .checkin .ci-memo{flex:1; min-width:160px}
+
+/* 学びログ（カメラとビュー） */
+.log-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px}
+.log-tile{border:2px solid var(--line); border-radius:var(--r); background:var(--surface); overflow:hidden; margin:0; text-align:left}
+.lt-img{aspect-ratio:4/3; background:var(--surface2); display:grid; place-items:center; overflow:hidden}
+.lt-img img{width:100%; height:100%; object-fit:cover; display:block}
+.lt-load{font-size:11.5px; color:var(--muted)}
+.log-tile figcaption{padding:6px 8px; display:flex; flex-direction:column; gap:3px}
+.lt-who{font-size:11px; font-weight:800; color:var(--muted)}
+.lt-who.me{color:var(--primary)}
+.lt-task{font-size:10.5px; color:var(--muted)}
+.lt-c{font-size:12px; line-height:1.4}
+.lt-c.muted{color:var(--muted); font-variant-numeric:tabular-nums}
+.lt-acts{display:flex; gap:4px; align-items:center; margin-top:2px}
+.lt-share{flex:1; border:1px solid var(--line); background:var(--surface); border-radius:999px; padding:3px 8px; font-size:10.5px; font-weight:700; color:var(--muted)}
+.lt-share[aria-pressed="true"]{border-color:var(--primary-line); background:var(--primary-soft); color:var(--primary)}
+.lt-del{border:1px solid var(--line); background:var(--surface); border-radius:8px; padding:3px 7px; font-size:11px}
+.log-add{border:2px dashed var(--line); border-radius:var(--r); background:var(--surface2); min-height:120px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; color:var(--muted)}
+.log-add .ic{font-size:26px}
+.log-add .lb{font-size:12px; font-weight:800}
+.log-add:hover{border-color:var(--primary); color:var(--primary)}
+
+.cam{position:fixed; inset:0; z-index:90; background:rgba(15,21,25,.72); display:none; place-items:center; padding:16px}
+.cam.open{display:grid}
+.cam-box{width:min(560px,96vw); background:var(--surface); border-radius:14px; box-shadow:var(--shadow); padding:14px; display:flex; flex-direction:column; gap:10px}
+.cam-h{display:flex; align-items:center; justify-content:space-between; font-weight:800; font-size:15px}
+.cam-x{border:none; background:transparent; font-size:18px; color:var(--muted); padding:2px 6px}
+.cam-stage{aspect-ratio:4/3; background:#000; border-radius:var(--r); overflow:hidden; display:grid; place-items:center}
+.cam-stage video, .cam-stage img{width:100%; height:100%; object-fit:contain; display:block}
+.cam-stage img{display:none}
+.cam-row{display:flex; gap:8px; flex-wrap:wrap}
+.cam-row .btn{flex:1; justify-content:center; text-align:center}
+.cam-note{font-size:12px; color:var(--warn); min-height:1em}
+
+.lightbox{position:fixed; inset:0; z-index:95; background:rgba(15,21,25,.9); display:none; place-items:center; padding:20px; gap:10px; grid-auto-flow:row}
+.lightbox.open{display:grid}
+.lightbox img{max-width:96vw; max-height:82vh; object-fit:contain; border-radius:var(--r)}
+.lb-cap{color:#fff; font-size:13px; text-align:center}
 
 /* 実行中の他者参照（みんなの様子） */
 .peer-head{display:flex; align-items:center; gap:8px; flex-wrap:wrap}

@@ -414,6 +414,160 @@ function student_getPortfolio() {
   };
 }
 
+/* ==================== 学びログ（写真） ====================
+ * 文字だけの足跡では、ノートも作品も残らない。撮った写真を課題に結びつけて残す。
+ * 画像の実体は教師のドライブ、シートにはファイルIDだけを持つ。
+ */
+
+/**
+ * 撮った写真を保存する。
+ * dataUrl はクライアントで縮小済みの JPEG（'data:image/jpeg;base64,...'）。
+ */
+function student_saveLog(taskId, dataUrl, comment) {
+  var ctx = requireUser_();
+  var unit = requireCurrentUnit_();
+  var uid = ctx.user.userId;
+
+  var m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl || ''));
+  if (!m) throw new Error('画像の形式が正しくありません。');
+  var mime = m[1], b64 = m[2];
+  // base64 は元データの約4/3。デコード前に弾いて、大きすぎる投稿でメモリを使わない。
+  if (b64.length * 3 / 4 > C.LOG_MAX_BYTES) throw new Error('画像が大きすぎます。もう一度撮ってください。');
+
+  var task = taskId ? firstWhere_(C.SH.TASK, { unit_id: unit['unit_id'], task_id: taskId }) : null;
+  var day = today_();
+  var stamp = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyyMMdd_HHmmss');
+  var ext = mime === 'image/png' ? 'png' : (mime === 'image/webp' ? 'webp' : 'jpg');
+  // 誰の・いつの写真かがファイル名だけで分かるようにする（あとで教師が探せる）
+  var who = String(ctx.user.name || '').replace(/[\/\\:*?"<>|]/g, '_');
+  var fileName = [uid, who, stamp].filter(Boolean).join('_') + '.' + ext;
+
+  var unitLabel = unit['教科'] + '_' + unit['単元名'];
+  var folder = logFolder_(unitLabel, day);
+  var blob = Utilities.newBlob(Utilities.base64Decode(b64), mime, fileName);
+  var file = folder.createFile(blob);
+
+  var logId = Repo.uuid();
+  Repo.append(C.SH.LOG, {
+    log_id: logId,
+    unit_id: unit['unit_id'],
+    task_id: taskId || '',
+    user_id: uid,
+    '日付': day,
+    'ファイルID': file.getId(),
+    'ファイル名': fileName,
+    'ひとこと': comment || '',
+    '共有': 'TRUE',
+    '撮影時刻': Repo.now()
+  });
+
+  return {
+    ok: true,
+    log: {
+      logId: logId, taskId: taskId || '',
+      taskTitle: task ? task['タイトル'] : '',
+      comment: comment || '', shared: true,
+      mine: true, day: day, atMs: Date.now()
+    }
+  };
+}
+
+/**
+ * 学びログの一覧（画像は含まない）。
+ * scope='mine' は自分の分だけ。'class'（みんなの学びログ）は
+ * 教師が他者参照を開いているときだけ返す。
+ */
+function student_getLogs(scope) {
+  var ctx = requireUser_();
+  var uid = ctx.user.userId;
+  var unit = currentUnit_();
+  if (!unit) return { ok: true, items: [], classOpen: false };
+
+  var unitId = unit['unit_id'];
+  var classOpen = truthy_(unit['他者参照']);
+  var anon = unit['他者参照モード'] === '匿名';
+  var wantClass = scope === 'class';
+  if (wantClass && !classOpen) return { ok: true, items: [], classOpen: false };
+
+  var taskById = indexBy_(Repo.where(C.SH.TASK, { unit_id: unitId }), 'task_id');
+  var userById = indexBy_(Repo.readAll(C.SH.USERS), 'user_id');
+
+  var rows = Repo.where(C.SH.LOG, { unit_id: unitId }).filter(function (r) {
+    if (r['user_id'] === uid) return true;
+    // 他の子の写真は、他者参照が開いていて、本人が共有しているものだけ
+    return wantClass && truthy_(r['共有']);
+  });
+
+  var items = rows.map(function (r) {
+    var mine = r['user_id'] === uid;
+    var owner = userById[r['user_id']];
+    var t = taskById[r['task_id']];
+    return {
+      logId: r['log_id'],
+      taskId: r['task_id'],
+      taskTitle: t ? t['タイトル'] : '',
+      // 匿名モードでは自分以外の名前を伏せる（他者参照の設定に合わせる）
+      who: mine ? 'じぶん' : (anon ? 'クラスの人' : (owner ? (owner['表示名'] || owner['氏名']) : '')),
+      mine: mine,
+      comment: r['ひとこと'] || '',
+      shared: truthy_(r['共有']),
+      day: r['日付'],
+      atMs: toMs_(r['撮影時刻'])
+    };
+  });
+  items.sort(function (a, b) { return b.atMs - a.atMs; });
+  return { ok: true, items: items, classOpen: classOpen, anon: anon };
+}
+
+/**
+ * 画像1枚をデータURIで返す。一覧では読まず、表示するぶんだけ取りに来させる。
+ * （30人ぶんをまとめて返すと転送量で詰まる）
+ */
+function student_getLogImage(logId) {
+  var ctx = requireUser_();
+  var uid = ctx.user.userId;
+  var unit = requireCurrentUnit_();
+
+  var row = firstWhere_(C.SH.LOG, { unit_id: unit['unit_id'], log_id: logId });
+  if (!row) throw new Error('写真が見つかりません。');
+
+  // 自分のものでなければ、他者参照が開いていて共有されている場合だけ見せる
+  if (row['user_id'] !== uid && !(truthy_(unit['他者参照']) && truthy_(row['共有']))) {
+    throw new Error('この写真は見られません。');
+  }
+  return { ok: true, dataUrl: logDataUrl_(row['ファイルID']) };
+}
+
+/** 自分の写真を取り消す（Drive の実体も消す。シートだけ消すと写真が残る） */
+function student_deleteLog(logId) {
+  var ctx = requireUser_();
+  var unit = requireCurrentUnit_();
+  var match = { unit_id: unit['unit_id'], log_id: logId, user_id: ctx.user.userId };
+  var row = firstWhere_(C.SH.LOG, match);
+  if (!row) throw new Error('自分の写真だけ取り消せます。');
+
+  try { DriveApp.getFileById(row['ファイルID']).setTrashed(true); } catch (e) {}
+  Repo.remove(C.SH.LOG, match);
+  return { ok: true };
+}
+
+/** 自分の写真をみんなに見せるか切り替える */
+function student_setLogShare(logId, on) {
+  var ctx = requireUser_();
+  var unit = requireCurrentUnit_();
+  var match = { unit_id: unit['unit_id'], log_id: logId, user_id: ctx.user.userId };
+  if (!firstWhere_(C.SH.LOG, match)) throw new Error('自分の写真だけ変えられます。');
+  Repo.upsert(C.SH.LOG, match, { '共有': on ? 'TRUE' : 'FALSE' });
+  return { ok: true };
+}
+
+/** ファイルIDからデータURIを作る（教師・児童の両方から使う） */
+function logDataUrl_(fileId) {
+  var file = DriveApp.getFileById(fileId);
+  var blob = file.getBlob();
+  return 'data:' + blob.getContentType() + ';base64,' + Utilities.base64Encode(blob.getBytes());
+}
+
 /**
  * 実行中の他者参照：クラスの「今の途中経過」を返す。
  * 前向きな情報だけ（取り組み中の課題・進み具合・学習形態・使っている工夫）。

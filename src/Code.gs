@@ -68,3 +68,43 @@ function requireCurrentUnit_() {
 function today_() {
   return Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd');
 }
+
+/* ------- 学びログ（写真）の置き場 ------- */
+
+/**
+ * 写真の保存先フォルダを返す（無ければ作る）。
+ *
+ * ウェブアプリは「自分（＝デプロイした教師）として実行」なので、
+ * DriveApp は常に教師のドライブを見る。子どものアカウントに Drive 権限は要らず、
+ * 写真も子どものドライブには入らない。
+ *
+ * drive.file スコープはアプリが作ったファイル／フォルダにしか触れないため、
+ * スプレッドシートの親フォルダは辿れない。ルート直下に自前の置き場を作り、
+ * そのIDをスクリプトプロパティに覚えておく。
+ */
+function logFolder_(unitLabel, day) {
+  var props = PropertiesService.getScriptProperties();
+  var rootId = props.getProperty(C.LOG_ROOT_PROP);
+  var root = null;
+
+  if (rootId) {
+    // 教師がフォルダをゴミ箱に入れていることがある。その時は作り直す。
+    try {
+      var f = DriveApp.getFolderById(rootId);
+      if (!f.isTrashed()) root = f;
+    } catch (e) { root = null; }
+  }
+  if (!root) {
+    root = DriveApp.createFolder(C.LOG_ROOT_NAME);
+    props.setProperty(C.LOG_ROOT_PROP, root.getId());
+  }
+
+  return childFolder_(childFolder_(root, unitLabel), day);
+}
+
+/** 名前の一致する子フォルダを返す（無ければ作る） */
+function childFolder_(parent, name) {
+  var safe = String(name).replace(/[\/\\:*?"<>|]/g, '_').slice(0, 100) || '_';
+  var it = parent.getFoldersByName(safe);
+  return it.hasNext() ? it.next() : parent.createFolder(safe);
+}

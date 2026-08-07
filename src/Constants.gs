@@ -57,8 +57,17 @@ var C = {
     CHECK:   '確認タイム',
     REFL:    '振り返り',
     FB:      'フィードバック',
-    OBS:     '見取りメモ'
-  }
+    OBS:     '見取りメモ',
+    LOG:     '学びログ'
+  },
+
+  // 学びログ（写真）の置き場。Drive のルートに作り、IDをスクリプトプロパティに覚える。
+  // drive.file スコープはアプリが作ったファイルにしか触れないので、この方式が要る。
+  LOG_ROOT_NAME: 'SRLアプリ_学びのきろく',
+  LOG_ROOT_PROP: 'LOG_ROOT_FOLDER_ID',
+
+  // 1枚あたりの上限（クライアントで縮小済みの想定。桁外れの投稿を弾くための保険）
+  LOG_MAX_BYTES: 3 * 1024 * 1024
 };
 
 // 各シートの列見出し（順序が実際の列順になる）
@@ -103,13 +112,18 @@ C.HEADERS[C.SH.REFL]    = ['reflection_id', 'unit_id', 'user_id', '日付', '達
 C.HEADERS[C.SH.FB]      = ['feedback_id', 'unit_id', 'from_user_id', 'to_user_id', 'コメント', '既読', '送信時刻'];
 // 見取りメモ：見取りは仮説で行う。事実と解釈を分けて書き、あとで同僚と語り合うための記録。
 C.HEADERS[C.SH.OBS]     = ['obs_id', 'unit_id', 'user_id', 'teacher_id', '事実', '解釈（仮説）', '時刻'];
+// 学びログ：ノートや作品そのものの写真。文字だけでは残らない足跡を残す。
+// 画像の実体は Drive に置き、ここにはファイルIDだけを持つ。
+C.HEADERS[C.SH.LOG]     = ['log_id', 'unit_id', 'task_id', 'user_id', '日付', 'ファイルID', 'ファイル名', 'ひとこと', '共有', '撮影時刻'];
 
 // Setup で作る順
 C.SHEET_ORDER = [
   C.SH.USERS, C.SH.STRAT, C.SH.PRESET,
   C.SH.UNIT, C.SH.TASK, C.SH.RES, C.SH.USTRAT, C.SH.UCHOICE,
-  C.SH.GOAL, C.SH.SEL, C.SH.PROG, C.SH.SUSE, C.SH.HELP, C.SH.CHECK, C.SH.REFL, C.SH.FB, C.SH.OBS
+  C.SH.GOAL, C.SH.SEL, C.SH.PROG, C.SH.SUSE, C.SH.HELP, C.SH.CHECK, C.SH.REFL, C.SH.FB, C.SH.OBS, C.SH.LOG
 ];
 
 // 記録系（授業のやり直しで消せるもの）
+// 学びログは入れない：シートの行を消しても Drive の写真は残り、
+// 消えたつもりの写真がドライブに残り続けるほうが危ない。写真は個別に取り消す。
 C.RECORD_SHEETS = [C.SH.GOAL, C.SH.SEL, C.SH.PROG, C.SH.SUSE, C.SH.HELP, C.SH.CHECK, C.SH.REFL, C.SH.FB, C.SH.OBS];

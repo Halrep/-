@@ -240,6 +240,7 @@ function openDetail(uid){
       '<div class="d-row"><b>課題の進み方</b><span class="d-chips">'+taskChips+'</span></div>'+
       gapHtml +
       memoHtml +
+      '<div class="d-row" id="d-logs"></div>'+
       '<div class="obs">'+
         '<b>見取りメモ　<span class="sub-h">見取りは仮説。事実と解釈を分けて書くと、あとで同僚と語り合えます</span></b>'+
         '<input type="text" id="obs-fact" placeholder="事実：見えたこと（例：白地図を3分見て、色をぬらずに手が止まった）">'+
@@ -263,6 +264,33 @@ function openDetail(uid){
           '<input type="text" id="fb-input" placeholder="自由に入力…" style="flex:1">'+
           '<button class="btn" style="padding:8px 14px" id="fb-send">送信</button>'+
         '</div></div>';
+
+    loadStudentLogs(uid);
+  });
+}
+
+/* 学びログ：一覧だけ先に出し、画像は表示するぶんだけ取りに行く */
+function loadStudentLogs(uid){
+  callServer('teacher_getLogs', uid).then(function(res){
+    var box = $('#d-logs');
+    if(!box || selectedUser !== uid) return;
+    if(!res.items.length){ box.innerHTML = ''; return; }
+    box.innerHTML = '<b>学びログ　<span class="sub-h">本人が撮ったノート・作品</span></b>'+
+      '<div class="t-logs">'+ res.items.map(function(l){
+        return '<figure class="t-log" data-tlog="'+esc(l.logId)+'">'+
+          '<div class="tl-img" data-timg="'+esc(l.logId)+'"><span class="lt-load">…</span></div>'+
+          '<figcaption>'+esc(String(l.day).slice(5))+
+            (l.taskTitle?'・'+esc(l.taskTitle):'')+
+            (l.shared?'':'<span class="t-priv">🔒</span>')+
+            (l.comment?'<span class="t-c">'+esc(l.comment)+'</span>':'')+
+          '</figcaption></figure>';
+      }).join('') +'</div>';
+
+    $$('#d-logs .tl-img').forEach(function(el){
+      callServer('teacher_getLogImage', el.dataset.timg).then(function(r){
+        el.innerHTML = '<img src="'+r.dataUrl+'" alt="">';
+      }).catch(function(){ el.innerHTML = '<span class="lt-load">—</span>'; });
+    });
   });
 }
 

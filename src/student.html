@@ -78,6 +78,13 @@
           <div class="peer-grid" id="peer-grid"></div>
         </div>
       </div>
+
+      <div class="card" id="classlog-card" style="display:none">
+        <div class="card-h"><span class="h-badge">🖼</span><h2>みんなの学びログ　<span class="sub-h">友だちのノートを見て、自分の学びにつなげよう</span></h2></div>
+        <div class="card-b">
+          <div class="log-grid" id="classlog-grid"></div>
+        </div>
+      </div>
     </div>
 
     <!-- ③ ふりかえる -->
@@ -153,6 +160,35 @@
   </div>
 </div>
 
+<!-- カメラ -->
+<div class="cam" id="cam" role="dialog" aria-label="カメラ" aria-hidden="true">
+  <div class="cam-box">
+    <div class="cam-h"><span id="cam-title">📷 学びログをのこす</span>
+      <button class="cam-x" id="cam-close" aria-label="とじる">✕</button></div>
+    <div class="cam-stage">
+      <video id="cam-video" playsinline muted></video>
+      <img id="cam-shot" alt="撮った写真">
+    </div>
+    <input type="text" id="cam-comment" placeholder="ひとこと（何をのこす？）">
+    <div class="cam-row" id="cam-row-live">
+      <button class="btn" id="cam-shoot">📷 さつえい</button>
+      <label class="btn ghost" for="cam-file">🖼 写真をえらぶ</label>
+      <input type="file" id="cam-file" accept="image/*" capture="environment" hidden>
+    </div>
+    <div class="cam-row" id="cam-row-shot" style="display:none">
+      <button class="btn" id="cam-save">✔ ほぞん</button>
+      <button class="btn ghost" id="cam-retake">↺ とりなおし</button>
+    </div>
+    <div class="cam-note" id="cam-note"></div>
+  </div>
+</div>
+
+<!-- 写真の拡大 -->
+<div class="lightbox" id="lightbox" role="dialog" aria-label="写真" aria-hidden="true">
+  <img id="lb-img" alt="学びログの写真">
+  <div class="lb-cap" id="lb-cap"></div>
+</div>
+
 <script>
 var BE_CHIPS = ['集中して','ねばり強く','協力して','資料をじっくり読んで','自分の考えをもって'];
 var ATTR_GOOD = ['やり方（工夫）がよかった','集中できた','友だちと協力できた','時間の使い方がよかった'];
@@ -226,6 +262,7 @@ function render(){
   setHelp(S.my.help, true);
   renderReflection();
   loadPortfolio();
+  loadLogs();
   startCheckin();
 }
 
@@ -296,6 +333,19 @@ function renderTasks(){
   var resHtml = t.resources.length ? t.resources.map(resRow).join('')
     : '<div class="empty">この課題に紐づいた資料はありません（下の「いつでも使える資料」を使おう）</div>';
 
+  var myLogHtml = (S.myLogs||[]).filter(function(l){ return l.taskId === t.taskId; }).map(function(l){
+    return '<figure class="log-tile mine" data-log="'+esc(l.logId)+'" data-mine="1">'+
+      '<div class="lt-img" data-img="'+esc(l.logId)+'"><span class="lt-load">…</span></div>'+
+      '<figcaption>'+
+        (l.comment?'<span class="lt-c">'+esc(l.comment)+'</span>':'<span class="lt-c muted">'+esc(String(l.day).slice(5))+'</span>')+
+        '<span class="lt-acts">'+
+          '<button class="lt-share" data-share="'+esc(l.logId)+'" aria-pressed="'+l.shared+'">'+
+            (l.shared?'👀 みんなに見せる':'🔒 じぶんだけ')+'</button>'+
+          '<button class="lt-del" data-del="'+esc(l.logId)+'" aria-label="取り消す">🗑</button>'+
+        '</span>'+
+      '</figcaption></figure>';
+  }).join('');
+
   var undHtml = (S.understandingLevels||[]).map(function(u){
     return '<button class="und" data-und="'+u.value+'" aria-pressed="'+(t.understanding===u.value)+'">'+
       '<span class="ic">'+esc(u.icon)+'</span><span class="lb">'+esc(u.label)+'</span></button>';
@@ -320,6 +370,10 @@ function renderTasks(){
           '<div class="und-row">'+undHtml+'</div></div>'+
         '<div class="tsec"><h3>この課題のメモ　<span class="sub-h">気づいたこと・大切だと思ったこと・分からなかったこと</span></h3>'+
           '<textarea rows="3" id="task-memo" placeholder="例：年表は下から読むと流れが分かった／「摂関政治」がまだあいまい">'+esc(t.memo||'')+'</textarea></div>'+
+        '<div class="tsec"><h3>学びログ　<span class="sub-h">ノートや作品を撮って、あとから見返そう</span></h3>'+
+          '<div class="log-grid mine">'+myLogHtml+
+            '<button class="log-add" data-cam="'+esc(t.taskId)+'"><span class="ic">📷</span><span class="lb">写真をのこす</span></button>'+
+          '</div></div>'+
         '<div class="tsec tstate">'+
           '<span class="now s'+t.status+'">いま：'+ST_LABEL[t.status]+'</span>'+
           '<button class="btn ghost" data-status="1">▶ 取りかかる</button>'+
@@ -327,6 +381,8 @@ function renderTasks(){
         '</div>'+
       '</div>'+
     '</div>';
+
+  lazyLoadLogImages('#task-panel');
 }
 
 function resRow(r){
@@ -465,6 +521,181 @@ function loadPortfolio(){
   });
 }
 
+/* ---- 学びログ（カメラとビュー） ----
+   写真は教師のドライブに入る。子どものアカウントには何も残らない。
+   画像は重いので、一覧では読まず、表示する枚数ぶんだけ取りに行く。 */
+var LOG_MAX_PX = 1000;      // 長辺の上限。教室のタブレットで撮った写真をそのまま送らない
+var LOG_QUALITY = 0.72;
+var camStream = null, camTaskId = '', camShot = '';
+var logImgCache = {};
+
+
+/* canvas で長辺 LOG_MAX_PX まで縮めて JPEG のデータURIにする */
+function shrinkToDataUrl(src, w, h){
+  var scale = Math.min(1, LOG_MAX_PX / Math.max(w, h));
+  var cv = document.createElement('canvas');
+  cv.width = Math.round(w * scale); cv.height = Math.round(h * scale);
+  cv.getContext('2d').drawImage(src, 0, 0, cv.width, cv.height);
+  return cv.toDataURL('image/jpeg', LOG_QUALITY);
+}
+
+function openCamera(taskId){
+  camTaskId = taskId; camShot = '';
+  $('#cam-comment').value = '';
+  $('#cam-shot').style.display = 'none';
+  $('#cam-video').style.display = '';
+  $('#cam-row-live').style.display = '';
+  $('#cam-row-shot').style.display = 'none';
+  $('#cam-note').textContent = '';
+  $('#cam').setAttribute('aria-hidden','false');
+  $('#cam').classList.add('open');
+
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    camNoStream('このタブレットではカメラを直接使えません。「写真をえらぶ」から撮ってください。');
+    return;
+  }
+  navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }, audio:false })
+    .then(function(stream){
+      camStream = stream;
+      var v = $('#cam-video');
+      v.srcObject = stream;
+      v.play();
+    })
+    .catch(function(){
+      // 権限を断られた・カメラが無い。ファイル選択なら続けられる。
+      camNoStream('カメラが使えませんでした。「写真をえらぶ」から選んでください。');
+    });
+}
+
+function camNoStream(msg){
+  $('#cam-video').style.display = 'none';
+  $('#cam-shoot').style.display = 'none';
+  $('#cam-note').textContent = msg;
+}
+
+function closeCamera(){
+  // ストリームを止めないとカメラのランプが点いたままになる
+  if(camStream){ camStream.getTracks().forEach(function(t){ t.stop(); }); camStream = null; }
+  var v = $('#cam-video');
+  v.pause(); v.srcObject = null;
+  v.style.display = ''; $('#cam-shoot').style.display = '';
+  $('#cam').classList.remove('open');
+  $('#cam').setAttribute('aria-hidden','true');
+  camShot = '';
+}
+
+function camShoot(){
+  var v = $('#cam-video');
+  if(!v.videoWidth){ toast('カメラの準備がまだです'); return; }
+  camShot = shrinkToDataUrl(v, v.videoWidth, v.videoHeight);
+  showShot();
+}
+
+function showShot(){
+  $('#cam-shot').src = camShot;
+  $('#cam-shot').style.display = '';
+  $('#cam-video').style.display = 'none';
+  $('#cam-row-live').style.display = 'none';
+  $('#cam-row-shot').style.display = '';
+}
+
+function camRetake(){
+  camShot = '';
+  $('#cam-shot').style.display = 'none';
+  $('#cam-video').style.display = camStream ? '' : 'none';
+  $('#cam-row-live').style.display = '';
+  $('#cam-row-shot').style.display = 'none';
+}
+
+function camPickFile(file){
+  if(!file) return;
+  var fr = new FileReader();
+  fr.onload = function(){
+    var im = new Image();
+    im.onload = function(){ camShot = shrinkToDataUrl(im, im.width, im.height); showShot(); };
+    im.onerror = function(){ toast('この写真は読めませんでした'); };
+    im.src = fr.result;
+  };
+  fr.readAsDataURL(file);
+}
+
+function camSave(){
+  if(!camShot) return;
+  var btn = $('#cam-save');
+  btn.disabled = true; btn.textContent = 'ほぞん中…';
+  callServer('student_saveLog', camTaskId, camShot, $('#cam-comment').value)
+    .then(function(){
+      closeCamera();
+      toast('学びログにのこしました');
+      return loadLogs();
+    })
+    .catch(function(e){ toast('ほぞんできませんでした: '+(e&&e.message||e)); })
+    .then(function(){ btn.disabled = false; btn.textContent = '✔ ほぞん'; });
+}
+
+/* 自分の写真を読み直して、課題パネルとみんなの学びログを更新する */
+function loadLogs(){
+  return callServer('student_getLogs', 'mine').then(function(res){
+    S.myLogs = res.items || [];
+    renderTasks();
+    if(res.classOpen) loadClassLogs();
+    return res;
+  });
+}
+
+function loadClassLogs(){
+  callServer('student_getLogs', 'class').then(function(res){
+    var card = $('#classlog-card');
+    if(!res.classOpen || !res.items.length){ card.style.display = 'none'; return; }
+    card.style.display = '';
+    $('#classlog-grid').innerHTML = res.items.map(logTile).join('');
+    lazyLoadLogImages('#classlog-grid');
+  });
+}
+
+function logTile(it){
+  return '<figure class="log-tile" data-log="'+esc(it.logId)+'"'+(it.mine?' data-mine="1"':'')+'>'+
+    '<div class="lt-img" data-img="'+esc(it.logId)+'"><span class="lt-load">…</span></div>'+
+    '<figcaption><span class="lt-who'+(it.mine?' me':'')+'">'+esc(it.who)+'</span>'+
+      (it.taskTitle?'<span class="lt-task">'+esc(it.taskTitle)+'</span>':'')+
+      (it.comment?'<span class="lt-c">'+esc(it.comment)+'</span>':'')+'</figcaption>'+
+  '</figure>';
+}
+
+/* 画面に入ったものから1枚ずつ読む。30人ぶんをまとめて返すと詰まる。 */
+function lazyLoadLogImages(root){
+  var boxes = $$(root+' .lt-img');
+  if(!boxes.length) return;
+  var fetchOne = function(box){
+    var id = box.dataset.img;
+    if(box.dataset.done) return;
+    box.dataset.done = '1';
+    if(logImgCache[id]){ box.innerHTML = '<img src="'+logImgCache[id]+'" alt="">'; return; }
+    callServer('student_getLogImage', id).then(function(r){
+      logImgCache[id] = r.dataUrl;
+      box.innerHTML = '<img src="'+r.dataUrl+'" alt="">';
+    }).catch(function(){ box.innerHTML = '<span class="lt-load">見られません</span>'; });
+  };
+  if(!window.IntersectionObserver){ boxes.forEach(fetchOne); return; }
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if(en.isIntersecting){ fetchOne(en.target); io.unobserve(en.target); }
+    });
+  }, { rootMargin:'200px' });
+  boxes.forEach(function(b){ io.observe(b); });
+}
+
+function openLightbox(logId, cap){
+  var show = function(url){
+    $('#lb-img').src = url;
+    $('#lb-cap').textContent = cap || '';
+    $('#lightbox').classList.add('open');
+    $('#lightbox').setAttribute('aria-hidden','false');
+  };
+  if(logImgCache[logId]) show(logImgCache[logId]);
+  else callServer('student_getLogImage', logId).then(function(r){ logImgCache[logId] = r.dataUrl; show(r.dataUrl); });
+}
+
 /* ---- 確認タイム ---- */
 var checkinTimer = null, checkinCount = 0;
 function startCheckin(){
@@ -559,6 +790,51 @@ document.addEventListener('click', function(e){
     return;
   }
 
+  /* --- 学びログ --- */
+  if(e.target.closest('#cam-close')){ closeCamera(); return; }
+  if(e.target.closest('#cam-shoot')){ camShoot(); return; }
+  if(e.target.closest('#cam-retake')){ camRetake(); return; }
+  if(e.target.closest('#cam-save')){ camSave(); return; }
+  if(e.target.closest('#lightbox')){
+    $('#lightbox').classList.remove('open');
+    $('#lightbox').setAttribute('aria-hidden','true');
+    return;
+  }
+
+  var camBtn = e.target.closest('[data-cam]');
+  if(camBtn){ flushTaskNote(); openCamera(camBtn.dataset.cam); return; }
+
+  var shareBtn = e.target.closest('[data-share]');
+  if(shareBtn){
+    var son = shareBtn.getAttribute('aria-pressed')!=='true';
+    shareBtn.setAttribute('aria-pressed', String(son));
+    shareBtn.textContent = son ? '👀 みんなに見せる' : '🔒 じぶんだけ';
+    var sl = (S.myLogs||[]).find(function(x){ return x.logId===shareBtn.dataset.share; });
+    if(sl) sl.shared = son;
+    save('student_setLogShare', shareBtn.dataset.share, son).then(function(){
+      toast(son ? 'みんなに見せます' : 'じぶんだけにしました');
+      if(S.unit && S.unit.peerRef) loadClassLogs();
+    });
+    return;
+  }
+
+  var delBtn = e.target.closest('[data-del]');
+  if(delBtn){
+    if(!confirm('この写真を取り消しますか？　もとにもどせません。')) return;
+    callServer('student_deleteLog', delBtn.dataset.del).then(function(){
+      toast('取り消しました');
+      return loadLogs();
+    }).catch(function(err){ toast('取り消せませんでした: '+(err&&err.message||err)); });
+    return;
+  }
+
+  var tile = e.target.closest('.log-tile');
+  if(tile){
+    var fc = tile.querySelector('.lt-c');
+    openLightbox(tile.dataset.log, fc ? fc.textContent : '');
+    return;
+  }
+
   var undBtn = e.target.closest('.und');
   if(undBtn){
     var uv = Number(undBtn.dataset.und);
@@ -623,6 +899,10 @@ document.addEventListener('input', function(e){
   if(e.target.id==='selfeval' || e.target.id==='nextplan' || e.target.id==='gapreason' || e.target.id==='materialreq'){ saveReflDebounced(); }
   if(e.target.id==='do-input'){ saveGoalDebounced(); }
   if(e.target.id==='task-memo'){ saveTaskNoteDebounced(); }
+});
+
+document.addEventListener('change', function(e){
+  if(e.target.id==='cam-file'){ camPickFile(e.target.files && e.target.files[0]); e.target.value=''; }
   if(e.target.id==='eff'){ $('#eff-v').textContent = e.target.value; $('#eff-face').textContent = effFace(Number(e.target.value)); saveGoalDebounced(); }
 });
 

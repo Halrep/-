@@ -76,10 +76,77 @@ function makeSpreadsheet() {
   return { ss, ui };
 }
 
+/* ---------- インメモリ Drive ---------- */
+let driveSeq = 0;
+const driveFiles = {};    // id -> {id,name,mime,bytes,trashed,parentId}
+const driveFolders = {};  // id -> {id,name,trashed,parentId}
+
+function makeDriveFile(rec) {
+  return {
+    getId() { return rec.id; },
+    getName() { return rec.name; },
+    setTrashed(v) { rec.trashed = !!v; return this; },
+    isTrashed() { return rec.trashed; },
+    getBlob() {
+      return {
+        getContentType() { return rec.mime; },
+        getBytes() { return rec.bytes; },
+        getName() { return rec.name; }
+      };
+    }
+  };
+}
+
+function makeDriveFolder(rec) {
+  const F = {
+    getId() { return rec.id; },
+    getName() { return rec.name; },
+    isTrashed() { return rec.trashed; },
+    setTrashed(v) { rec.trashed = !!v; return F; },
+    createFolder(name) {
+      const r = { id: 'fold-' + (++driveSeq), name, trashed: false, parentId: rec.id };
+      driveFolders[r.id] = r;
+      return makeDriveFolder(r);
+    },
+    getFoldersByName(name) {
+      const hits = Object.values(driveFolders)
+        .filter(f => f.parentId === rec.id && f.name === name && !f.trashed)
+        .map(makeDriveFolder);
+      let i = 0;
+      return { hasNext() { return i < hits.length; }, next() { return hits[i++]; } };
+    },
+    createFile(blob) {
+      const r = {
+        id: 'file-' + (++driveSeq), name: blob.getName(), mime: blob.getContentType(),
+        bytes: blob.getBytes(), trashed: false, parentId: rec.id
+      };
+      driveFiles[r.id] = r;
+      return makeDriveFile(r);
+    }
+  };
+  return F;
+}
+
+const driveRootRec = { id: 'root', name: 'My Drive', trashed: false, parentId: null };
+driveFolders['root'] = driveRootRec;
+
+const DriveApp = {
+  createFolder(name) { return makeDriveFolder(driveRootRec).createFolder(name); },
+  getFolderById(id) {
+    if (!driveFolders[id]) throw new Error('no folder ' + id);
+    return makeDriveFolder(driveFolders[id]);
+  },
+  getFileById(id) {
+    if (!driveFiles[id]) throw new Error('no file ' + id);
+    return makeDriveFile(driveFiles[id]);
+  }
+};
+
 /* ---------- GASサービスのモック ---------- */
 let CURRENT_EMAIL = '';
 let uuidCounter = 0;
 const { ss, ui } = makeSpreadsheet();
+const scriptProps = {};
 
 function pad2(n) { return n < 10 ? '0' + n : String(n); }
 
@@ -91,14 +158,34 @@ const sandbox = {
     getActiveUser() { return { getEmail() { return CURRENT_EMAIL; } }; },
     getEffectiveUser() { return { getEmail() { return CURRENT_EMAIL; } }; }
   },
+  DriveApp,
   Utilities: {
     getUuid() { return 'uuid-' + (++uuidCounter); },
-    // 'yyyy-MM-dd' だけ対応すれば足りる
     formatDate(d, tz, fmt) {
-      return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+      const map = {
+        yyyy: String(d.getFullYear()), MM: pad2(d.getMonth() + 1), dd: pad2(d.getDate()),
+        HH: pad2(d.getHours()), mm: pad2(d.getMinutes()), ss: pad2(d.getSeconds())
+      };
+      return String(fmt).replace(/yyyy|MM|dd|HH|mm|ss/g, m => map[m]);
+    },
+    base64Decode(s) { return Array.from(Buffer.from(s, 'base64')); },
+    base64Encode(bytes) { return Buffer.from(bytes).toString('base64'); },
+    newBlob(bytes, mime, name) {
+      return {
+        getBytes() { return bytes; },
+        getContentType() { return mime; },
+        getName() { return name; }
+      };
     }
   },
-  PropertiesService: { getScriptProperties() { return { getProperty() { return null; } }; } },
+  PropertiesService: {
+    getScriptProperties() {
+      return {
+        getProperty(k) { return Object.prototype.hasOwnProperty.call(scriptProps, k) ? scriptProps[k] : null; },
+        setProperty(k, v) { scriptProps[k] = String(v); return this; }
+      };
+    }
+  },
   CacheService: { getScriptCache() { return { get() { return null; }, put() {} }; } },
   HtmlService: {
     createTemplateFromFile() { return { evaluate() { return { setTitle() { return this; }, addMetaTag() { return this; }, setXFrameOptionsMode() { return this; } }; } }; },
@@ -130,7 +217,7 @@ function backdate(min) { return vm.runInContext('new Date(Date.now()-' + min + '
 console.log('\n【1】初期セットアップ');
 call('setupSheets');
 const names = Object.keys(ss._sheets);
-ok(names.length === 17, 'シートが17枚生成された（実際: ' + names.length + '）');
+ok(names.length === 18, 'シートが18枚生成された（実際: ' + names.length + '）');
 ok(sheetRows('方略マスタ').length === 6, '方略マスタに6枚のサンプル');
 ok(sheetRows('単元').length === 1, 'デモ単元が1件');
 const allTasks = sheetRows('課題');
@@ -397,6 +484,108 @@ ok(dT1.memo.indexOf('年表') >= 0, '教師詳細にメモが届く');
 ok(detN.understandingLevels.length === 4, '教師側にも理解度の目盛りが届く');
 // 「完了」なのに理解度が低い＝環境（手引き・資料）を見直すサイン
 ok(dT1.status === 2 && dT1.understanding <= 2, '完了なのに分かりぐあいが低い状態を検出できる');
+
+console.log('\n【22】カメラ：学びログの写真を残す');
+// 1x1 の JPEG をクライアントが縮小して送ってきたつもりのデータ
+const PIX = 'data:image/jpeg;base64,' + Buffer.from('fake-jpeg-bytes').toString('base64');
+asUser('a@school.jp');
+const savedA = call('student_saveLog', t1.taskId, PIX, 'ノートに年表をまとめた');
+ok(savedA.ok === true, '写真が保存できる');
+ok(sheetRows('学びログ').length === 1, '学びログが1件記録される');
+const logRowA = sheetRows('学びログ')[0];
+ok(!!logRowA['ファイルID'], 'Drive のファイルIDが残る');
+ok(logRowA['ファイル名'].indexOf('U01') === 0, 'ファイル名が生徒IDで始まる');
+ok(logRowA['ファイル名'].indexOf('青木') >= 0, 'ファイル名に氏名が入る');
+ok(/_\d{8}_\d{6}\./.test(logRowA['ファイル名']), 'ファイル名に撮影年月日と時刻が入る');
+ok(logRowA['task_id'] === t1.taskId, '写真が課題に結びつく');
+// フォルダは 単元 → 日付 の順に掘られる
+const folderNames = Object.values(driveFolders).map(f => f.name);
+ok(folderNames.indexOf('SRLアプリ_学びのきろく') >= 0, '置き場のルートフォルダができる');
+ok(folderNames.some(n => n.indexOf('社会') >= 0 && n.indexOf('_') >= 0), '教科と単元名のフォルダができる');
+ok(folderNames.indexOf(call('today_')) >= 0, '日付のフォルダができる');
+// 2枚目は同じフォルダに入る（撮るたびにフォルダが増えない）
+call('student_saveLog', t1.taskId, PIX, '');
+ok(Object.values(driveFolders).filter(f => f.name === call('today_')).length === 1,
+  '同じ日の写真は同じフォルダに入る');
+// 画像は一覧では返さず、1枚ずつ取りに行く
+const myLogs = call('student_getLogs', 'mine');
+ok(myLogs.items.length === 2, '自分の学びログが2件返る');
+ok(myLogs.items[0].dataUrl === undefined, '一覧に画像本体は含まれない（転送量を抑える）');
+ok(myLogs.items[0].taskTitle.length > 0, '一覧にどの課題の写真か出る');
+ok(call('student_getLogImage', savedA.log.logId).dataUrl === PIX, '画像を1枚ずつ取り出せる');
+// 形式と大きさの検査
+let badErr = '';
+try { call('student_saveLog', t1.taskId, 'javascript:alert(1)', ''); } catch (e) { badErr = String(e.message || e); }
+ok(badErr.indexOf('形式') >= 0, '画像でないデータは弾く');
+let bigErr = '';
+try { call('student_saveLog', t1.taskId, 'data:image/jpeg;base64,' + 'A'.repeat(5 * 1024 * 1024), ''); }
+catch (e) { bigErr = String(e.message || e); }
+ok(bigErr.indexOf('大きすぎ') >= 0, '大きすぎる画像は弾く');
+
+console.log('\n【23】ビュー：みんなの学びログ');
+asUser('b@school.jp');
+call('student_saveLog', stB.tasks[4].taskId, PIX, '白地図をぬった');
+asUser('teacher@school.jp');
+call('teacher_setPeerRef', unitId, true, false);
+asUser('a@school.jp');
+const classLogs = call('student_getLogs', 'class');
+ok(classLogs.classOpen === true, '他者参照が開いていればみんなの学びログが開く');
+ok(classLogs.items.length === 3, '自分2件＋石田さん1件で3件');
+ok(classLogs.items.some(i => i.who === '石田'), '記名モードでは名前が出る');
+ok(classLogs.items.filter(i => i.mine).length === 2, '自分の写真が2件と分かる');
+// 匿名モードでは自分以外の名前を伏せる
+asUser('teacher@school.jp');
+call('teacher_setPeerRef', unitId, true, true);
+asUser('a@school.jp');
+const anonLogs = call('student_getLogs', 'class');
+ok(anonLogs.items.filter(i => !i.mine).every(i => i.who === 'クラスの人'), '匿名モードでは名前を伏せる');
+ok(anonLogs.items.filter(i => i.mine).every(i => i.who === 'じぶん'), '匿名でも自分の写真は分かる');
+// 教師が他者参照を閉じたら、他の子の写真は見えない
+asUser('teacher@school.jp');
+call('teacher_setPeerRef', unitId, false, false);
+asUser('a@school.jp');
+ok(call('student_getLogs', 'class').classOpen === false, '他者参照を閉じるとみんなの学びログも閉じる');
+ok(call('student_getLogs', 'mine').items.length === 2, '閉じても自分の写真は見られる');
+
+console.log('\n【24】学びログの見せる・消すは本人が決める');
+const otherLog = (() => {
+  asUser('teacher@school.jp');
+  return call('teacher_getLogs', 'U02').items[0].logId;
+})();
+asUser('teacher@school.jp'); call('teacher_setPeerRef', unitId, true, false);
+// 他人の写真は消せない
+asUser('a@school.jp');
+let delErr = '';
+try { call('student_deleteLog', otherLog); } catch (e) { delErr = String(e.message || e); }
+ok(delErr.indexOf('自分の写真') >= 0, '他人の写真は取り消せない');
+let shareErr = '';
+try { call('student_setLogShare', otherLog, false); } catch (e) { shareErr = String(e.message || e); }
+ok(shareErr.indexOf('自分の写真') >= 0, '他人の写真の共有は変えられない');
+// 共有を切ると、他の子からは見えなくなる
+asUser('b@school.jp');
+call('student_setLogShare', otherLog, false);
+asUser('a@school.jp');
+ok(call('student_getLogs', 'class').items.length === 2, '共有を切った写真はみんなの学びログから消える');
+let imgErr = '';
+try { call('student_getLogImage', otherLog); } catch (e) { imgErr = String(e.message || e); }
+ok(imgErr.indexOf('見られません') >= 0, '共有していない写真は画像も取れない');
+asUser('b@school.jp');
+ok(call('student_getLogs', 'mine').items.length === 1, '共有を切っても本人は見られる');
+// 取り消すと Drive の実体もゴミ箱に入る
+const delFileId = sheetRows('学びログ').find(r => r['log_id'] === otherLog)['ファイルID'];
+call('student_deleteLog', otherLog);
+ok(sheetRows('学びログ').length === 2, '取り消した写真は学びログから消える');
+ok(driveFiles[delFileId].trashed === true, '取り消すと Drive の写真もゴミ箱に入る');
+
+console.log('\n【25】教師は学びログを見取りに使える');
+asUser('teacher@school.jp');
+const tLogs = call('teacher_getLogs', 'U01');
+ok(tLogs.items.length === 2, '教師は児童の学びログ一覧を見られる');
+ok(tLogs.items.some(i => i.comment.indexOf('年表') >= 0), 'ひとことが教師に届く');
+ok(call('teacher_getLogImage', savedA.log.logId).dataUrl === PIX, '教師は画像を取り出せる');
+// 記録消去は学びログに触れない（シートだけ消すと Drive に写真が残る）
+ok(vm.runInContext('C.RECORD_SHEETS.indexOf(C.SH.LOG)', sandbox) === -1,
+  '記録消去の対象に学びログを入れない');
 
 /* =================== 結果 =================== */
 console.log('\n========================================');

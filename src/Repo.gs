@@ -111,6 +111,32 @@ var Repo = (function () {
     return upsert(name, keyObj(keyField, keyValue), patch) === 'updated';
   }
 
+  /** match に一致する行を消す。消した件数を返す（下から消して行番号のズレを避ける） */
+  function remove(name, match) {
+    var lock = LockService.getScriptLock();
+    lock.waitLock(10000);
+    try {
+      var s = sheet(name);
+      var values = s.getDataRange().getValues();
+      var h = values[0];
+      var cols = {};
+      h.forEach(function (col, i) { cols[col] = i; });
+
+      var hits = [];
+      for (var i = 1; i < values.length; i++) {
+        var hit = true;
+        for (var mk in match) {
+          if (cols[mk] === undefined || String(values[i][cols[mk]]) !== String(match[mk])) { hit = false; break; }
+        }
+        if (hit) hits.push(i + 1);
+      }
+      for (var j = hits.length - 1; j >= 0; j--) s.deleteRow(hits[j]);
+      return hits.length;
+    } finally {
+      lock.releaseLock();
+    }
+  }
+
   function keyObj(k, v) { var o = {}; o[k] = v; return o; }
 
   function uuid() { return Utilities.getUuid(); }
@@ -124,6 +150,7 @@ var Repo = (function () {
     append: append,
     upsert: upsert,
     updateByKey: updateByKey,
+    remove: remove,
     uuid: uuid,
     now: now
   };

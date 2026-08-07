@@ -277,6 +277,38 @@ function teacher_getStudentDetail(userId) {
   };
 }
 
+/** 児童1人の学びログ一覧（画像は含まない）。教師は共有オフのものも見取りに使える */
+function teacher_getLogs(userId) {
+  requireTeacher_();
+  var unit = currentUnit_();
+  if (!unit) return { ok: true, items: [] };
+  var unitId = unit['unit_id'];
+  var taskById = indexBy_(Repo.where(C.SH.TASK, { unit_id: unitId }), 'task_id');
+
+  var items = Repo.where(C.SH.LOG, { unit_id: unitId, user_id: userId }).map(function (r) {
+    var t = taskById[r['task_id']];
+    return {
+      logId: r['log_id'],
+      taskTitle: t ? t['タイトル'] : '',
+      comment: r['ひとこと'] || '',
+      shared: truthy_(r['共有']),
+      day: r['日付'],
+      atMs: toMs_(r['撮影時刻'])
+    };
+  });
+  items.sort(function (a, b) { return b.atMs - a.atMs; });
+  return { ok: true, items: items };
+}
+
+/** 画像1枚（教師用）。表示するぶんだけ取りに来させる */
+function teacher_getLogImage(logId) {
+  requireTeacher_();
+  var unit = requireCurrentUnit_();
+  var row = firstWhere_(C.SH.LOG, { unit_id: unit['unit_id'], log_id: logId });
+  if (!row) throw new Error('写真が見つかりません。');
+  return { ok: true, dataUrl: logDataUrl_(row['ファイルID']) };
+}
+
 /** フィードバック送信 */
 function teacher_sendFeedback(toUserId, comment) {
   var ctx = requireTeacher_();
