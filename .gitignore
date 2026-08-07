@@ -1,0 +1,6 @@
+# clasp：scriptId とローカル認証情報はコミットしない
+.clasp.json
+.clasprc.json
+
+node_modules/
+.DS_Store
