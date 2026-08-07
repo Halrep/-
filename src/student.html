@@ -123,15 +123,17 @@
           </div>
         </div>
 
-        <div class="mini-route" id="mini-route"></div>
-
-        <h3 style="margin-bottom:8px">取り組む課題をえらぶ　<span class="sub-h">自分の道すじの順にならんでいます。とばしてもOK</span></h3>
-        <div class="task-cards" id="task-cards"></div>
+        <h3 style="margin-bottom:8px">じぶんの道すじ　<span class="sub-h">飛び石をタップすると、その課題を始められます。とばしてもOK</span></h3>
+        <div class="route work" id="work-route"></div>
 
         <div class="off-route-h" id="off-route-h" style="display:none">
           <h3>道すじに入れていない課題　<span class="sub-h">やりたくなったら道すじに入れよう</span></h3>
         </div>
         <div class="task-cards" id="task-cards-off"></div>
+
+        <div class="row-end" style="margin-top:16px">
+          <button class="btn ghost sm" id="replan">🧭 道すじを組みかえる</button>
+        </div>
       </section>
 
       <!-- B. その課題だけの画面 -->
@@ -565,20 +567,24 @@ function joinRoute(p){
 var savePlanDebounced = debounce(function(){ save('student_savePlan', route.slice()); }, 600);
 
 /**
- * 道すじを描き直す。
- * opts.joinAt … そのつながりを「結び直った」ように出す
- * opts.landed … そのノードを「置かれた」ように出す
- * opts.stuck  … そのノードを「動かせない」ように小さくゆらす
+ * 道すじのHTMLを組み立てる。みとおすとやってみるで同じ地図を使う。
+ *
+ *   plan … みとおす。つまんで並べ替える。◀▶と＋／外すのボタンが付く
+ *   work … やってみる。並べ替えはせず、飛び石をタップしてその課題を開く
+ *
+ * 組むところと歩くところで見た目が変わると、同じ計画だと分からなくなる。
+ * ただし作業中にうっかり並べ替わっては困るので、work では動かせない。
+ *
+ * opts.joinAt/joinZone … そのつながりを「結び直った」ように出す
+ * opts.landed          … そのノードを「置かれた」ように出す
+ * opts.stuck           … そのノードを「動かせない」ように小さくゆらす
  */
-function renderRoute(opts){
-  opts = opts || {};
-  var box = $('#route');
-  if(!box) return;
-
+function routeHtml(mode, opts){
   // つながりは、その先にあるタイルと1組にして折り返す。
   // 別々に折り返すと、行の終わりに行き先のない線が残る。
   var p = splitRoute();
   var upto = p.main.concat(p.goal);          // ゴールに着くまでに通る飛び石
+  var nextTid = nextStone(upto);             // つぎに立つ飛び石
   var html = '<div class="goal-node start"><span class="gn-f">🚩</span><span class="gn-l">スタート</span></div>';
 
   upto.forEach(function(t, i){
@@ -586,23 +592,47 @@ function renderRoute(opts){
     var atGoalNode = i >= p.main.length;
     html += '<span class="seg">' +
       (atGoalNode ? lnkHtml(null, null, upto[i-1], opts) : lnkHtml('main', i, i ? upto[i-1] : null, opts)) +
-      nodeHtml(t, 'main', i, p.main.length) + '</span>';
+      nodeHtml(t, 'main', i, p.main.length, mode, nextTid) + '</span>';
   });
   html += '<span class="seg">' +
     (p.goal.length
       ? lnkHtml(null, null, upto[upto.length-1], opts)
       : lnkHtml('main', p.main.length, p.main.length ? p.main[p.main.length-1] : null, opts)) +
-    goalHtml() + '</span>';
+    goalHtml(upto) + '</span>';
 
-  // ゴールのむこう。空でも置き場は見せる（「ここに置ける」が分からないと置けない）
-  html += '<span class="beyond' + (p.beyond.length ? '' : ' empty') + '">';
-  p.beyond.forEach(function(t, i){
-    html += '<span class="seg">' +
-      lnkHtml('beyond', i, i ? p.beyond[i-1] : null, opts) + nodeHtml(t, 'beyond', i, p.beyond.length) + '</span>';
+  // ゴールのむこう。みとおすでは空でも置き場を見せる（置けることが分からないと置けない）
+  if(mode === 'plan' || p.beyond.length){
+    html += '<span class="beyond' + (p.beyond.length ? '' : ' empty') + '">';
+    p.beyond.forEach(function(t, i){
+      html += '<span class="seg">' +
+        lnkHtml('beyond', i, i ? p.beyond[i-1] : null, opts) +
+        nodeHtml(t, 'beyond', i, p.beyond.length, mode, nextTid) + '</span>';
+    });
+    if(mode === 'plan'){
+      html += '<span class="seg">' + lnkHtml('beyond', p.beyond.length, null, opts) +
+        '<span class="beyond-tail">やりきったら挑戦<br><b>ゴールのむこう</b></span></span>';
+    }
+    html += '</span>';
+  }
+  return html;
+}
+
+/** つぎに立つ飛び石＝まだ終わっていない先頭。いま取り組み中があればそれ */
+function nextStone(upto){
+  var doing = null, todo = null;
+  upto.forEach(function(t){
+    if(!doing && t.status === 1) doing = t;
+    if(!todo && t.status === 0) todo = t;
   });
-  html += '<span class="seg">' + lnkHtml('beyond', p.beyond.length, null, opts) +
-    '<span class="beyond-tail">やりきったら挑戦<br><b>ゴールのむこう</b></span></span></span>';
-  box.innerHTML = html;
+  var hit = doing || todo;
+  return hit ? hit.taskId : null;
+}
+
+function renderRoute(opts){
+  opts = opts || {};
+  var box = $('#route');
+  if(!box) return;
+  box.innerHTML = routeHtml('plan', opts);
 
   renderTray();
   renderRouteSum();
@@ -617,28 +647,41 @@ function lnkHtml(zone, gap, prev, opts){
   return '<i class="'+cls+'"'+(zone ? ' data-zone="'+zone+'" data-gap="'+gap+'"' : '')+'></i>';
 }
 
-function nodeHtml(t, zone, i, count){
-  var here = openTask && taskIx(t.taskId) === curTask;
+function nodeHtml(t, zone, i, count, mode, nextTid){
+  var work = mode === 'work';
+  var ix = taskIx(t.taskId);
+  var here = work ? (t.taskId === nextTid) : (openTask && ix === curTask);
   var pinned = t.kind === GOAL_KIND;               // ゴール課題はゴールの直前から動かない
-  return '<div class="node k'+esc(t.kind)+' s'+t.status+(here?' here':'')+(pinned?' pinned':'')+
-      '" data-tid="'+esc(t.taskId)+'">'+
+  var u = undBy(t.understanding);
+
+  return '<'+(work ? 'button' : 'div')+' class="node k'+esc(t.kind)+' s'+t.status+
+      (here?' here':'')+(pinned?' pinned':'')+(work?' tap':'')+
+      '" data-tid="'+esc(t.taskId)+'"'+(work ? ' data-open="'+ix+'"' : '')+'>'+
     '<span class="nd-k k'+esc(t.kind)+'">'+esc(KIND_MARK[t.kind]||t.kind)+'</span>'+
     '<span class="nd-s s'+t.status+'">'+ST_LABEL[t.status]+'</span>'+
     '<span class="nd-t">'+esc(t.title)+'</span>'+
-    '<span class="nd-m">めやす '+esc(t.mins)+'分</span>'+
+    '<span class="nd-m">めやす '+esc(t.mins)+'分'+(work && u ? ('　'+esc(u.icon)+' '+esc(u.label)) : '')+'</span>'+
     '<span class="nd-ops">'+
-      (pinned
-        ? '<span class="nd-pin">🏁 ここでゴールにとどく</span>'
-        : '<button class="nd-op" data-mv="-1" aria-label="ひとつ前へ"'+(i===0?' disabled':'')+'>◀</button>'+
-          '<button class="nd-op" data-mv="1" aria-label="ひとつ後ろへ"'+(i>=count-1?' disabled':'')+'>▶</button>'+
-          (isLockedKind(t.kind) ? '' : '<button class="nd-op drop" data-out="'+esc(t.taskId)+'">外す</button>'))+
-    '</span></div>';
+      (work
+        ? '<span class="nd-go">'+(here ? 'つぎはここ →' : (t.status===2 ? 'もう一度見る →' : 'ひらく →'))+'</span>'
+        : (pinned
+          ? '<span class="nd-pin">🏁 ここでゴールにとどく</span>'
+          : '<button class="nd-op" data-mv="-1" aria-label="ひとつ前へ"'+(i===0?' disabled':'')+'>◀</button>'+
+            '<button class="nd-op" data-mv="1" aria-label="ひとつ後ろへ"'+(i>=count-1?' disabled':'')+'>▶</button>'+
+            (isLockedKind(t.kind) ? '' : '<button class="nd-op drop" data-out="'+esc(t.taskId)+'">外す</button>')))+
+    '</span></'+(work ? 'button' : 'div')+'>';
 }
 
-function goalHtml(){
+function goalHtml(upto){
   var g = S.unit.outcome || S.unit.unitGoal || 'ゴール';
-  return '<div class="goal-node"><span class="gn-f">🏁</span><span class="gn-l">ゴール</span>'+
-    '<span class="gn-t">'+esc(g)+'</span></div>';
+  var left = (upto||[]).filter(function(t){ return t.status !== 2; }).length;
+  return '<div class="goal-node'+(left===0 && (upto||[]).length ? ' reached' : '')+'">'+
+    '<span class="gn-f">🏁</span><span class="gn-l">ゴール</span>'+
+    '<span class="gn-t">'+esc(g)+'</span>'+
+    (upto && upto.length
+      ? '<span class="gn-left">'+(left ? 'あと '+left+'こ' : 'とどいた！')+'</span>'
+      : '')+
+  '</div>';
 }
 
 function renderTray(){
@@ -948,79 +991,41 @@ function renderPlanInputs(){
   $('#eff').value = eff; $('#eff-v').textContent = eff; $('#eff-face').textContent = effFace(eff);
 }
 
-/* --- ② 一覧：課題カード ---
-   ならびは自分の道すじの順。道すじに入れていない課題は下にまとめ、
-   そこからも入れられるようにする（一覧で見て「やっぱりやる」と決められる）。 */
+/* --- ② やってみる：道すじを歩く ---
+   みとおすで組んだのと同じ地図を出す。飛び石をタップするとその課題が開く。
+   ここでは並べ替えない（作業中にうっかり計画が変わっては困る）。
+   組みかえたくなったら「道すじを組みかえる」でみとおすに戻る＝それが調整の行為。 */
 function renderTasks(){
   if(!S.tasks.length){
-    $('#task-cards').innerHTML = '<div class="card"><div class="card-b empty">課題がまだ公開されていません。</div></div>';
+    $('#work-route').innerHTML = '<div class="empty">課題がまだ公開されていません。</div>';
     $('#task-cards-off').innerHTML = '';
     $('#off-route-h').style.display = 'none';
-    $('#mini-route').innerHTML = '';
     return;
   }
   if(curTask >= S.tasks.length) curTask = 0;
 
-  var p = splitRoute(), inRoute = routeTasks(), off = offRouteTasks();
-  var upto = p.main.concat(p.goal);
+  $('#work-route').innerHTML = route.length
+    ? routeHtml('work', {})
+    : '<div class="empty">道すじがまだ空です。「みとおす」でつくろう。</div>';
 
-  $('#task-cards').innerHTML = inRoute.length
-    ? upto.map(function(t,n){ return taskCardHtml(t, n+1); }).join('') +
-      (p.beyond.length
-        ? '<div class="beyond-mark">🏁 ここでゴール。この先は<b>やりきったら挑戦</b></div>' +
-          p.beyond.map(function(t){ return taskCardHtml(t, null, true); }).join('')
-        : '')
-    : '<div class="card"><div class="card-b empty">道すじがまだ空です。「みとおす」でつくろう。</div></div>';
-
+  var off = offRouteTasks();
   $('#off-route-h').style.display = off.length ? '' : 'none';
   $('#task-cards-off').innerHTML = off.map(function(t){
-    return '<div class="off-card">'+ taskCardHtml(t, null) +
-      '<button class="btn ghost sm" data-in="'+esc(t.taskId)+'">＋ 道すじに入れる</button></div>';
+    var u = undBy(t.understanding);
+    var beyond = zoneOf(t.kind) === 'beyond';
+    return '<div class="off-card">'+
+      '<button class="tcardx s'+t.status+'" data-open="'+taskIx(t.taskId)+'">'+
+        '<span class="tx-k k'+esc(t.kind)+'">'+esc(KIND_MARK[t.kind]||t.kind)+'</span>'+
+        '<span class="tx-t">'+esc(t.title)+'</span>'+
+        '<span class="tx-m">めやす '+esc(t.mins)+'分'+(u?('　'+esc(u.icon)+' '+esc(u.label)):'')+'</span>'+
+        '<span class="tx-s s'+t.status+'">'+ST_LABEL[t.status]+'</span>'+
+        '<span class="tx-go">ひらく →</span>'+
+      '</button>'+
+      '<button class="btn ghost sm" data-in="'+esc(t.taskId)+'">'+
+        (beyond ? '＋ ゴールのむこうに置く' : '＋ 道すじに入れる')+'</button></div>';
   }).join('');
 
-  renderMiniRoute();
   if(openTask){ flushTaskNote(); renderBands(); }
-}
-
-function taskCardHtml(t, no, beyond){
-  var u = undBy(t.understanding);
-  return '<button class="tcardx s'+t.status+(beyond?' beyond-card':'')+'" data-open="'+taskIx(t.taskId)+'">'+
-    '<span class="tx-k k'+esc(t.kind)+'">'+(no ? '<b class="tx-no">'+no+'</b>' : '')+esc(KIND_MARK[t.kind]||t.kind)+'</span>'+
-    '<span class="tx-t">'+esc(t.title)+'</span>'+
-    '<span class="tx-m">めやす '+esc(t.mins)+'分'+(u?('　'+esc(u.icon)+' '+esc(u.label)):'')+'</span>'+
-    '<span class="tx-s s'+t.status+'">'+ST_LABEL[t.status]+'</span>'+
-    '<span class="tx-go">ひらく →</span>'+
-  '</button>';
-}
-
-/** 課題一覧の上に出す小さい道すじ。いまどこにいて、ゴールまであといくつかを見せる */
-function renderMiniRoute(){
-  var box = $('#mini-route');
-  if(!box) return;
-  var p = splitRoute(), upto = p.main.concat(p.goal);
-  if(!upto.length && !p.beyond.length){ box.innerHTML = ''; return; }
-
-  var pin = function(t, n, label){
-    var i = taskIx(t.taskId);
-    return '<button class="mini-node s'+t.status+(openTask && i===curTask ? ' here' : '')+
-      '" data-open="'+i+'" title="'+esc(t.title)+'">'+
-      '<span class="mn-n">'+(t.status===2 ? '✓' : label)+'</span>'+
-      '<span class="mn-t">'+esc(t.title)+'</span></button>';
-  };
-
-  var html = upto.map(function(t,n){
-    return '<span class="seg">'+
-      (n ? '<i class="mini-lnk'+(upto[n-1].status===2?' done':'')+'"></i>' : '')+
-      pin(t, n, n+1)+'</span>';
-  }).join('');
-
-  html += '<span class="seg"><i class="mini-lnk'+(upto.length && upto[upto.length-1].status===2?' done':'')+'"></i>'+
-    '<span class="mini-goal">🏁 <span class="mg-t">'+esc(S.unit.outcome || S.unit.unitGoal || 'ゴール')+'</span></span></span>';
-
-  html += p.beyond.map(function(t,n){
-    return '<span class="seg"><i class="mini-lnk beyond"></i>'+ pin(t, n, '＋') +'</span>';
-  }).join('');
-  box.innerHTML = html;
 }
 
 function undBy(v){
@@ -1625,6 +1630,8 @@ document.addEventListener('click', function(e){
   var openBtn = e.target.closest('[data-open]');
   if(openBtn){ openTaskLayer(Number(openBtn.dataset.open)); return; }
   if(e.target.closest('#task-back')){ closeTaskLayer(); return; }
+  // 組みかえたくなったら、計画を立てたところへ戻る（それが「調整する」）
+  if(e.target.closest('#replan')){ goTab(0); gotoStep('0', 0); return; }
 
   /* --- 引き出し（資料・学びログ・足あと） --- */
   var shelf = e.target.closest('[data-sheet]');
@@ -1649,6 +1656,8 @@ document.addEventListener('click', function(e){
     renderTasks();
     // 「取りかかる」を押したら、そのまま作業の帯へ送り出す
     if(t.status===1) setTimeout(function(){ gotoStep('task', 1); }, 250);
+    // 「できた！」なら道すじに戻す。石が埋まって、ゴールが近づいたのが見える
+    if(t.status===2) setTimeout(function(){ if(openTask) closeTaskLayer(); }, 900);
     return;
   }
 
