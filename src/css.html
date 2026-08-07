@@ -75,6 +75,141 @@ textarea, input[type=text]{width:100%; border:1.5px solid var(--line); border-ra
 .role-sw:hover{background:rgba(255,255,255,.3)}
 .rs-demo{background:var(--accent); color:#1b1300; border-radius:999px; padding:1px 7px; font-size:10px; letter-spacing:.06em}
 
+/* ===== 1画面1まとまり：ステップ・帯・2カラム ===== */
+
+/* 必須メーター（進んだ実感を上に固定して見せる） */
+.meter{display:flex; align-items:center; gap:12px; background:var(--surface); border:1.5px solid var(--line);
+  border-radius:var(--r); padding:10px 16px; margin-bottom:12px}
+.meter .mt-l{font-size:12px; font-weight:800; color:var(--muted); white-space:nowrap}
+.meter .mt-bar{flex:1; height:12px; background:var(--surface2); border-radius:999px; overflow:hidden}
+.meter .mt-bar i{display:block; height:100%; width:0; border-radius:999px; background:var(--ok);
+  transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.meter .mt-bar i.full{background:linear-gradient(90deg,var(--ok),var(--accent))}
+.meter .mt-n{font-size:13px; font-weight:800; white-space:nowrap}
+
+/* ステップの現在地 */
+.stepbar{display:flex; align-items:center; gap:6px; margin-bottom:14px; flex-wrap:wrap}
+.sdot{display:flex; align-items:center; gap:8px; border:2px solid var(--line); background:var(--surface);
+  border-radius:999px; padding:6px 14px 6px 8px; transition:border-color .2s, background .2s}
+.sdot .sd-n{display:grid; place-items:center; width:22px; height:22px; border-radius:50%;
+  background:var(--surface2); color:var(--muted); font-weight:800; font-size:12px}
+.sdot .sd-l{font-size:12.5px; font-weight:700; color:var(--muted)}
+.sdot.now{border-color:var(--primary); background:var(--primary-soft)}
+.sdot.now .sd-n{background:var(--primary); color:var(--primary-ink); animation:pulse 2s ease-in-out infinite}
+.sdot.now .sd-l{color:var(--primary)}
+.sdot.done .sd-n{background:var(--ok); color:#fff}
+.sdot.done .sd-l{color:var(--ink)}
+.sline{flex:0 0 20px; height:2px; background:var(--line); border-radius:2px; transition:background .3s}
+.sline.done{background:var(--ok)}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(46,94,140,.45)} 50%{box-shadow:0 0 0 6px rgba(46,94,140,0)}}
+
+/* ステージ：1度に1つの step だけ見せる */
+.stage{position:relative}
+.step{display:none}
+.step.on{display:block}
+.step-nav{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:14px; flex-wrap:wrap}
+.step-nav .btn.next{padding:12px 26px; font-size:15px}
+.step-nav .now{font-size:12.5px; font-weight:800; border-radius:999px; padding:5px 12px; background:var(--idle-soft); color:var(--idle)}
+.step-nav .now.s1{background:var(--busy-soft); color:var(--busy)}
+.step-nav .now.s2{background:var(--ok-soft); color:var(--ok)}
+.done-mark{font-size:15px; font-weight:800; color:var(--ok)}
+
+@keyframes inRight{from{opacity:0; transform:translateX(28px)} to{opacity:1; transform:none}}
+@keyframes inLeft{from{opacity:0; transform:translateX(-28px)} to{opacity:1; transform:none}}
+@keyframes outLeft{from{opacity:1; transform:none} to{opacity:0; transform:translateX(-28px)}}
+@keyframes outRight{from{opacity:1; transform:none} to{opacity:0; transform:translateX(28px)}}
+@keyframes zoomIn{from{opacity:0; transform:scale(.97)} to{opacity:1; transform:none}}
+.step.in-right, .panel.in-right{animation:inRight .28s cubic-bezier(.2,.8,.2,1)}
+.step.in-left{animation:inLeft .28s cubic-bezier(.2,.8,.2,1)}
+.step.out-left{display:block; position:absolute; inset:0; animation:outLeft .22s ease-in forwards; pointer-events:none}
+.step.out-right{display:block; position:absolute; inset:0; animation:outRight .22s ease-in forwards; pointer-events:none}
+.layer.zoom-in{animation:zoomIn .26s cubic-bezier(.2,.8,.2,1)}
+
+/* ②：一覧 ⇄ 1課題 */
+.layer{display:none}
+.layer.on{display:block}
+.task-cards{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px}
+.tcardx{border:2px solid var(--line); background:var(--surface); border-radius:var(--r); padding:14px 16px;
+  display:grid; gap:6px; text-align:left; transition:border-color .18s, transform .18s, box-shadow .18s}
+.tcardx:hover{border-color:var(--primary); transform:translateY(-2px); box-shadow:0 6px 18px rgba(35,48,58,.10)}
+.tcardx.s1{border-color:var(--busy-soft); background:var(--busy-soft)}
+.tcardx.s2{border-color:var(--ok-soft); background:var(--ok-soft)}
+.tx-k{font-size:11px; font-weight:800}
+.tx-t{font-size:15.5px; font-weight:800; line-height:1.4}
+.tx-m{font-size:11.5px; color:var(--muted)}
+.tx-s{justify-self:start; font-size:11px; font-weight:800; border-radius:999px; padding:3px 10px; background:var(--idle-soft); color:var(--idle)}
+.tx-s.s1{background:var(--busy); color:#fff}
+.tx-s.s2{background:var(--ok); color:#fff}
+.tx-go{font-size:12px; font-weight:800; color:var(--primary); opacity:0; transition:opacity .18s}
+.tcardx:hover .tx-go{opacity:1}
+
+.task-top{display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap}
+.tt-title{font-size:17px; font-weight:800}
+
+/* 帯（課題の中の見通す→実行→振り返る） */
+.bands{position:relative; display:flex; gap:4px; border-bottom:2px solid var(--line); margin-bottom:16px}
+.band{background:transparent; border:none; padding:11px 18px; font-size:14px; font-weight:800; color:var(--muted);
+  display:flex; align-items:center; gap:6px; transition:color .2s}
+.band .bi{font-size:16px}
+.band[aria-selected="true"]{color:var(--primary)}
+.band-ink{position:absolute; bottom:-2px; left:0; height:3px; width:0; background:var(--primary); border-radius:2px;
+  transition:transform .28s cubic-bezier(.2,.8,.2,1), width .28s cubic-bezier(.2,.8,.2,1)}
+
+/* 2カラム：🆘とみんなの様子は常に手の届くところに */
+.work-grid{display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:16px; align-items:start}
+.work-main{min-width:0}
+.work-side{position:sticky; top:12px; display:flex; flex-direction:column; gap:12px}
+.work-side .help-btn{width:100%; margin:0; padding:14px 12px; line-height:1.4}
+.hb-s{display:block; font-size:11.5px; font-weight:700; opacity:.85}
+.side-card .card-b{padding:12px 14px}
+.side-card .peer-grid{grid-template-columns:1fr}
+.side-btns{display:flex; flex-direction:column; gap:8px}
+.shelf-b{border:2px solid var(--line); background:var(--surface); border-radius:var(--r); padding:11px 14px;
+  font-size:12.5px; font-weight:800; text-align:left; transition:border-color .18s, background .18s}
+.shelf-b:hover{border-color:var(--primary); background:var(--primary-soft); color:var(--primary)}
+
+@media (max-width: 900px){
+  .work-grid{grid-template-columns:1fr}
+  .work-side{position:static; padding-bottom:4px}
+  /* 1カラムになると右カラムは画面外に流れてしまう。
+     こまったボタンだけは画面の下に貼り付けて、いつでも押せるようにする */
+  .work-side .help-btn{position:fixed; left:16px; right:16px; bottom:14px; width:auto; z-index:70;
+    box-shadow:0 6px 20px rgba(35,48,58,.28)}
+  .app{padding-bottom:110px}
+}
+
+/* 引き出し（資料・学びログ・足あと） */
+.stash{display:none}
+.sheet{position:fixed; inset:0; z-index:86; background:rgba(15,21,25,.5); display:none; justify-content:flex-end}
+.sheet.open{display:flex}
+.sheet-box{width:min(560px,100vw); height:100%; background:var(--bg); box-shadow:-6px 0 24px rgba(35,48,58,.2);
+  display:flex; flex-direction:column; animation:slideIn .28s cubic-bezier(.2,.8,.2,1)}
+@keyframes slideIn{from{transform:translateX(100%)} to{transform:none}}
+.sheet-h{display:flex; align-items:center; justify-content:space-between; padding:16px 18px 12px; font-weight:800; font-size:16px;
+  background:var(--surface); border-bottom:1.5px solid var(--line)}
+.sheet-x{border:none; background:transparent; font-size:18px; color:var(--muted); padding:2px 8px}
+.sheet-b{flex:1; overflow-y:auto; padding:16px 18px 28px}
+
+/* ヘッダーの足あとボタン */
+.fp-btn{display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.35);
+  border-radius:999px; padding:5px 14px; font-size:12px; font-weight:800; color:var(--primary-ink)}
+.fp-btn:hover{background:rgba(255,255,255,.3)}
+
+/* できた！の演出 */
+.burst{position:fixed; z-index:99; pointer-events:none}
+.burst i{position:absolute; font-size:20px; animation:pop .85s ease-out forwards; transform:rotate(var(--a))}
+@keyframes pop{
+  0%{opacity:0; transform:rotate(var(--a)) translateY(0) scale(.4)}
+  25%{opacity:1}
+  100%{opacity:0; transform:rotate(var(--a)) translateY(-70px) scale(1.15)}
+}
+
+@media (prefers-reduced-motion: reduce){
+  .step, .panel, .layer, .sheet-box, .burst i{animation:none !important}
+  .meter .mt-bar i, .band-ink{transition:none}
+  .sdot.now .sd-n{animation:none}
+}
+
 /* 児童3タブ */
 .big-tabs{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px}
 .big-tab{border:2px solid var(--line); background:var(--surface); border-radius:var(--r); padding:12px 10px 10px; text-align:center; transition:border-color .15s, background .15s}
@@ -121,15 +256,6 @@ textarea, input[type=text]{width:100%; border:1.5px solid var(--line); border-ra
 .rtag.link{background:var(--primary-soft); color:var(--primary)}
 .open-btn{flex:none; border:1.5px solid var(--primary-line); background:var(--surface); color:var(--primary); border-radius:8px; padding:5px 14px; font-size:12.5px; font-weight:800; text-decoration:none; display:inline-block}
 
-.steps{display:flex; flex-direction:column; gap:8px}
-.step{display:flex; align-items:center; gap:12px; border:1.5px solid var(--line); border-radius:var(--r); padding:10px 14px; background:var(--surface); text-align:left; transition:background .15s, border-color .15s}
-.step .st{flex:none; font-size:11px; font-weight:800; border-radius:6px; padding:3px 10px; background:var(--idle-soft); color:var(--idle); min-width:64px; text-align:center}
-.step[data-s="1"] .st{background:var(--busy-soft); color:var(--busy)}
-.step[data-s="2"] .st{background:var(--ok-soft); color:var(--ok)}
-.step[data-s="1"]{border-color:var(--busy)}
-.step[data-s="2"]{border-color:var(--ok)}
-.step .tx{font-weight:700}
-.step[data-s="2"] .tx{text-decoration:line-through; color:var(--muted)}
 .help-btn{width:100%; border:2px solid var(--danger); background:var(--danger-soft); color:var(--danger); border-radius:var(--r); padding:14px; font-size:16px; font-weight:800; transition:background .15s}
 .help-btn[aria-pressed="true"]{background:var(--danger); color:#fff}
 

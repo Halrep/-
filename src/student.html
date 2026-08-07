@@ -7,6 +7,7 @@
     <span class="subj" id="h-subj">読み込み中…</span>
     <span class="t" id="h-title"></span>
     <span class="n" id="h-name"></span>
+    <button class="fp-btn" id="fp-open" aria-label="学びの足跡">👣<span class="lb">足あと</span></button>
     <? if (bootstrap.canSwitch) { ?>
       <a class="role-sw" target="_top"
          href="<?= bootstrap.canSwitch ?>?as=teacher">先生の画面へ<? if (bootstrap.demo) { ?><span class="rs-demo">デモ</span><? } ?></a>
@@ -27,138 +28,226 @@
   </div></div>
 
   <div id="content" class="hidden">
+    <div class="meter">
+      <span class="mt-l">かならずやること</span>
+      <span class="mt-bar"><i id="must-bar"></i></span>
+      <span class="mt-n num" id="must-n">0 / 0</span>
+    </div>
+
     <div class="big-tabs" role="tablist" aria-label="学習のながれ">
       <button class="big-tab" role="tab" data-tab="0" aria-selected="true"><span class="no num">1</span><span class="lb">みとおす</span><span class="sb">手引きを読み、計画を立てる</span></button>
       <button class="big-tab" role="tab" data-tab="1" aria-selected="false"><span class="no num">2</span><span class="lb">やってみる</span><span class="sb">課題をえらんで取り組む</span></button>
       <button class="big-tab" role="tab" data-tab="2" aria-selected="false"><span class="no num">3</span><span class="lb">ふりかえる</span><span class="sb">計画とのズレを考える</span></button>
     </div>
 
-    <!-- ① みとおす -->
+    <!-- ① みとおす（2ステップ） -->
     <div class="panel on" id="pn0" role="tabpanel">
-      <div class="outcome" id="s-outcome" style="display:none">
-        <span class="flag">🏁</span>
-        <div><span class="lb">この単元でできるようになること</span>
-          <div class="ol" id="s-outcome-l"></div><div class="og" id="s-outcome-g"></div></div>
-      </div>
+      <div class="stepbar" data-flow="0"></div>
 
-      <div class="card">
-        <div class="card-h"><span class="h-badge">📋</span><h2>学習の手引き　<span class="sub-h">かならずやること／えらべること</span></h2></div>
-        <div class="card-b" id="guide"></div>
-      </div>
+      <div class="stage" data-flow="0">
+        <!-- 1/2 この単元でやること -->
+        <section class="step on" data-step="0">
+          <div class="outcome" id="s-outcome" style="display:none">
+            <span class="flag">🏁</span>
+            <div><span class="lb">この単元でできるようになること</span>
+              <div class="ol" id="s-outcome-l"></div><div class="og" id="s-outcome-g"></div></div>
+          </div>
 
-      <div class="card">
-        <div class="card-h"><span class="h-badge">🎯</span><h2>きょうの計画を立てよう</h2></div>
-        <div class="card-b stack">
-          <div><h3>Be ─ どんな姿で取り組む？（タップでえらぶ）</h3><div class="chips" id="be-chips"></div></div>
-          <div><h3>Do ─ きょうはどこまでやる？</h3><input type="text" id="do-input" placeholder="例：必須①と②を終える"></div>
-          <div><h3>Regulate ─ どんな工夫（方略）を使う？　<span class="star-rec">★</span>は先生のおすすめ</h3><div class="strat-grid" id="reg-grid"></div></div>
-          <div><h3>この計画なら「できそう」？（自己効力感）</h3>
-            <div class="efficacy">
-              <span class="face" id="eff-face">🙂</span>
-              <input type="range" min="0" max="100" value="60" id="eff" aria-label="できそう度">
-              <span class="lab"><span id="eff-v" class="num">60</span> ％できそう</span>
+          <div class="card">
+            <div class="card-h"><span class="h-badge">📋</span><h2>学習の手引き　<span class="sub-h">かならずやること／えらべること</span></h2></div>
+            <div class="card-b" id="guide"></div>
+          </div>
+
+          <div class="step-nav">
+            <span></span>
+            <button class="btn next" data-go="0,1">計画を立てる →</button>
+          </div>
+        </section>
+
+        <!-- 2/2 きょうの計画 -->
+        <section class="step" data-step="1">
+          <div class="card">
+            <div class="card-h"><span class="h-badge">🎯</span><h2>きょうの計画を立てよう</h2></div>
+            <div class="card-b stack">
+              <div><h3>Be ─ どんな姿で取り組む？（タップでえらぶ）</h3><div class="chips" id="be-chips"></div></div>
+              <div><h3>Do ─ きょうはどこまでやる？</h3><input type="text" id="do-input" placeholder="例：必須①と②を終える"></div>
+              <div><h3>Regulate ─ どんな工夫（方略）を使う？　<span class="star-rec">★</span>は先生のおすすめ</h3><div class="strat-grid" id="reg-grid"></div></div>
+              <div><h3>この計画なら「できそう」？（自己効力感）</h3>
+                <div class="efficacy">
+                  <span class="face" id="eff-face">🙂</span>
+                  <input type="range" min="0" max="100" value="60" id="eff" aria-label="できそう度">
+                  <span class="lab"><span id="eff-v" class="num">60</span> ％できそう</span>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="row-end"><button class="btn" id="goal-save">この計画で始める</button></div>
-        </div>
+
+          <div class="step-nav">
+            <button class="btn ghost back" data-go="0,0">← 手引きにもどる</button>
+            <button class="btn next" id="goal-save">この計画で始める →</button>
+          </div>
+        </section>
       </div>
     </div>
 
-    <!-- ② やってみる（課題が中心） -->
+    <!-- ② やってみる：一覧 ⇄ 1課題 の2層＋右に常設の支え -->
     <div class="panel" id="pn1" role="tabpanel">
-      <div class="card task-hero">
-        <div class="card-b">
-          <span class="eyebrow">単元の問い</span>
-          <p class="tq" id="s-unitgoal"></p>
-          <div class="hgoal"><b>ゴール</b><span id="s-outcome2"></span></div>
+     <div class="work-grid">
+      <div class="work-main">
+
+      <!-- A. 課題をえらぶ -->
+      <section class="layer on" id="lay-list">
+        <div class="card task-hero">
+          <div class="card-b">
+            <span class="eyebrow">単元の問い</span>
+            <p class="tq" id="s-unitgoal"></p>
+            <div class="hgoal"><b>ゴール</b><span id="s-outcome2"></span></div>
+          </div>
         </div>
-      </div>
 
-      <h3 style="margin-bottom:6px">取り組む課題をえらぶ　<span class="sub-h">自分のペース・自分の順序でOK</span></h3>
-      <div class="steps-nav" id="tasks-nav" role="tablist"></div>
-      <div id="task-panel"></div>
+        <h3 style="margin-bottom:8px">取り組む課題をえらぶ　<span class="sub-h">自分のペース・自分の順序でOK</span></h3>
+        <div class="task-cards" id="task-cards"></div>
+      </section>
 
-      <div class="card" id="common-res-card">
-        <div class="card-b always-res" id="common-res"></div>
-      </div>
-
-      <button class="help-btn" id="help-btn" aria-pressed="false">🆘 こまっています（先生に知らせる）</button>
-
-      <div class="card" id="peer-card" style="display:none">
-        <div class="card-h"><span class="h-badge">👀</span><h2>みんなの様子（クラスの今）　<span class="sub-h">タップでくわしく</span></h2></div>
-        <div class="card-b">
-          <div class="peer-head" style="margin-bottom:8px"><span class="peer-mode" id="peer-mode"></span><span class="sub-h">約20秒ごとに更新／学び方の参考にしよう</span></div>
-          <div class="peer-grid" id="peer-grid"></div>
+      <!-- B. その課題だけの画面 -->
+      <section class="layer" id="lay-task">
+        <div class="task-top">
+          <button class="btn ghost back" id="task-back">← 課題をえらぶ</button>
+          <span class="tt-title" id="tt-title"></span>
         </div>
-      </div>
 
-      <div class="card" id="classlog-card" style="display:none">
-        <div class="card-h"><span class="h-badge">🖼</span><h2>みんなの学びログ　<span class="sub-h">友だちのノートを見て、自分の学びにつなげよう</span></h2></div>
-        <div class="card-b">
-          <div class="log-grid" id="classlog-grid"></div>
+        <div class="bands" role="tablist" aria-label="課題のすすめ方">
+          <button class="band" role="tab" data-band="0" aria-selected="true"><span class="bi">🚩</span>はじめる</button>
+          <button class="band" role="tab" data-band="1" aria-selected="false"><span class="bi">✏️</span>すすめる</button>
+          <button class="band" role="tab" data-band="2" aria-selected="false"><span class="bi">🏁</span>おわりに</button>
+          <i class="band-ink" id="band-ink"></i>
         </div>
-      </div>
+
+        <div class="stage" data-flow="task">
+          <section class="step on" data-step="0" id="band0"></section>
+          <section class="step" data-step="1" id="band1"></section>
+          <section class="step" data-step="2" id="band2"></section>
+        </div>
+      </section>
+
+      </div><!-- /work-main -->
+
+      <!-- 右カラム：いつでも手が届くところに置く -->
+      <aside class="work-side">
+        <button class="help-btn" id="help-btn" aria-pressed="false">🆘 こまっています<span class="hb-s">先生に知らせる</span></button>
+
+        <div class="card side-card" id="peer-card" style="display:none">
+          <div class="card-h"><span class="h-badge">👀</span><h2>みんなの様子</h2></div>
+          <div class="card-b">
+            <div class="peer-head"><span class="peer-mode" id="peer-mode"></span></div>
+            <div class="peer-grid" id="peer-grid"></div>
+            <div class="sub-h" style="margin-top:6px">約20秒ごとに更新</div>
+          </div>
+        </div>
+
+        <div class="side-btns">
+          <button class="shelf-b" data-sheet="res">📎 いつでも使える資料</button>
+          <button class="shelf-b" data-sheet="log" id="shelf-log" style="display:none">🖼 みんなの学びログ</button>
+        </div>
+      </aside>
+     </div><!-- /work-grid -->
     </div>
 
-    <!-- ③ ふりかえる -->
+    <!-- ③ ふりかえる（3ステップ） -->
     <div class="panel" id="pn2" role="tabpanel">
-      <div class="card">
-        <div class="card-h"><span class="h-badge">📏</span><h2>きょうの計画はどうだった？</h2></div>
-        <div class="card-b stack">
-          <div class="muted" id="r-goalref" style="font-size:12.5px"></div>
-          <div>
-            <h3>計画とくらべて、どうだった？　<span class="sub-h">できた・できないではなく、計画とのズレを見よう</span></h3>
-            <div class="chips" id="plangap"></div>
-          </div>
-          <div id="gap-reason-wrap" style="display:none">
-            <h3>そのズレは、何が理由だと思う？</h3>
-            <input type="text" id="gapreason" placeholder="例：資料を読むのに思ったより時間がかかった">
-          </div>
-          <div>
-            <h3>どこまで進んだ？</h3>
-            <div class="slider-wrap">
-              <input type="range" min="0" max="100" value="70" id="ach" aria-label="達成度">
-              <div class="slider-val"><span id="ach-v" class="num">70</span><small> /100</small></div>
+      <div class="stepbar" data-flow="2"></div>
+
+      <div class="stage" data-flow="2">
+        <!-- 1/3 計画とのズレ -->
+        <section class="step on" data-step="0">
+          <div class="card">
+            <div class="card-h"><span class="h-badge">📏</span><h2>きょうの計画はどうだった？</h2></div>
+            <div class="card-b stack">
+              <div class="muted" id="r-goalref" style="font-size:12.5px"></div>
+              <div>
+                <h3>計画とくらべて、どうだった？　<span class="sub-h">できた・できないではなく、計画とのズレを見よう</span></h3>
+                <div class="chips" id="plangap"></div>
+              </div>
+              <div id="gap-reason-wrap" style="display:none">
+                <h3>そのズレは、何が理由だと思う？</h3>
+                <input type="text" id="gapreason" placeholder="例：資料を読むのに思ったより時間がかかった">
+              </div>
+              <div>
+                <h3>どこまで進んだ？</h3>
+                <div class="slider-wrap">
+                  <input type="range" min="0" max="100" value="70" id="ach" aria-label="達成度">
+                  <div class="slider-val"><span id="ach-v" class="num">70</span><small> /100</small></div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-h"><span class="h-badge">🔍</span><h2>そのわけを考えよう（原因のふりかえり）</h2></div>
-        <div class="card-b attr-cols">
-          <div class="attr-box good"><h4>◎ うまくいったのは、なぜ？</h4><div class="chips" id="attr-good"></div></div>
-          <div class="attr-box hard"><h4>△ むずかしかったのは、なぜ？</h4><div class="chips" id="attr-hard"></div></div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-h"><span class="h-badge">💬</span><h2>今日の気持ちと、次にいかすこと</h2></div>
-        <div class="card-b stack">
-          <div><h3>今日の気持ち（いちばん近いものを1つ）</h3><div class="stamp-row" id="mood-row"></div></div>
-          <div><h3>ひとことふりかえり</h3><textarea rows="2" id="selfeval" placeholder="できたこと・むずかしかったことを書こう"></textarea></div>
-          <div><h3>次はどうする？（次の時間・ほかの教科で）</h3><textarea rows="2" id="nextplan" placeholder="使えた工夫、次にためすことを書こう"></textarea></div>
-          <div class="req-box">
-            <h3>💡 先生へ：こんな資料や道具があれば、もっと分かりそう</h3>
-            <div class="sub-h" style="margin-bottom:6px">きみの「分かりにくかった」は、次の授業をよくするための大事な情報です。反省ではありません。</div>
-            <input type="text" id="materialreq" placeholder="例：年表がもう少し大きいと読みやすい／白地図に県名があると助かる">
+          <div class="step-nav">
+            <span></span>
+            <button class="btn next" data-go="2,1">そのわけを考える →</button>
           </div>
-          <div class="row-end"><button class="btn" id="refl-save">ふりかえりを記録する</button></div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-h"><span class="h-badge">👣</span><h2>学びの足跡　<span class="sub-h">終わった単元も残ります</span></h2></div>
-        <div class="card-b stack">
-          <div id="fp-trend"></div>
-          <div>
-            <h3>課題ごとの足跡</h3>
-            <div class="fp-tasks" id="fp-tasks"><div class="empty">まだ記録がありません。</div></div>
+        </section>
+
+        <!-- 2/3 そのわけ -->
+        <section class="step" data-step="1">
+          <div class="card">
+            <div class="card-h"><span class="h-badge">🔍</span><h2>そのわけを考えよう（原因のふりかえり）</h2></div>
+            <div class="card-b attr-cols">
+              <div class="attr-box good"><h4>◎ うまくいったのは、なぜ？</h4><div class="chips" id="attr-good"></div></div>
+              <div class="attr-box hard"><h4>△ むずかしかったのは、なぜ？</h4><div class="chips" id="attr-hard"></div></div>
+            </div>
           </div>
-          <div>
-            <h3>日ごとのきろく　<span class="sub-h">新しい順</span></h3>
-            <div class="timeline" id="portfolio"><div class="empty">まだ記録がありません。</div></div>
+          <div class="card">
+            <div class="card-h"><span class="h-badge">😊</span><h2>今日の気持ち　<span class="sub-h">いちばん近いものを1つ</span></h2></div>
+            <div class="card-b"><div class="stamp-row" id="mood-row"></div></div>
           </div>
-        </div>
+          <div class="step-nav">
+            <button class="btn ghost back" data-go="2,0">← もどる</button>
+            <button class="btn next" data-go="2,2">次にいかすことへ →</button>
+          </div>
+        </section>
+
+        <!-- 3/3 次にいかす -->
+        <section class="step" data-step="2">
+          <div class="card">
+            <div class="card-h"><span class="h-badge">💬</span><h2>次にいかすこと</h2></div>
+            <div class="card-b stack">
+              <div><h3>ひとことふりかえり</h3><textarea rows="2" id="selfeval" placeholder="できたこと・むずかしかったことを書こう"></textarea></div>
+              <div><h3>次はどうする？（次の時間・ほかの教科で）</h3><textarea rows="2" id="nextplan" placeholder="使えた工夫、次にためすことを書こう"></textarea></div>
+              <div class="req-box">
+                <h3>💡 先生へ：こんな資料や道具があれば、もっと分かりそう</h3>
+                <div class="sub-h" style="margin-bottom:6px">きみの「分かりにくかった」は、次の授業をよくするための大事な情報です。反省ではありません。</div>
+                <input type="text" id="materialreq" placeholder="例：年表がもう少し大きいと読みやすい／白地図に県名があると助かる">
+              </div>
+            </div>
+          </div>
+          <div class="step-nav">
+            <button class="btn ghost back" data-go="2,1">← もどる</button>
+            <button class="btn next" id="refl-save">ふりかえりを記録する</button>
+          </div>
+        </section>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- 引き出し：資料・みんなの様子・学びログ・足あと -->
+<div class="sheet" id="sheet" aria-hidden="true">
+  <div class="sheet-box">
+    <div class="sheet-h"><span id="sheet-title"></span>
+      <button class="sheet-x" id="sheet-close" aria-label="とじる">✕</button></div>
+    <div class="sheet-b" id="sheet-body"></div>
+  </div>
+</div>
+
+<!-- 各シートの中身の置き場（表示はシートに移して使う） -->
+<div class="stash" hidden>
+  <div id="src-res"><div class="always-res" id="common-res"></div></div>
+  <div id="src-log"><div class="log-grid" id="classlog-grid"></div></div>
+  <div id="src-fp" class="stack">
+    <div id="fp-trend"></div>
+    <div><h3>課題ごとの足跡</h3><div class="fp-tasks" id="fp-tasks"><div class="empty">まだ記録がありません。</div></div></div>
+    <div><h3>日ごとのきろく　<span class="sub-h">新しい順</span></h3>
+      <div class="timeline" id="portfolio"><div class="empty">まだ記録がありません。</div></div></div>
   </div>
 </div>
 
@@ -219,6 +308,110 @@ var KIND_MARK = {'必須':'★ 必須','選択':'えらべる','発展':'⚡ 発
 var S = null;      // サーバーからの状態
 var reg = [];      // きょうの Regulate
 var curTask = 0;   // いま開いている課題のindex
+var openTask = false;  // ②で1課題の画面にいるか
+var curBand = 0;       // 課題の中の帯（0はじめる/1すすめる/2おわりに）
+
+/* ---- ステップ移動 ----
+   1画面1まとまり。いまどこにいて、あと何があるかを見せる。
+   自由進度なので「進む」だけでなく、いつでも戻れるようにする。 */
+var FLOWS = {
+  '0': [{ n:'この単元でやること', i:'🏁' }, { n:'きょうの計画', i:'🎯' }],
+  '2': [{ n:'計画とのズレ', i:'📏' }, { n:'そのわけ', i:'🔍' }, { n:'次にいかす', i:'💬' }]
+};
+var flowAt = { '0': 0, '2': 0 };
+
+var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function renderStepbars(){
+  Object.keys(FLOWS).forEach(function(f){
+    var bar = $('.stepbar[data-flow="'+f+'"]');
+    if(!bar) return;
+    bar.innerHTML = FLOWS[f].map(function(st, i){
+      var state = i < flowAt[f] ? 'done' : (i === flowAt[f] ? 'now' : '');
+      return '<button class="sdot '+state+'" data-go="'+f+','+i+'">'+
+        '<span class="sd-n">'+(i < flowAt[f] ? '✓' : (i+1))+'</span>'+
+        '<span class="sd-l">'+esc(st.n)+'</span></button>'+
+        (i < FLOWS[f].length-1 ? '<i class="sline '+(i < flowAt[f] ? 'done' : '')+'"></i>' : '');
+    }).join('');
+  });
+}
+
+/**
+ * ステージ内のセクションを差し替える。
+ * 進む＝右から入って左へ出る、戻る＝その逆。向きが分かると迷子になりにくい。
+ */
+function gotoStep(flow, to){
+  var stage = $('.stage[data-flow="'+flow+'"]');
+  if(!stage) return;
+  var steps = $$('.step', stage);
+  if(to < 0 || to >= steps.length) return;
+
+  var from = -1;
+  steps.forEach(function(s,i){ if(s.classList.contains('on')) from = i; });
+  if(from === to) return;
+
+  var fwd = to > from;
+  var cur = steps[from], nxt = steps[to];
+
+  if(reduceMotion){
+    if(cur) cur.classList.remove('on');
+    nxt.classList.add('on');
+  } else {
+    if(cur){
+      cur.classList.add(fwd ? 'out-left' : 'out-right');
+      var done = function(){
+        cur.classList.remove('on','out-left','out-right');
+        cur.removeEventListener('animationend', done);
+      };
+      cur.addEventListener('animationend', done);
+    }
+    nxt.classList.add('on', fwd ? 'in-right' : 'in-left');
+    var clean = function(){
+      nxt.classList.remove('in-right','in-left');
+      nxt.removeEventListener('animationend', clean);
+    };
+    nxt.addEventListener('animationend', clean);
+  }
+
+  if(FLOWS[flow]){ flowAt[flow] = to; renderStepbars(); }
+  if(flow === 'task'){ curBand = to; syncBands(); }
+  stage.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+}
+
+/* 帯のタブと下線を今の位置に合わせる */
+function syncBands(){
+  $$('.band').forEach(function(b,i){ b.setAttribute('aria-selected', String(i===curBand)); });
+  var ink = $('#band-ink'), bands = $$('.band');
+  if(ink && bands[curBand]){
+    ink.style.width = bands[curBand].offsetWidth + 'px';
+    ink.style.transform = 'translateX(' + bands[curBand].offsetLeft + 'px)';
+  }
+}
+
+/* 一覧 ⇄ 1課題 */
+function openTaskLayer(i){
+  curTask = i; curBand = 0; openTask = true;
+  renderBands();
+  $('#lay-list').classList.remove('on');
+  var lay = $('#lay-task');
+  lay.classList.add('on');
+  if(!reduceMotion){
+    lay.classList.add('zoom-in');
+    var c = function(){ lay.classList.remove('zoom-in'); lay.removeEventListener('animationend', c); };
+    lay.addEventListener('animationend', c);
+  }
+  $$('.step', $('.stage[data-flow="task"]')).forEach(function(s,j){ s.classList.toggle('on', j===0); });
+  syncBands();
+  $('#pn1').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block:'start' });
+}
+
+function closeTaskLayer(){
+  flushTaskNote();
+  openTask = false;
+  $('#lay-task').classList.remove('on');
+  $('#lay-list').classList.add('on');
+  renderTasks();
+}
 
 /* ---- 保存 ---- */
 function saveGoal(){
@@ -256,7 +449,7 @@ function render(){
   var U = S.unit;
   $('#h-subj').textContent = U.grade + ' ' + U.subject;
   $('#h-title').textContent = U.unitName;
-  $('#h-name').textContent = '必須 ' + S.mustProgress.done + '/' + S.mustProgress.total + ' ・ ' + S.me.displayName + ' さん';
+  $('#h-name').textContent = S.me.displayName + ' さん';
   $('#content').classList.remove('hidden');
 
   // 単元の出口
@@ -268,6 +461,8 @@ function render(){
   $('#s-unitgoal').textContent = U.unitGoal || '';
   $('#s-outcome2').textContent = U.outcome || '';
 
+  renderStepbars();
+  renderMeter();
   renderGuide();
   renderPlanInputs();
   renderTasks();
@@ -321,18 +516,40 @@ function renderPlanInputs(){
 }
 
 /** 課題プール＋いま選んでいる課題のカード */
+/* --- ② 一覧：課題カード --- */
 function renderTasks(){
-  if(!S.tasks.length){ $('#tasks-nav').innerHTML=''; $('#task-panel').innerHTML='<div class="card"><div class="card-b empty">課題がまだ公開されていません。</div></div>'; return; }
+  if(!S.tasks.length){
+    $('#task-cards').innerHTML = '<div class="card"><div class="card-b empty">課題がまだ公開されていません。</div></div>';
+    return;
+  }
   if(curTask >= S.tasks.length) curTask = 0;
 
-  $('#tasks-nav').innerHTML = S.tasks.map(function(t,i){
-    return '<button class="snav" role="tab" data-i="'+i+'" aria-selected="'+(i===curTask)+'">'+
-      '<span class="sn-n k'+esc(t.kind)+'">'+esc(KIND_MARK[t.kind]||t.kind)+'</span>'+
-      '<span class="sn-t">'+esc(t.title)+'</span>'+
-      '<span class="sn-s s'+t.status+'">'+ST_LABEL[t.status]+'</span></button>';
+  $('#task-cards').innerHTML = S.tasks.map(function(t,i){
+    var u = undBy(t.understanding);
+    return '<button class="tcardx s'+t.status+'" data-open="'+i+'">'+
+      '<span class="tx-k k'+esc(t.kind)+'">'+esc(KIND_MARK[t.kind]||t.kind)+'</span>'+
+      '<span class="tx-t">'+esc(t.title)+'</span>'+
+      '<span class="tx-m">めやす '+esc(t.mins)+'分'+(u?('　'+esc(u.icon)+' '+esc(u.label)):'')+'</span>'+
+      '<span class="tx-s s'+t.status+'">'+ST_LABEL[t.status]+'</span>'+
+      '<span class="tx-go">ひらく →</span>'+
+    '</button>';
   }).join('');
 
+  if(openTask){ flushTaskNote(); renderBands(); }
+}
+
+function undBy(v){
+  var hit = null;
+  (S.understandingLevels||[]).forEach(function(u){ if(u.value===v) hit = u; });
+  return hit;
+}
+
+/* --- ② 1課題：3つの帯 --- */
+function renderBands(){
   var t = S.tasks[curTask];
+  if(!t) return;
+  $('#tt-title').innerHTML = '<span class="k'+esc(t.kind)+'">'+esc(KIND_MARK[t.kind]||t.kind)+'</span> '+esc(t.title);
+
   var choiceHtml = S.choices.map(function(c){
     var cur = t.selections[c.category];
     var arr = Array.isArray(cur) ? cur : (cur!=null && cur!=='' ? [cur] : []);
@@ -345,7 +562,19 @@ function renderTasks(){
   }).join('');
 
   var resHtml = t.resources.length ? t.resources.map(resRow).join('')
-    : '<div class="empty">この課題に紐づいた資料はありません（下の「いつでも使える資料」を使おう）</div>';
+    : '<div class="empty">この課題に紐づいた資料はありません（右の「いつでも使える資料」を使おう）</div>';
+
+  var stratHtml = t.strategies.length ? t.strategies.map(function(s){
+    return '<button class="strat exec" data-sid="'+esc(s.strategyId)+'" aria-pressed="'+(!!t.strategyUse[s.strategyId])+'">'+
+      '<span class="ic">'+esc(s.icon)+'</span><span class="nm">'+esc(s.name)+'</span>'+
+      (s.teacherNote?'<span class="ds">'+esc(s.teacherNote)+'</span>':'')+
+      '<span class="used">✔ つかった！</span></button>';
+  }).join('') : '<div class="empty">この課題のおすすめ工夫はありません</div>';
+
+  var undHtml = (S.understandingLevels||[]).map(function(u){
+    return '<button class="und" data-und="'+u.value+'" aria-pressed="'+(t.understanding===u.value)+'">'+
+      '<span class="ic">'+esc(u.icon)+'</span><span class="lb">'+esc(u.label)+'</span></button>';
+  }).join('');
 
   var myLogHtml = (S.myLogs||[]).filter(function(l){ return l.taskId === t.taskId; }).map(function(l){
     return '<figure class="log-tile mine" data-log="'+esc(l.logId)+'" data-mine="1">'+
@@ -360,43 +589,48 @@ function renderTasks(){
       '</figcaption></figure>';
   }).join('');
 
-  var undHtml = (S.understandingLevels||[]).map(function(u){
-    return '<button class="und" data-und="'+u.value+'" aria-pressed="'+(t.understanding===u.value)+'">'+
-      '<span class="ic">'+esc(u.icon)+'</span><span class="lb">'+esc(u.label)+'</span></button>';
-  }).join('');
-
-  var stratHtml = t.strategies.length ? t.strategies.map(function(s){
-    return '<button class="strat exec" data-sid="'+esc(s.strategyId)+'" aria-pressed="'+(!!t.strategyUse[s.strategyId])+'">'+
-      '<span class="ic">'+esc(s.icon)+'</span><span class="nm">'+esc(s.name)+'</span>'+
-      (s.teacherNote?'<span class="ds">'+esc(s.teacherNote)+'</span>':'')+
-      '<span class="used">✔ つかった！</span></button>';
-  }).join('') : '<div class="empty">この課題のおすすめ工夫はありません</div>';
-
-  $('#task-panel').innerHTML =
-    '<div class="card tcard">'+
-      '<div class="card-h"><span class="h-badge">'+(t.order||'')+'</span><h2>'+esc(t.title)+'</h2><span class="tmins">めやす '+esc(t.mins)+'分</span></div>'+
-      '<div class="card-b">'+
-        (t.desc ? '<div class="tdesc">'+esc(t.desc)+'</div>' : '')+
-        '<div class="tsec"><h3>この課題の取り組み方をえらぶ</h3>'+(choiceHtml||'<div class="sub-h">先生が選択肢を開放していません</div>')+'</div>'+
-        '<div class="tsec"><h3>この課題でつかう資料</h3><div class="res-list">'+resHtml+'</div></div>'+
-        '<div class="tsec"><h3>この課題でつかう工夫　<span class="sub-h">使ったらタップ</span></h3><div class="strat-grid">'+stratHtml+'</div></div>'+
-        '<div class="tsec"><h3>いまの分かりぐあい　<span class="sub-h">点数ではありません。あとで見直すための目印です</span></h3>'+
-          '<div class="und-row">'+undHtml+'</div></div>'+
-        '<div class="tsec"><h3>この課題のメモ　<span class="sub-h">気づいたこと・大切だと思ったこと・分からなかったこと</span></h3>'+
-          '<textarea rows="3" id="task-memo" placeholder="例：年表は下から読むと流れが分かった／「摂関政治」がまだあいまい">'+esc(t.memo||'')+'</textarea></div>'+
-        '<div class="tsec"><h3>学びログ　<span class="sub-h">ノートや作品を撮って、あとから見返そう</span></h3>'+
-          '<div class="log-grid mine">'+myLogHtml+
-            '<button class="log-add" data-cam="'+esc(t.taskId)+'"><span class="ic">📷</span><span class="lb">写真をのこす</span></button>'+
-          '</div></div>'+
-        '<div class="tsec tstate">'+
-          '<span class="now s'+t.status+'">いま：'+ST_LABEL[t.status]+'</span>'+
-          '<button class="btn ghost" data-status="1">▶ 取りかかる</button>'+
-          '<button class="btn" data-status="2">✔ できた！</button>'+
-        '</div>'+
-      '</div>'+
+  /* 🚩 はじめる：何をする課題か知って、やり方を決める */
+  $('#band0').innerHTML =
+    '<div class="card"><div class="card-b stack">'+
+      (t.desc ? '<div class="tdesc">'+esc(t.desc)+'</div>' : '<div class="sub-h">説明はありません</div>')+
+      '<div><h3>この課題の取り組み方をえらぶ</h3>'+(choiceHtml||'<div class="sub-h">先生が選択肢を開放していません</div>')+'</div>'+
+    '</div></div>'+
+    '<div class="step-nav">'+
+      '<span class="now s'+t.status+'">いま：'+ST_LABEL[t.status]+'</span>'+
+      (t.status===0
+        ? '<button class="btn next" data-status="1">▶ 取りかかる</button>'
+        : '<button class="btn next" data-band-go="1">すすめる →</button>')+
     '</div>';
 
-  lazyLoadLogImages('#task-panel');
+  /* ✏️ すすめる：資料と工夫だけ。作業中はここにいる */
+  $('#band1').innerHTML =
+    '<div class="card"><div class="card-h"><span class="h-badge">📚</span><h2>この課題でつかう資料</h2></div>'+
+      '<div class="card-b"><div class="res-list">'+resHtml+'</div></div></div>'+
+    '<div class="card"><div class="card-h"><span class="h-badge">💡</span><h2>この課題でつかう工夫　<span class="sub-h">使ったらタップ</span></h2></div>'+
+      '<div class="card-b"><div class="strat-grid">'+stratHtml+'</div></div></div>'+
+    '<div class="step-nav">'+
+      '<button class="btn ghost back" data-band-go="0">← はじめるにもどる</button>'+
+      '<button class="btn next" data-band-go="2">おわりに →</button>'+
+    '</div>';
+
+  /* 🏁 おわりに：自分の手ごたえを残して閉じる */
+  $('#band2').innerHTML =
+    '<div class="card"><div class="card-h"><span class="h-badge">🌱</span><h2>いまの分かりぐあい　<span class="sub-h">点数ではありません。あとで見直すための目印です</span></h2></div>'+
+      '<div class="card-b"><div class="und-row">'+undHtml+'</div></div></div>'+
+    '<div class="card"><div class="card-h"><span class="h-badge">📝</span><h2>この課題のメモ　<span class="sub-h">気づいたこと・大切だと思ったこと・分からなかったこと</span></h2></div>'+
+      '<div class="card-b"><textarea rows="3" id="task-memo" placeholder="例：年表は下から読むと流れが分かった／「摂関政治」がまだあいまい">'+esc(t.memo||'')+'</textarea></div></div>'+
+    '<div class="card"><div class="card-h"><span class="h-badge">📷</span><h2>学びログ　<span class="sub-h">ノートや作品を撮って、あとから見返そう</span></h2></div>'+
+      '<div class="card-b"><div class="log-grid mine">'+myLogHtml+
+        '<button class="log-add" data-cam="'+esc(t.taskId)+'"><span class="ic">📷</span><span class="lb">写真をのこす</span></button>'+
+      '</div></div></div>'+
+    '<div class="step-nav">'+
+      '<button class="btn ghost back" data-band-go="1">← すすめるにもどる</button>'+
+      (t.status===2
+        ? '<span class="done-mark">✔ できた！</span>'
+        : '<button class="btn next" data-status="2">✔ できた！</button>')+
+    '</div>';
+
+  lazyLoadLogImages('#lay-task');
 }
 
 function resRow(r){
@@ -410,8 +644,10 @@ function resRow(r){
 function catTitle(cat){ return ({'学習形態':'だれと','ツール':'何を使って','場所':'どこで'})[cat] || cat; }
 
 function renderCommonRes(){
-  if(!S.commonResources.length){ $('#common-res-card').style.display='none'; return; }
-  $('#common-res-card').style.display='';
+  // 資料は引き出しの中。ボタンの出し分けだけここで行う
+  var btn = document.querySelector('[data-sheet="res"]');
+  if(btn) btn.style.display = S.commonResources.length ? '' : 'none';
+  if(!S.commonResources.length){ $('#common-res').innerHTML=''; return; }
   $('#common-res').innerHTML = '<span style="font-weight:800; color:var(--ink)">いつでも使える資料：</span>' +
     S.commonResources.map(function(r){
       var isLink = r.url && /^https?:/.test(r.url);
@@ -453,7 +689,10 @@ function updateGapReason(gap){
 function setHelp(on, silent){
   var b = $('#help-btn');
   b.setAttribute('aria-pressed', String(on));
-  b.textContent = on ? '🆘 先生に知らせました（とどくまで待っていてね）' : '🆘 こまっています（先生に知らせる）';
+  // 右カラムに常設するので、見出しと補足の2段を保つ
+  b.innerHTML = on
+    ? '🆘 先生に知らせました<span class="hb-s">とどくまで待っていてね</span>'
+    : '🆘 こまっています<span class="hb-s">先生に知らせる</span>';
   if(!silent){ save('student_raiseHelp', on); toast(on ? '先生の画面に表示されました' : '取り消しました'); }
 }
 
@@ -659,9 +898,9 @@ function loadLogs(){
 
 function loadClassLogs(){
   callServer('student_getLogs', 'class').then(function(res){
-    var card = $('#classlog-card');
-    if(!res.classOpen || !res.items.length){ card.style.display = 'none'; return; }
-    card.style.display = '';
+    var btn = $('#shelf-log');
+    if(btn) btn.style.display = (res.classOpen && res.items.length) ? '' : 'none';
+    if(!res.classOpen || !res.items.length){ $('#classlog-grid').innerHTML=''; return; }
     $('#classlog-grid').innerHTML = res.items.map(logTile).join('');
     lazyLoadLogImages('#classlog-grid');
   });
@@ -708,6 +947,64 @@ function openLightbox(logId, cap){
   };
   if(logImgCache[logId]) show(logImgCache[logId]);
   else callServer('student_getLogImage', logId).then(function(r){ logImgCache[logId] = r.dataUrl; show(r.dataUrl); });
+}
+
+/* ---- 引き出し（シート） ----
+   資料・学びログ・足あとは「参考にしたい時に開く」もの。
+   常設すると本編が埋もれるので、中身は stash に置いて開くときだけ移す。 */
+var SHEETS = {
+  res: { title: '📎 いつでも使える資料', src: 'src-res' },
+  log: { title: '🖼 みんなの学びログ',   src: 'src-log', on: function(){ loadClassLogs(); } },
+  fp:  { title: '👣 学びの足跡',         src: 'src-fp',  on: function(){ loadPortfolio(); } }
+};
+var sheetSrc = null;
+
+function openSheet(kind){
+  var def = SHEETS[kind];
+  if(!def) return;
+  var src = document.getElementById(def.src);
+  if(!src) return;
+  if(sheetSrc){ document.querySelector('.stash').appendChild(sheetSrc); }  // 開きっぱなしの中身を戻す
+  $('#sheet-title').textContent = def.title;
+  $('#sheet-body').appendChild(src);   // 実体ごと移す（idが1つのまま保てる）
+  sheetSrc = src;
+  $('#sheet').classList.add('open');
+  $('#sheet').setAttribute('aria-hidden','false');
+  if(def.on) def.on();
+}
+
+function closeSheet(){
+  var sh = $('#sheet');
+  if(!sh.classList.contains('open')) return;
+  sh.classList.remove('open');
+  sh.setAttribute('aria-hidden','true');
+  if(sheetSrc){ document.querySelector('.stash').appendChild(sheetSrc); sheetSrc = null; }
+}
+
+/* 「できた！」の手ごたえ。押した所から小さく弾ける */
+function celebrate(el){
+  if(reduceMotion || !el) return;
+  var r = el.getBoundingClientRect();
+  var burst = document.createElement('div');
+  burst.className = 'burst';
+  burst.style.left = (r.left + r.width/2) + 'px';
+  burst.style.top = (r.top + r.height/2) + 'px';
+  burst.innerHTML = ['🎉','⭐','✨','🎊','⭐','✨'].map(function(em,i){
+    return '<i style="--a:'+(i*60)+'deg">'+em+'</i>';
+  }).join('');
+  document.body.appendChild(burst);
+  setTimeout(function(){ burst.remove(); }, 900);
+}
+
+/* 必須メーターを数えて出す（進んだ実感を見えるようにする） */
+function renderMeter(){
+  var m = S.mustProgress, pct = m.total ? Math.round(m.done/m.total*100) : 0;
+  var bar = $('#must-bar');
+  if(bar){
+    bar.style.width = pct + '%';
+    $('#must-n').textContent = m.done + ' / ' + m.total;
+    if(pct===100) bar.classList.add('full'); else bar.classList.remove('full');
+  }
 }
 
 /* ---- 先生の更新に気づく ----
@@ -786,22 +1083,52 @@ function pollPeers(){
   }).catch(function(){});
 }
 
+/* ---- 大きなタブ ---- */
+function goTab(i){
+  $$('.big-tab').forEach(function(t,j){ t.setAttribute('aria-selected', String(j===i)); });
+  $$('.panel').forEach(function(p,j){
+    var on = j===i;
+    p.classList.toggle('on', on);
+    if(on && !reduceMotion){
+      p.classList.add('in-right');
+      var c = function(){ p.classList.remove('in-right'); p.removeEventListener('animationend', c); };
+      p.addEventListener('animationend', c);
+    }
+  });
+  if(i===1) startPeers(); else stopPeers();
+  window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+}
+
 /* ---- イベント ---- */
 document.addEventListener('click', function(e){
   var tab = e.target.closest('.big-tab');
-  if(tab){
-    var i = tab.dataset.tab;
-    $$('.big-tab').forEach(function(t){ t.setAttribute('aria-selected', t===tab); });
-    $$('.panel').forEach(function(p,j){ p.classList.toggle('on', String(j)===i); });
-    if(i==='1') startPeers(); else stopPeers();
-    return;
-  }
+  if(tab){ goTab(Number(tab.dataset.tab)); return; }
 
   var peer = e.target.closest('.peer');
   if(peer){ peer.classList.toggle('open'); return; }
 
-  var nav = e.target.closest('.snav');
-  if(nav){ flushTaskNote(); curTask = Number(nav.dataset.i); renderTasks(); return; }
+  /* --- ステップ移動 --- */
+  var go = e.target.closest('[data-go]');
+  if(go){
+    var g = go.dataset.go.split(',');
+    gotoStep(g[0], Number(g[1]));   // 進むだけでは保存しない（空の計画を作らない）
+    return;
+  }
+  var bandBtn = e.target.closest('.band');
+  if(bandBtn){ flushTaskNote(); gotoStep('task', Number(bandBtn.dataset.band)); return; }
+  var bandGo = e.target.closest('[data-band-go]');
+  if(bandGo){ flushTaskNote(); gotoStep('task', Number(bandGo.dataset.bandGo)); return; }
+
+  /* --- 一覧 ⇄ 1課題 --- */
+  var openBtn = e.target.closest('[data-open]');
+  if(openBtn){ openTaskLayer(Number(openBtn.dataset.open)); return; }
+  if(e.target.closest('#task-back')){ closeTaskLayer(); return; }
+
+  /* --- 引き出し（資料・学びログ・足あと） --- */
+  var shelf = e.target.closest('[data-sheet]');
+  if(shelf){ openSheet(shelf.dataset.sheet); return; }
+  if(e.target.closest('#fp-open')){ openSheet('fp'); return; }
+  if(e.target.closest('#sheet-close') || e.target.id==='sheet'){ closeSheet(); return; }
 
   var stBtn = e.target.closest('[data-status]');
   if(stBtn){
@@ -810,11 +1137,16 @@ document.addEventListener('click', function(e){
     t.status = Number(stBtn.dataset.status);
     save('student_setProgress', t.taskId, t.status).then(function(){
       S.mustProgress.done = S.tasks.filter(function(x){ return x.kind==='必須' && x.status===2; }).length;
-      $('#h-name').textContent = '必須 ' + S.mustProgress.done + '/' + S.mustProgress.total + ' ・ ' + S.me.displayName + ' さん';
+      $('#h-name').textContent = S.me.displayName + ' さん';
+      renderMeter();
       renderGuide();
     });
+    if(t.status===2) celebrate(stBtn);
     toast('「'+ST_LABEL[t.status]+'」にしました');
+    renderBands();
     renderTasks();
+    // 「取りかかる」を押したら、そのまま作業の帯へ送り出す
+    if(t.status===1) setTimeout(function(){ gotoStep('task', 1); }, 250);
     return;
   }
 
@@ -889,7 +1221,7 @@ document.addEventListener('click', function(e){
     var ut = S.tasks[curTask];
     // もう一度押したら取り消し（言い切らない自由を残す）
     ut.understanding = (ut.understanding === uv) ? null : uv;
-    $$('#task-panel .und').forEach(function(x){
+    $$('#band2 .und').forEach(function(x){
       x.setAttribute('aria-pressed', String(Number(x.dataset.und)===ut.understanding));
     });
     saveTaskNote();
@@ -934,8 +1266,16 @@ document.addEventListener('click', function(e){
   if(moodBtn){ $$('#mood-row .stamp').forEach(function(x){ x.setAttribute('aria-pressed','false'); }); moodBtn.setAttribute('aria-pressed','true'); saveReflDebounced(); return; }
 
   if(e.target.closest('#help-btn')){ setHelp($('#help-btn').getAttribute('aria-pressed')!=='true'); return; }
-  if(e.target.closest('#goal-save')){ saveGoal(); toast('計画を先生に送りました'); return; }
-  if(e.target.closest('#refl-save')){ saveReflection().then(function(){ toast('ふりかえりを記録しました'); loadPortfolio(); }); return; }
+  if(e.target.closest('#goal-save')){
+    saveGoal(); toast('計画を先生に送りました');
+    goTab(1);   // そのまま「やってみる」へ送り出す
+    return;
+  }
+  if(e.target.closest('#refl-save')){
+    var rb = e.target.closest('#refl-save');
+    saveReflection().then(function(){ celebrate(rb); toast('ふりかえりを記録しました'); openSheet('fp'); });
+    return;
+  }
   if(e.target.closest('#ci-ok')){ closeCheckin('順調'); return; }
   if(e.target.closest('#ci-adj')){ closeCheckin('調整する'); return; }
 });
