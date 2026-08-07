@@ -154,6 +154,7 @@ function setupClearRecords() {
     var s = Repo.sheet(name);
     if (s.getLastRow() > 1) s.deleteRows(2, s.getLastRow() - 1);
   });
+  Repo.dropCache();   // Repo を通さず消したので、読み取りキャッシュを捨てる
   toastUi_('記録系データを消去しました。');
 }
 

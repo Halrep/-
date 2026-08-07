@@ -309,6 +309,35 @@ function teacher_getLogImage(logId) {
   return { ok: true, dataUrl: logDataUrl_(row['ファイルID']) };
 }
 
+/**
+ * スプレッドシートへのリンク。
+ * アプリでできないこと（記録の細かい確認・一括の貼り付け）は
+ * シートを直接開いたほうが早いので、行き先を画面から渡す。
+ */
+function teacher_getSheetLinks() {
+  requireTeacher_();
+  var ss = SpreadsheetApp.getActive();
+  var base = ss.getUrl();
+  var unit = currentUnit_();
+
+  var link = function (name) {
+    var s = ss.getSheetByName(name);
+    return s ? { name: name, url: base + '#gid=' + s.getSheetId() } : null;
+  };
+
+  // よく開くものだけ。全部並べると探すのが仕事になる
+  var quick = [C.SH.USERS, C.SH.UNIT, C.SH.TASK, C.SH.RES, C.SH.LOG].map(link).filter(Boolean);
+
+  // いま編集している単元の「単元シート」があれば先頭に出す
+  var unitSheet = null;
+  if (unit) {
+    var us = ss.getSheetByName(US.PREFIX + String(unit['単元名']).replace(/[\[\]\*\/\\\?:]/g, '_').slice(0, 80));
+    if (us) unitSheet = { name: us.getName(), url: base + '#gid=' + us.getSheetId() };
+  }
+
+  return { ok: true, spreadsheet: base, unitSheet: unitSheet, sheets: quick };
+}
+
 /** フィードバック送信 */
 function teacher_sendFeedback(toUserId, comment) {
   var ctx = requireTeacher_();
@@ -386,8 +415,6 @@ function designPayload_(unitId) {
       return { unitId: u['unit_id'], name: u['単元名'], subject: u['教科'], state: u['状態'] };
     }),
     resKinds: C.RES_KIND,
-    // 記録がぶら下がっている単元は消せない。ボタンの出し分けに使う
-    unitRecordCount: countUnitRecords_(uid),
     unit: {
       unitId: uid,
       subject: unit['教科'], grade: unit['学年'], unitName: unit['単元名'],
@@ -448,6 +475,19 @@ function teacher_createUnit(patch) {
     '更新時刻': Repo.now()
   });
   return { ok: true, unitId: unitId, design: designPayload_(unitId) };
+}
+
+/**
+ * この単元を消せるか（消せないなら記録の件数つき）。
+ *
+ * 件数を数えるには記録系10シートを丸ごと読むことになる。
+ * 単元デザインを開くたび・保存するたびに数えると、そのまま待ち時間になるので、
+ * 「単元を消す」を押したときだけ調べる。
+ */
+function teacher_getUnitDeletable(unitId) {
+  requireTeacher_();
+  var n = countUnitRecords_(unitId);
+  return { ok: true, canDelete: n === 0, recordCount: n };
 }
 
 /**

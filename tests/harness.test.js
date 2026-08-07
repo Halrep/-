@@ -46,8 +46,10 @@ function makeSheet(name) {
   }
   return {
     getName() { return name; },
+    getSheetId() { return Math.abs(name.split('').reduce((a, c) => a * 31 + c.charCodeAt(0) | 0, 7)); },
     getRange(r, c, nr, nc) { return range(r, c, nr, nc); },
-    getDataRange() { return range(1, 1, Math.max(data.length, 1), Math.max(width(), 1)); },
+    getDataRange() { if (global.__count) global.__reads[name] = (global.__reads[name] || 0) + 1;
+      return range(1, 1, Math.max(data.length, 1), Math.max(width(), 1)); },
     getLastRow() { return data.length; },
     getLastColumn() { return width(); },
     appendRow(row) { data.push(pad(row, Math.max(width(), row.length))); },
@@ -79,6 +81,7 @@ function makeSpreadsheet() {
     deleteSheet(s) { delete sheets[s.getName()]; },
     getUi() { return ui; },
     toast() {},
+    getUrl() { return 'https://docs.google.com/spreadsheets/d/ABC123/edit'; },
     setActiveSheet(s) { active = s; return s; },
     getActiveSheet() { return active; },
     _sheets: sheets
@@ -158,6 +161,7 @@ let uuidCounter = 0;
 const { ss, ui } = makeSpreadsheet();
 const scriptProps = {};
 let lastRender = null;
+global.__reads = {}; global.__count = false;   // シート読み取り回数の計測
 
 function pad2(n) { return n < 10 ? '0' + n : String(n); }
 
@@ -243,6 +247,7 @@ function sheetRows(name) { return vm.runInContext('Repo.readAll(' + JSON.stringi
 function truthy_G(v) { return vm.runInContext('truthy_(__args[0])', Object.assign(sandbox, { __args: [v] })); }
 function C_HEADERS(name) { return vm.runInContext('C.HEADERS[' + JSON.stringify(name) + ']', sandbox); }
 function backdate(min) { return vm.runInContext('new Date(Date.now()-' + min + '*60000)', sandbox); }
+function dropCache() { vm.runInContext('Repo.dropCache()', sandbox); }
 
 /* =================== テスト本体 =================== */
 console.log('\n【1】初期セットアップ');
@@ -400,6 +405,7 @@ const selSheet = ss._sheets['選択'];
 const sv = selSheet.getDataRange().getValues(); const sh = sv[0];
 const suid = sh.indexOf('user_id'), sat = sh.indexOf('選択時刻');
 for (let i = 1; i < sv.length; i++) if (sv[i][suid] === 'U02') selSheet.getRange(i + 1, sat + 1).setValue(backdate(25));
+dropCache();   // Repo を通さずシートを書き換えたので（本番では呼び出しごとに実行が分かれる）
 asUser('teacher@school.jp');
 const monIdle = call('teacher_getMonitor').tiles.find(t => t.number === '2');
 ok(monIdle.status === 'idle' && monIdle.idleMin >= 10, 'B（25分無操作）→ idle');
@@ -692,7 +698,10 @@ ok(delTaskErr.indexOf('記録') >= 0 && delTaskErr.indexOf('公開') >= 0,
 let delUnitErr = '';
 try { call('teacher_deleteUnit', unitId); } catch (e) { delUnitErr = String(e.message || e); }
 ok(delUnitErr.indexOf('終了') >= 0, '記録のある単元は断り、「終了」を案内する');
-ok(call('teacher_getDesign', unitId).unitRecordCount > 0, '記録の件数が画面に返る（ボタンの出し分け用）');
+const del1 = call('teacher_getUnitDeletable', unitId);
+ok(del1.canDelete === false && del1.recordCount > 0, '記録のある単元は消せないと返る（押したときだけ数える）');
+ok(call('teacher_getDesign', unitId).unitRecordCount === undefined,
+  '単元の読み込みでは記録を数えない（記録系10シートを読まずに済ませる）');
 // 記録のない単元は課題ごと消せる
 call('teacher_deleteUnit', newUnit.unitId);
 ok(sheetRows('単元').filter(u => u['unit_id'] === newUnit.unitId).length === 0, '記録のない単元は消せる');
@@ -963,6 +972,35 @@ asUser('teacher@school.jp');
 ok(call('student_getState').me.userId === 'U01', '先生は見ている相手のまま');
 call('doGet', { parameter: { as: 'teacher' } });
 ok(call('getContext').viewingUser === null, '後片付け');
+
+console.log('\n【34】読み込みを軽くする・シートへのリンク');
+asUser('teacher@school.jp');
+// 同じ実行の中で同じシートを読み直さない
+dropCache();
+global.__reads = {}; global.__count = true;
+call('teacher_getDesign', unitId);
+global.__count = false;
+const reads = Object.values(global.__reads).reduce((a, b) => a + b, 0);
+ok(reads <= 8, '単元の読み込みでシートを読むのは8回まで（実際: ' + reads + '）');
+ok(!global.__reads['進度'] && !global.__reads['振り返り'],
+  '単元の読み込みで記録系シートを読まない');
+// 書いたシートはその場でキャッシュを捨てるので、同じ実行でも最新が返る
+const beforeN = call('teacher_getDesign', unitId).tasks.length;
+const addT = call('teacher_saveTask', null, { unitId: unitId, '種別': '選択', 'タイトル': 'キャッシュ確認' });
+ok(addT.design.tasks.length === beforeN + 1, '書き込み直後の読み取りに追加分が反映される');
+call('teacher_deleteTask', addT.taskId);
+
+// シートへのリンク
+const links = call('teacher_getSheetLinks');
+ok(links.spreadsheet.indexOf('http') === 0, 'スプレッドシートのURLが返る');
+ok(links.sheets.length >= 4, 'よく開くシートのリンクが返る');
+ok(links.sheets.every(s => /#gid=\d+/.test(s.url)), '各シートに #gid が付く');
+ok(links.sheets.some(s => s.name === '名簿'), '名簿へのリンクがある');
+ok(links.sheets.some(s => s.name === '学びログ'), '学びログへのリンクがある');
+// いま公開中の単元に単元シートがあれば、それも返す
+ui.promptText = '1';
+call('unitSheetExport');
+ok(call('teacher_getSheetLinks').unitSheet !== null, '公開中の単元の単元シートへのリンクが返る');
 
 /* =================== 結果 =================== */
 console.log('\n========================================');

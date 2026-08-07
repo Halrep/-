@@ -9,6 +9,21 @@ var Repo = (function () {
 
   function ss() { return SpreadsheetApp.getActive(); }
 
+  /**
+   * 1回の実行のあいだだけ持つ読み取りキャッシュ。
+   *
+   * getDataRange().getValues() はシートを丸ごと読むので、1リクエストの中で
+   * 同じシートを何度も読むと、そのぶんそのまま待ち時間になる
+   * （例：単元シートの取り込みは課題1件ごとに firstWhere_ で全件を読み直していた）。
+   * 書き込んだシートはその場で捨てるので、同じ実行の中でも最新が返る。
+   *
+   * 注意：返す行オブジェクトはキャッシュと共有される。呼び出し側で書き換えないこと
+   *      （書き換えは Repo.append / upsert / updateByKey / remove を通す）。
+   */
+  var cache = {};
+  function drop(name) { delete cache[name]; }
+  function dropAll() { cache = {}; }
+
   function sheet(name) {
     var s = ss().getSheetByName(name);
     if (!s) {
@@ -26,9 +41,10 @@ var Repo = (function () {
 
   /** 全行を {列名: 値} の配列で返す（空行はスキップ）。__row に実シート行番号を持たせる */
   function readAll(name) {
+    if (cache[name]) return cache[name];
     var s = sheet(name);
     var values = s.getDataRange().getValues();
-    if (values.length < 2) return [];
+    if (values.length < 2) { cache[name] = []; return cache[name]; }
     var h = values[0];
     var out = [];
     for (var i = 1; i < values.length; i++) {
@@ -39,6 +55,7 @@ var Repo = (function () {
       obj.__row = i + 1;
       out.push(obj);
     }
+    cache[name] = out;
     return out;
   }
 
@@ -61,6 +78,7 @@ var Repo = (function () {
       var h = s.getRange(1, 1, 1, s.getLastColumn()).getValues()[0];
       var row = h.map(function (col) { return obj.hasOwnProperty(col) ? obj[col] : ''; });
       s.appendRow(row);
+      drop(name);
       return obj;
     } finally {
       lock.releaseLock();
@@ -91,6 +109,7 @@ var Repo = (function () {
           for (var pk in patch) {
             if (cols[pk] !== undefined) s.getRange(i + 1, cols[pk] + 1).setValue(patch[pk]);
           }
+          drop(name);
           return 'updated';
         }
       }
@@ -100,6 +119,7 @@ var Repo = (function () {
       for (var b in patch) merged[b] = patch[b];
       var newRow = h.map(function (col) { return merged.hasOwnProperty(col) ? merged[col] : ''; });
       s.appendRow(newRow);
+      drop(name);
       return 'inserted';
     } finally {
       lock.releaseLock();
@@ -131,6 +151,7 @@ var Repo = (function () {
         if (hit) hits.push(i + 1);
       }
       for (var j = hits.length - 1; j >= 0; j--) s.deleteRow(hits[j]);
+      drop(name);
       return hits.length;
     } finally {
       lock.releaseLock();
@@ -149,6 +170,7 @@ var Repo = (function () {
     where: where,
     append: append,
     upsert: upsert,
+    dropCache: dropAll,
     updateByKey: updateByKey,
     remove: remove,
     uuid: uuid,

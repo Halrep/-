@@ -7,6 +7,7 @@
     <span class="subj" id="h-class">先生</span>
     <span class="t" id="h-title">読み込み中…</span>
     <span class="n" id="h-meta"></span>
+    <span class="sheet-links" id="sheet-links"></span>
     <? if (bootstrap.canSwitch) { ?>
       <a class="role-sw" target="_top"
          href="<?= bootstrap.canSwitch ?>?as=student">児童の画面へ<? if (bootstrap.demo) { ?><span class="rs-demo">デモ</span><? } ?></a>
@@ -120,6 +121,25 @@ var META = null, selectedUser = null, monTimer = null;
 var ST_LABEL = ['未着手','取組中','できた'];
 var KIND_MARK = {'必須':'★ 必須','選択':'えらべる','発展':'⚡ 発展'};
 
+/* ---- スプレッドシートへのリンク ----
+   アプリでできないこと（記録の細かい確認・一括の貼り付け）はシートのほうが早い。
+   行き先を画面から渡して、探させない。 */
+function loadSheetLinks(){
+  callServer('teacher_getSheetLinks').then(function(r){
+    var box = $('#sheet-links');
+    if(!box || !r.spreadsheet){ return; }
+    var items = [];
+    if(r.unitSheet) items.push({ name:'📄 '+r.unitSheet.name, url:r.unitSheet.url });
+    (r.sheets||[]).forEach(function(s){ items.push({ name:s.name, url:s.url }); });
+
+    box.innerHTML = '<a class="sl-main" href="'+esc(r.spreadsheet)+'" target="_blank" rel="noopener">'+
+        '<span class="sl-ic">📊</span>シートを開く</a>'+
+      '<span class="sl-menu">'+
+        items.map(function(i){ return '<a href="'+esc(i.url)+'" target="_blank" rel="noopener">'+esc(i.name)+'</a>'; }).join('')+
+      '</span>';
+  }).catch(function(){});
+}
+
 /* ---- タブ ---- */
 document.addEventListener('click', function(e){
   var t = e.target.closest('.t-tab');
@@ -176,10 +196,11 @@ function renderRegulation(r){
 function renderDistribution(dist){
   $('#dist-list').innerHTML = dist.map(function(d){
     var total = d.doing + d.done;
+    // 列幅を固定して、どの行もバーの始まりと長さがそろうようにする
     return '<div class="dist-row'+(d.published?'':' unpub')+'">'+
       '<span class="gk k'+esc(d.kind)+'">'+esc(KIND_MARK[d.kind]||d.kind)+'</span>'+
-      '<span class="dt">'+esc(d.title)+'</span>'+
-      (d.published?'':'<span class="rtag">未公開</span>')+
+      '<span class="dt" title="'+esc(d.title)+'">'+esc(d.title)+
+        (d.published?'':'<span class="rtag">未公開</span>')+'</span>'+
       '<span class="dbar">'+
         (d.doing?'<i class="doing" style="flex:'+d.doing+'" title="取組中'+d.doing+'"></i>':'')+
         (d.done?'<i class="done" style="flex:'+d.done+'" title="できた'+d.done+'"></i>':'')+
@@ -611,14 +632,17 @@ document.addEventListener('click', function(e){
   if(e.target.id==='btn-unit-new'){ openEditor('unit'); return; }
   if(e.target.id==='btn-unit-del'){
     if(!edDesign) return;
-    if(edDesign.unitRecordCount > 0){
-      toast('この単元には子どもの記録が'+edDesign.unitRecordCount+'件あります。消さずに「単元を終了」にしてください。');
-      return;
-    }
-    if(!confirm('単元「'+edDesign.unit.unitName+'」と、その課題・資料をまとめて消します。よろしいですか？')) return;
-    callServer('teacher_deleteUnit', currentUnitId())
-      .then(function(r){ toast('単元を消しました'); if(r.design && r.design.hasUnit) applyDesign(r.design); else loadDesign(null); })
-      .catch(function(err){ toast(String(err && err.message || err)); });
+    // 記録の件数調べは記録系シートを全部読むので、押されたときだけ行う
+    var name = edDesign.unit.unitName, uid2 = currentUnitId();
+    callServer('teacher_getUnitDeletable', uid2).then(function(r){
+      if(!r.canDelete){
+        toast('この単元には子どもの記録が'+r.recordCount+'件あります。消さずに「単元を終了」にしてください。');
+        return;
+      }
+      if(!confirm('単元「'+name+'」と、その課題・資料をまとめて消します。よろしいですか？')) return;
+      return callServer('teacher_deleteUnit', uid2)
+        .then(function(d){ toast('単元を消しました'); if(d.design && d.design.hasUnit) applyDesign(d.design); else loadDesign(null); });
+    }).catch(function(err){ toast(String(err && err.message || err)); });
     return;
   }
 
@@ -723,6 +747,7 @@ function setHeader(meta){
   $('#h-meta').textContent = meta.state;
 }
 
+loadSheetLinks();
 callServer('teacher_bootstrap').then(function(res){
   $('#h-class').textContent = '先生';
   if(res.unitMeta) setHeader(res.unitMeta); else $('#h-title').textContent = '公開中の単元はありません';
