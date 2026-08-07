@@ -154,25 +154,32 @@ function student_getState() {
 /**
  * 「ゴールまでの道すじ」を正規化する。
  *
- * 子どもが並べ替えた順序をそのまま尊重するのが原則。
- * ただし、公開されていない／消えた課題のIDは落とし、外せない課題の抜けだけ補う。
+ * 道すじは、ゴール課題を境に3つの区間に分かれる。
  *
- * ・必須 … 道すじから外せない。順番は自由
- * ・ゴール … 成果物そのものを作る課題。外せず、いつも道すじのいちばん最後
+ *   🚩スタート → ［必須・えらべる活動］ → ［ゴール課題］ → 🏁ゴール → ［発展］
+ *
+ * ・必須 … 道すじから外せない。ゴールまでのどこに置くかは自由
+ * ・選択 … 入れるかどうかも、ゴールまでのどこに置くかも自分で決める
+ * ・ゴール … 成果物そのものを作る課題。外せず、ゴールの直前にすわる
  *            （手前の課題は、この成果物のために積み上げるものになる）
- * ・選択／発展 … 入れるかどうかも、どこに置くかも自分で決める
+ * ・発展 … 「やりきったら挑戦」。ゴールに着いたその先に置く。
+ *          ゴールの手前には入れない（先にやることではないので）
+ *
+ * 子どもが並べ替えた順序は区間の中でそのまま尊重する。
+ * 公開されていない／消えた課題のIDは落とし、外せない課題の抜けだけ補う。
  *
  * saved が null（まだ一度も立てていない）ときは、必須とゴールを先生の並び順に
- * 置いたものが初期の道すじ。先生が単元の途中で足した必須は最後にならぶ。
+ * 置いたものが初期の道すじ。えらべる活動と発展は、自分で入れるところから始まる。
  */
 function normalizePlan_(saved, tasks) {
-  var byId = {}, seen = {}, order = [], last = [];
+  var byId = {}, seen = {}, main = [], goal = [], beyond = [];
   tasks.forEach(function (t) { byId[t.taskId] = t; });
 
-  // ゴール課題だけは、どこに置かれていても末尾へ送る
   function put(id) {
-    if (byId[id].kind === C.TASK_KIND.GOAL) last.push(id);
-    else order.push(id);
+    var kind = byId[id].kind;
+    if (kind === C.TASK_KIND.GOAL) goal.push(id);
+    else if (kind === C.TASK_KIND.ADVANCED) beyond.push(id);
+    else main.push(id);
   }
 
   (saved || []).forEach(function (id) {
@@ -181,7 +188,7 @@ function normalizePlan_(saved, tasks) {
   tasks.forEach(function (t) {
     if (isRequiredKind_(t.kind) && !seen[t.taskId]) { seen[t.taskId] = true; put(t.taskId); }
   });
-  return order.concat(last);
+  return main.concat(goal, beyond);
 }
 
 /**

@@ -1045,6 +1045,7 @@ let stPlan = call('student_getState');
 const mustIds = stPlan.tasks.filter(t => t.kind === '必須').map(t => t.taskId);
 const choiceIds = stPlan.tasks.filter(t => t.kind === '選択').map(t => t.taskId);
 const goalTaskId = stPlan.tasks.filter(t => t.kind === 'ゴール').map(t => t.taskId)[0];
+const advIds = stPlan.tasks.filter(t => t.kind === '発展').map(t => t.taskId);
 ok(Array.isArray(stPlan.plan.route), '道すじが届く');
 ok(!!goalTaskId, 'ゴールに直結する課題がある');
 ok(stPlan.plan.route.join(',') === mustIds.concat([goalTaskId]).join(','),
@@ -1072,11 +1073,25 @@ ok(mustIds.every(id => noMust.indexOf(id) >= 0), '必須を落とした計画で
 ok(noMust[noMust.length - 1] === goalTaskId, 'ゴール課題も落とせず、末尾に戻る');
 ok(noMust[0] === choiceIds[0], '自分で決めた順序は残したまま、外せないものを足す');
 
+// 発展は「やりきったら挑戦」。ゴールに着いた先にしか置けない
+ok(advIds.length >= 1, '公開済みの発展課題がある（⑨ 説明動画）');
+const beyond = call('student_savePlan', [advIds[0]].concat(mustIds).concat([goalTaskId])).route;
+ok(beyond[beyond.length - 1] === advIds[0], '先頭に置いても、発展はゴールのむこうへ回る');
+ok(beyond[beyond.length - 2] === goalTaskId, '発展の手前がゴール課題');
+ok(beyond.indexOf(advIds[0]) > beyond.indexOf(goalTaskId), '発展はゴール課題より後ろ');
+
+// えらべる活動はゴールの手前のまま
+const mixed = call('student_savePlan',
+  [advIds[0], choiceIds[0]].concat(mustIds).concat([goalTaskId])).route;
+ok(mixed.indexOf(choiceIds[0]) < mixed.indexOf(goalTaskId), 'えらべる活動はゴールの手前に残る');
+ok(mixed[0] === choiceIds[0], '手前の区間では自分で決めた順序が残る');
+
 // 公開されていない課題・消えた課題・重複は落とす
 const dirty = call('student_savePlan',
   [mustIds[0], mustIds[0], 'no-such-task'].concat(mustIds.slice(1)).concat([goalTaskId])).route;
 ok(dirty.length === mustIds.length + 1 && dirty.indexOf('no-such-task') < 0,
   '知らないIDと重複は落ちる（実際: ' + dirty.length + '件）');
+ok(dirty.indexOf(advIds[0]) < 0, '発展は外せる（かならずやることではない）');
 
 // 道すじは自分のもの。ほかの子には混ざらない
 asUser('b@school.jp');

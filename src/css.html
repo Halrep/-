@@ -569,6 +569,27 @@ textarea, input[type=text]{width:100%; border:1.5px solid var(--line); border-ra
 .goal-node.start{width:96px; border-color:var(--primary-line); background:var(--primary-soft)}
 .goal-node.start .gn-l{color:var(--primary)}
 
+/* ゴールのむこう。着いた先にもう一歩ある、と見えるように少し引いた色にする */
+.beyond{display:flex; flex-wrap:wrap; align-items:center; row-gap:12px; border-radius:12px;
+  outline:2.5px dashed transparent; outline-offset:6px; transition:outline-color .16s, background .16s}
+.beyond.armed{outline-color:var(--accent); background:var(--accent-soft)}
+.beyond .lnk{background:var(--accent-soft)}
+.beyond .lnk::after{border-left-color:var(--accent-soft)}
+.beyond .node{border-style:dashed}
+.beyond-tail{font-size:11px; font-weight:700; color:var(--muted); line-height:1.5; padding:8px 12px;
+  border:2px dashed var(--line); border-radius:12px; min-width:120px; text-align:center}
+.beyond-tail b{display:block; color:var(--accent); font-size:12px}
+.beyond.empty .beyond-tail{background:var(--surface2)}
+/* トレイのタイルにも行き先を出す */
+.tray .node.to-beyond{border-color:var(--accent-soft)}
+/* 課題一覧のゴール線 */
+.beyond-mark{grid-column:1/-1; display:flex; align-items:center; gap:10px; margin:8px 0 2px;
+  font-size:12px; font-weight:800; color:var(--muted)}
+.beyond-mark::after{content:''; flex:1; height:2px; background:var(--accent); border-radius:2px; opacity:.5}
+.beyond-mark b{color:var(--accent)}
+.tcardx.beyond-card{border-style:dashed}
+.mini-lnk.beyond{background:var(--accent); opacity:.5}
+
 /* 道すじの外に置いてある課題（そえる） */
 .tray-h{display:flex; align-items:baseline; gap:8px; margin:14px 0 6px; padding-top:12px; border-top:1.5px dashed var(--line)}
 .tray-h h3{margin:0}
