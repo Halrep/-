@@ -187,6 +187,15 @@ function toMs_(v) {
   return 0;
 }
 
+/**
+ * 「かならずやること」の種別か。
+ * 必須ミッションと、単元のゴール（成果物）を作る課題がこれにあたる。
+ * 道すじから外せず、必須メーターにも数える。
+ */
+function isRequiredKind_(kind) {
+  return C.REQUIRED_KINDS.indexOf(kind) >= 0;
+}
+
 /** 真偽の緩い判定（シートの TRUE/'TRUE'/1 などを吸収） */
 function truthy_(v) {
   return v === true || v === 'TRUE' || v === 'true' || v === 1 || v === '1' || v === '○';

@@ -253,13 +253,14 @@ function dropCache() { vm.runInContext('Repo.dropCache()', sandbox); }
 console.log('\n【1】初期セットアップ');
 call('setupSheets');
 const names = Object.keys(ss._sheets);
-ok(names.length === 18, 'シートが18枚生成された（実際: ' + names.length + '）');
+ok(names.length === 19, 'シートが19枚生成された（実際: ' + names.length + '）');
 ok(sheetRows('方略マスタ').length === 6, '方略マスタに6枚のサンプル');
 ok(sheetRows('単元').length === 1, 'デモ単元が1件');
 const allTasks = sheetRows('課題');
 ok(allTasks.length === 9, '課題が9件（必須4・選択3・発展2）');
 ok(allTasks.filter(t => t['種別'] === '必須').length === 4, '必須ミッションが4件');
-ok(allTasks.filter(t => t['種別'] === '発展').length === 2, '発展問題が2件');
+ok(allTasks.filter(t => t['種別'] === '発展').length === 1, '発展問題が1件');
+ok(allTasks.filter(t => t['種別'] === 'ゴール').length === 1, 'ゴールに直結する課題が1件（新聞づくり）');
 ok(sheetRows('資料').filter(r => !r['task_id']).length === 2, 'いつでも使える資料が2件');
 ok(sheetRows('資料').filter(r => r['task_id']).length === 6, '課題に紐づく資料が6件');
 
@@ -292,7 +293,7 @@ let st = call('student_getState');
 ok(st.hasUnit === true, '公開中の単元が見える');
 ok(st.unit.outcome.indexOf('新聞') >= 0, '単元の出口（成果物イメージ）が届く');
 ok(st.tasks.length === 8, '公開済みの課題8件だけが見える（⑨は非公開）');
-ok(st.mustProgress.total === 4, '必須は4件');
+ok(st.mustProgress.total === 5, 'かならずやることは必須4件＋ゴール課題1件で5件');
 ok(st.commonResources.length === 2, 'いつでも使える資料が2件');
 const t1 = st.tasks[0], t4 = st.tasks[3];
 ok(t1.resources.length === 1 && t1.resources[0].kind === '動画', '課題①に動画資料が紐づく');
@@ -340,7 +341,8 @@ ok(mon.tiles.length === 4, 'タイルは児童4名');
 const byNo = {}; mon.tiles.forEach(t => byNo[t.number] = t);
 ok(byNo['1'].doingTitle.indexOf('しくみを図に') >= 0, 'Aがいま取り組んでいる課題名が出る');
 ok(byNo['2'].doingTitle.indexOf('武家諸法度') >= 0, 'Bは選択課題に取り組み中');
-ok(byNo['3'].status === 'done' && byNo['3'].doneMust === 4, 'Cは必須を全部終えて done');
+ok(byNo['3'].status === 'busy' && byNo['3'].doneMust === 4,
+  'Cは必須4件を終えたが、ゴール課題が残っているので done にはならない');
 ok(byNo['4'].status === 'none', 'Dは未着手');
 ok(mon.taskDistribution.length === 9, '課題分布は9件（非公開も教師には見える）');
 const distT1 = mon.taskDistribution.find(d => d.title.indexOf('しくみを図に') >= 0);
@@ -361,7 +363,8 @@ ok(peers.cards.length === 4, 'クラス4名分');
 const meCard = peers.cards.find(c => c.isMe);
 ok(meCard && meCard.name === 'あなた', '自分は「あなた」と表示');
 const cCard = peers.cards.find(c => c.number === '3');
-ok(cCard.doneMust === 4 && cCard.stage === 'できた', 'Cの必須達成が見える');
+ok(cCard.doneMust === 4 && cCard.mustTotal === 5 && cCard.stage === 'とりくみ中',
+  'Cはゴール課題の途中だと他児にも見える');
 ok(peers.cards.find(c => c.number === '2').doingTitle.indexOf('武家諸法度') >= 0, '他児がいま取り組む課題が見える');
 ok(peers.cards[0].helpOn === undefined, 'こまった状態は他児に渡さない');
 
@@ -896,7 +899,7 @@ ok(call('student_getVersion').version === v1, '非公開に戻すと版も戻る
 console.log('\n【32】決まった選択肢はプルダウンにする');
 const vs = vm.runInContext('C.VALIDATIONS', sandbox);
 ok(vs['名簿']['役割'].join(',') === 'teacher,student', '名簿の役割がプルダウン対象');
-ok(vs['課題']['種別'].join(',') === '必須,選択,発展', '課題の種別がプルダウン対象');
+ok(vs['課題']['種別'].join(',') === '必須,選択,発展,ゴール', '課題の種別がプルダウン対象');
 ok(vs['資料']['種別'].indexOf('動画') >= 0, '資料の種別がプルダウン対象');
 ok(vs['単元']['状態'].join(',') === '準備中,公開中,終了', '単元の状態がプルダウン対象');
 ok(vs['単元']['他者参照'].join(',') === 'TRUE,FALSE', 'TRUE/FALSE の列もプルダウン対象');
@@ -1035,6 +1038,102 @@ call('student_setProgress', t1.taskId, 2);
 vm.runInContext('PropertiesService.getScriptProperties().setProperty(C.DEMO_PROP, "FALSE")', sandbox);
 call('doGet', { parameter: { as: 'teacher' } });
 ok(call('getContext').viewingUser === null, '後片付け：見るのをやめる');
+
+console.log('\n【36】ゴールまでの道すじ（自分で立てる単元の計画）');
+asUser('a@school.jp');
+let stPlan = call('student_getState');
+const mustIds = stPlan.tasks.filter(t => t.kind === '必須').map(t => t.taskId);
+const choiceIds = stPlan.tasks.filter(t => t.kind === '選択').map(t => t.taskId);
+const goalTaskId = stPlan.tasks.filter(t => t.kind === 'ゴール').map(t => t.taskId)[0];
+ok(Array.isArray(stPlan.plan.route), '道すじが届く');
+ok(!!goalTaskId, 'ゴールに直結する課題がある');
+ok(stPlan.plan.route.join(',') === mustIds.concat([goalTaskId]).join(','),
+  'はじめの道すじは必須＋ゴール課題（えらべる活動と発展は自分で入れる）');
+ok(stPlan.plan.route[stPlan.plan.route.length - 1] === goalTaskId, 'ゴール課題は道すじのいちばん最後');
+ok(sheetRows('学習計画').length === 0, '見ただけでは記録を作らない');
+
+// 順番を入れ替え、えらべる活動をあいだに挿し込む
+const myRoute = [mustIds[1], mustIds[0], choiceIds[0], mustIds[2], mustIds[3], goalTaskId];
+call('student_savePlan', myRoute);
+stPlan = call('student_getState');
+ok(stPlan.plan.route.join(',') === myRoute.join(','), '並べ替えと挿し込みがそのまま残る');
+ok(sheetRows('学習計画').length === 1, '1人1単元1件で持つ');
+
+// 入れ直しても行は増えない（順序そのものが計画なので、最新の1件を上書きする）
+call('student_savePlan', myRoute.slice().reverse());
+ok(sheetRows('学習計画').length === 1, '立て直しても行は増えない');
+const flipped = call('student_getState').plan.route;
+ok(flipped[0] === mustIds[3], '立て直した順序になる');
+ok(flipped[flipped.length - 1] === goalTaskId, '先頭に置き直してもゴール課題は末尾に戻る');
+
+// 必須とゴールは外せない：抜けていてもサーバーが道すじに戻す
+const noMust = call('student_savePlan', [choiceIds[0]]).route;
+ok(mustIds.every(id => noMust.indexOf(id) >= 0), '必須を落とした計画でも、必須は道すじに戻る');
+ok(noMust[noMust.length - 1] === goalTaskId, 'ゴール課題も落とせず、末尾に戻る');
+ok(noMust[0] === choiceIds[0], '自分で決めた順序は残したまま、外せないものを足す');
+
+// 公開されていない課題・消えた課題・重複は落とす
+const dirty = call('student_savePlan',
+  [mustIds[0], mustIds[0], 'no-such-task'].concat(mustIds.slice(1)).concat([goalTaskId])).route;
+ok(dirty.length === mustIds.length + 1 && dirty.indexOf('no-such-task') < 0,
+  '知らないIDと重複は落ちる（実際: ' + dirty.length + '件）');
+
+// 道すじは自分のもの。ほかの子には混ざらない
+asUser('b@school.jp');
+const stB2 = call('student_getState');
+ok(stB2.plan.route.join(',') ===
+   stB2.tasks.filter(t => t.kind === '必須').map(t => t.taskId).concat([goalTaskId]).join(','),
+  '他の子の道すじは初期のまま');
+call('student_savePlan', stB2.plan.route.slice().reverse());
+ok(sheetRows('学習計画').length === 2, '児童ごとに1件ずつ');
+asUser('a@school.jp');
+ok(call('student_getState').plan.route.join(',') === dirty.join(','), '自分の道すじは変わらない');
+
+// 先生が見ているだけのときは書けない
+asUser('teacher@school.jp');
+call('doGet', { parameter: { as: 'student', who: 'U01' } });
+let planBlocked = false;
+try { call('student_savePlan', mustIds); } catch (e) { planBlocked = /読み取り専用/.test(e.message); }
+ok(planBlocked, '読み取り専用のあいだは道すじを書き換えられない');
+call('doGet', { parameter: { as: 'teacher' } });
+
+console.log('\n【37】ゴールに直結する課題は単元にひとつ');
+asUser('teacher@school.jp');
+const before37 = call('teacher_getDesign', unitId).tasks.filter(t => t.kind === 'ゴール');
+ok(before37.length === 1, 'いまは1件（新聞づくり）');
+
+// 別の課題をゴールにすると、前のゴールは「必須」に戻る
+const otherId = call('teacher_getDesign', unitId).tasks.find(t => t.kind === '選択').taskId;
+const d37 = call('teacher_saveTask', otherId, {
+  '種別': 'ゴール', 'タイトル': '江戸のまちのくらしを調べる', '説明': '', 'めやす分': 15
+}).design;
+ok(d37.tasks.filter(t => t.kind === 'ゴール').length === 1, 'ゴールはやはり1件だけ');
+ok(d37.tasks.find(t => t.taskId === otherId).kind === 'ゴール', 'あとから指定したほうがゴールになる');
+ok(d37.tasks.find(t => t.taskId === goalTaskId).kind === '必須',
+  '前のゴールは必須に戻る（かならずやることは変わらないので道すじからは落ちない）');
+
+// 新しく作る課題をゴールにしたときも入れ替わる
+const madeGoal = call('teacher_saveTask', null, {
+  unitId: unitId, '種別': 'ゴール', 'タイトル': '発表会でお披露目する', 'めやす分': 20
+});
+ok(madeGoal.design.tasks.filter(t => t.kind === 'ゴール').length === 1, '作るときも1件に保たれる');
+ok(madeGoal.design.tasks.find(t => t.taskId === otherId).kind === '必須', 'さっきのゴールは必須に戻る');
+
+// 児童の道すじでも、新しいゴールが末尾にすわる
+call('teacher_setTaskPublish', madeGoal.taskId, true);
+asUser('a@school.jp');
+const r37 = call('student_getState').plan.route;
+ok(r37[r37.length - 1] === madeGoal.taskId, '新しいゴール課題が道すじの末尾にくる');
+ok(r37.indexOf(goalTaskId) >= 0 && r37.indexOf(goalTaskId) < r37.length - 1,
+  '必須に戻った元ゴールは道すじに残るが、末尾ではない');
+
+// もとに戻しておく
+asUser('teacher@school.jp');
+call('teacher_deleteTask', madeGoal.taskId);
+call('teacher_saveTask', goalTaskId, {
+  '種別': 'ゴール', 'タイトル': '「大名支配のしくみ新聞」をつくる', '説明': '単元のゴール。調べたことを新聞にまとめよう。', 'めやす分': 30
+});
+ok(call('teacher_getDesign', unitId).tasks.filter(t => t.kind === 'ゴール').length === 1, '後片付け：ゴールは1件');
 
 /* =================== 結果 =================== */
 console.log('\n========================================');

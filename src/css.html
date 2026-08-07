@@ -453,9 +453,12 @@ textarea, input[type=text]{width:100%; border:1.5px solid var(--line); border-ra
 .guide-row .gt{font-weight:700; font-size:13px}
 .guide-row .gm{margin-left:auto; font-size:11px; color:var(--muted); white-space:nowrap}
 .gk{font-size:10px; font-weight:800; border-radius:5px; padding:2px 8px; white-space:nowrap; flex:none}
-.gk.k必須, .sn-n.k必須{background:var(--primary-soft); color:var(--primary)}
-.gk.k選択, .sn-n.k選択{background:var(--surface2); color:var(--muted)}
-.gk.k発展, .sn-n.k発展{background:var(--accent-soft); color:var(--accent)}
+.gk.k必須, .sn-n.k必須, .nd-k.k必須{background:var(--primary-soft); color:var(--primary)}
+.gk.k選択, .sn-n.k選択, .nd-k.k選択{background:var(--surface2); color:var(--muted)}
+.gk.k発展, .sn-n.k発展, .nd-k.k発展{background:var(--accent-soft); color:var(--accent)}
+.gk.kゴール, .sn-n.kゴール, .nd-k.kゴール, .tx-k.kゴール{background:var(--accent); color:#fff}
+/* 一覧カードの見出しはグリッドの1行なので、バッジが行いっぱいに伸びないようにする */
+.tx-k.kゴール{justify-self:start; border-radius:5px; padding:1px 8px}
 .gs{font-size:10.5px; font-weight:800; border-radius:5px; padding:1px 7px; white-space:nowrap}
 .gs.s0{background:var(--idle-soft); color:var(--idle)}
 .gs.s1{background:var(--busy-soft); color:var(--busy)}
@@ -493,6 +496,125 @@ textarea, input[type=text]{width:100%; border:1.5px solid var(--line); border-ra
 .outcome .lb{font-size:10.5px; font-weight:800; letter-spacing:.14em; color:var(--primary); display:block; margin-bottom:2px}
 .outcome .ol{font-weight:800; font-size:14.5px; line-height:1.6}
 .outcome .og{font-size:12px; color:var(--muted); margin-top:2px}
+
+/* ---- ① ゴールまでの道すじ（ノードをつないで単元の計画をつくる） ----
+   課題は「飛び石」、あいだの線は「つながり」。
+   ひとつ持ち上げると両どなりの線がはずれ、残ったどうしが結び直る。
+   置きたいところに近づけると線が割れて受け口ができ、指をはなすと吸いつく。
+   ドラッグができない環境でも進められるよう、同じ操作をボタンでも用意している。 */
+.route-box{position:relative}
+.route{display:flex; flex-wrap:wrap; align-items:center; row-gap:12px; padding:4px 0 2px; min-height:118px}
+/* つながり＋その先のタイルで1組。折り返しても線が置き去りにならない */
+.seg{display:flex; align-items:center; flex:none}
+.route.dragging, .route.dragging .node{cursor:grabbing}
+
+.node{position:relative; display:flex; flex-direction:column; flex:none; width:186px; min-height:104px;
+  border:2px solid var(--line); background:var(--surface); border-radius:12px; padding:9px 11px 8px;
+  text-align:left; cursor:grab; touch-action:none; -webkit-user-select:none; user-select:none;
+  transition:border-color .16s, box-shadow .16s, transform .16s}
+.node.s1{border-color:var(--busy); background:var(--busy-soft)}
+.node.s2{border-color:var(--ok); background:var(--ok-soft)}
+.node .nd-k{font-size:10px; font-weight:800; border-radius:5px; padding:1px 7px; align-self:flex-start; white-space:nowrap}
+.node .nd-t{font-size:13.5px; font-weight:800; line-height:1.42; margin-top:3px}
+.node .nd-m{font-size:11px; color:var(--muted); margin-top:2px}
+.node .nd-s{position:absolute; top:8px; right:9px; font-size:10px; font-weight:800; border-radius:999px; padding:1px 7px;
+  background:var(--idle-soft); color:var(--idle)}
+.node .nd-s.s1{background:var(--busy); color:#fff}
+.node .nd-s.s2{background:var(--ok); color:#fff}
+.node .nd-ops{display:flex; gap:3px; margin-top:auto; padding-top:6px; opacity:.55; transition:opacity .16s}
+.node:hover .nd-ops, .node:focus-within .nd-ops{opacity:1}
+.node .nd-op{border:1.5px solid var(--line); background:var(--surface); border-radius:7px; padding:1px 8px;
+  font-size:11px; font-weight:800; color:var(--muted); line-height:1.7}
+.node .nd-op:hover{border-color:var(--primary); color:var(--primary)}
+.node .nd-op[disabled]{opacity:.3; cursor:default}
+.node .nd-op.drop{margin-left:auto}
+/* いま取り組んでいる課題は道すじの上でも分かるようにする */
+.node.here{box-shadow:0 0 0 3px var(--accent-soft), var(--shadow); border-color:var(--accent)}
+/* ゴールに直結する課題。ここまで来れば単元の成果物ができる */
+.node.pinned{border-color:var(--accent); border-width:2.5px; background:var(--accent-soft); cursor:default}
+.node.pinned.s2{background:var(--ok-soft); border-color:var(--ok)}
+.node .nd-pin{font-size:10.5px; font-weight:800; color:var(--accent); white-space:nowrap}
+
+/* つながり（動的コネクタ）。持ち上げ・結び直しをこの線で見せる */
+.lnk{position:relative; flex:0 0 26px; height:3px; border-radius:3px; background:var(--line); align-self:center;
+  transition:flex-basis .18s cubic-bezier(.2,.8,.2,1), background .18s, opacity .18s}
+.lnk.done{background:var(--ok)}
+.lnk::after{content:''; position:absolute; right:-1px; top:-3px; border:4.5px solid transparent; border-left-color:var(--line)}
+.lnk.done::after{border-left-color:var(--ok)}
+/* 受け口。広げすぎると道すじ全体が動いて狙いにくいので、ほどほどに割る */
+.lnk.open{flex-basis:98px; height:100px; border:2.5px dashed var(--primary); border-radius:12px; background:var(--primary-soft)}
+.lnk.open::after{display:none}
+.lnk.parting{animation:lnkPart .2s ease-in forwards}
+.lnk.joining{animation:lnkJoin .3s cubic-bezier(.2,.8,.2,1)}
+@keyframes lnkPart{from{opacity:1} to{opacity:0; transform:scaleX(.2)}}
+@keyframes lnkJoin{0%{transform:scaleX(0); opacity:.2} 60%{transform:scaleX(1.16)} 100%{transform:scaleX(1); opacity:1}}
+
+/* 運んでいるあいだの分身。指・カーソルにつく */
+.node.ghost{position:fixed; z-index:120; margin:0; pointer-events:none; cursor:grabbing;
+  border-color:var(--primary); box-shadow:0 14px 34px rgba(35,48,58,.28); transform:rotate(-1.5deg) scale(1.04)}
+.node.ghost.snapped{border-color:var(--ok); box-shadow:0 14px 34px rgba(46,158,107,.34)}
+.node.ghost .nd-ops{display:none}
+.node.lifted{opacity:.3}
+.node.landed{animation:nodeLand .34s cubic-bezier(.2,.8,.2,1)}
+.node.stuck{animation:nodeStuck .34s ease-in-out}
+@keyframes nodeLand{0%{transform:scale(1.06)} 55%{transform:scale(.97)} 100%{transform:none}}
+@keyframes nodeStuck{0%,100%{transform:none} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)}}
+
+/* 道すじの両はし。はじまりと行き先を置くと、あいだが「道」になる */
+.goal-node{display:grid; align-content:center; justify-items:center; gap:2px; width:158px; min-height:104px; padding:10px 12px;
+  border:2.5px solid var(--accent); border-radius:12px; background:var(--accent-soft); text-align:center; flex:none}
+.goal-node .gn-f{font-size:24px; line-height:1}
+.goal-node .gn-l{font-size:10px; font-weight:800; letter-spacing:.14em; color:var(--accent)}
+.goal-node .gn-t{font-size:12px; font-weight:800; line-height:1.45}
+.goal-node.start{width:96px; border-color:var(--primary-line); background:var(--primary-soft)}
+.goal-node.start .gn-l{color:var(--primary)}
+
+/* 道すじの外に置いてある課題（そえる） */
+.tray-h{display:flex; align-items:baseline; gap:8px; margin:14px 0 6px; padding-top:12px; border-top:1.5px dashed var(--line)}
+.tray-h h3{margin:0}
+.tray{display:flex; flex-wrap:wrap; gap:10px; min-height:56px; border-radius:12px; transition:background .16s, outline-color .16s;
+  outline:2.5px dashed transparent; outline-offset:6px}
+/* 運んできたタイルを受け取れる状態。「ここに戻せば外れる」を先に見せる */
+.tray.drop-here{outline-color:var(--primary); background:var(--primary-soft)}
+.tray .node{width:174px; min-height:98px; border-style:dashed; background:var(--surface2)}
+.tray .empty{font-size:12px}
+.route-note{font-size:11.5px; color:var(--muted); margin-top:10px; line-height:1.7}
+.route-sum{font-size:12.5px; font-weight:800; color:var(--muted)}
+
+/* ② 課題一覧の上に出す小さい道すじ。押すとその課題がひらく */
+.mini-route{display:flex; flex-wrap:wrap; align-items:center; margin-bottom:14px}
+.mini-node{display:flex; align-items:center; gap:6px; border:1.5px solid var(--line); background:var(--surface);
+  border-radius:999px; padding:4px 12px 4px 6px; font-size:12px; font-weight:700; max-width:230px}
+.mini-node .mn-n{display:grid; place-items:center; width:20px; height:20px; border-radius:50%; flex:none;
+  background:var(--surface2); color:var(--muted); font-size:10.5px; font-weight:800}
+.mini-node .mn-t{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.mini-node.s1{border-color:var(--busy); background:var(--busy-soft)}
+.mini-node.s1 .mn-n{background:var(--busy); color:#fff}
+.mini-node.s2{border-color:var(--ok); background:var(--ok-soft)}
+.mini-node.s2 .mn-n{background:var(--ok); color:#fff}
+.mini-node.here{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft)}
+.mini-lnk{flex:0 0 14px; height:2.5px; background:var(--line); border-radius:2px}
+.mini-lnk.done{background:var(--ok)}
+.mini-goal{display:flex; align-items:center; gap:5px; border:1.5px solid var(--accent); background:var(--accent-soft);
+  border-radius:999px; padding:4px 12px; font-size:12px; font-weight:800; color:var(--accent); max-width:240px}
+.mini-goal .mg-t{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ink)}
+.off-route-h{display:flex; align-items:baseline; gap:8px; margin:20px 0 8px}
+.off-route-h h3{margin:0}
+/* カードの高さがちがっても、入れるボタンの位置はそろえる */
+.off-card{display:grid; grid-template-rows:1fr auto; gap:6px}
+.off-card .tcardx{opacity:.85}
+.btn.sm{justify-self:start; padding:6px 14px; font-size:12.5px}
+.tx-no{display:inline-grid; place-items:center; width:17px; height:17px; border-radius:50%; margin-right:5px;
+  background:var(--ink); color:var(--bg); font-size:10.5px; vertical-align:-3px}
+
+@media (max-width:640px){
+  .node, .tray .node{width:100%}
+  .lnk{flex-basis:100%; height:22px; width:3px; margin:0 auto; border-radius:3px}
+  .lnk::after{right:auto; left:-3px; top:auto; bottom:-1px; border-left-color:transparent; border-top-color:var(--line)}
+  .lnk.done::after{border-left-color:transparent; border-top-color:var(--ok)}
+  .lnk.open{height:96px; width:auto}
+  .goal-node{width:100%}
+}
 
 /* ② 自己効力感（見通す） */
 .efficacy{display:flex; align-items:center; gap:14px}

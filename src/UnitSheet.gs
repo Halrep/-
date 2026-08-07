@@ -183,7 +183,7 @@ function buildUnitSheet_(unitName, unitId, unit, tasks, resources, taskRow) {
   var fieldRow = function (label) { return US.FIELDS.map(function (f) { return f[0]; }).indexOf(label) + 2; };
   applyValidation_(s, fieldRow('学年'), 2, C.CHOICES.GRADE, 1);
   applyValidation_(s, fieldRow('裁量レベル（1指定／2選択／3自由）'), 2, C.CHOICES.DISCRETION, 1);
-  applyValidation_(s, taskMarkRow + 2, 1, [C.TASK_KIND.MUST, C.TASK_KIND.CHOICE, C.TASK_KIND.ADVANCED]);
+  applyValidation_(s, taskMarkRow + 2, 1, C.TASK_KINDS);
   applyValidation_(s, taskMarkRow + 2, 5, ['公開', '非公開']);
   applyValidation_(s, resMarkRow + 2, 5, C.RES_KIND);
   applyValidation_(s, resMarkRow + 2, 7, ['公開', '非公開']);
@@ -285,7 +285,7 @@ function importUnitSheet_(sheet, p) {
   var name = String(p.fields['単元名'] || '').trim();
   if (!name) throw new Error('単元名が空です。');
 
-  var kinds = [C.TASK_KIND.MUST, C.TASK_KIND.CHOICE, C.TASK_KIND.ADVANCED];
+  var kinds = C.TASK_KINDS;
   var out = {
     unitName: name, taskAdded: 0, taskUpdated: 0, taskDeleted: 0,
     resAdded: 0, resUpdated: 0, resDeleted: 0, kept: [], skipped: []
@@ -321,16 +321,29 @@ function importUnitSheet_(sheet, p) {
   var seenTasks = {};
   var rowToTaskId = {};   // 資料の「課題番号」を解決するため
 
+  // ゴール（成果物をつくる課題）は単元に1つだけ。
+  // 2つ以上書かれていたら、上にあるほうを残して、あとは必須として取り込む。
+  var goalTaken = false;
+
   p.tasks.forEach(function (t, ix) {
     if (kinds.indexOf(t.kind) < 0) {
-      out.skipped.push(t.row + '行目「' + t.title + '」：種別が「' + t.kind + '」（必須／選択／発展のどれかにしてください）');
+      out.skipped.push(t.row + '行目「' + t.title + '」：種別が「' + t.kind + '」（' + kinds.join('／') + 'のどれかにしてください）');
       return;
+    }
+    var kind = t.kind;
+    if (kind === C.TASK_KIND.GOAL) {
+      if (goalTaken) {
+        kind = C.TASK_KIND.MUST;
+        out.skipped.push(t.row + '行目「' + t.title + '」：ゴールは単元に1つだけなので「必須」で取り込みました');
+      } else {
+        goalTaken = true;
+      }
     }
     var mins = t.mins === '' || t.mins == null ? '' : Number(t.mins);
     if (mins !== '' && isNaN(mins)) mins = '';
 
     var fields = {
-      '並び': ix + 1, '種別': t.kind, 'タイトル': t.title,
+      '並び': ix + 1, '種別': kind, 'タイトル': t.title,
       '説明': t.desc || '', 'めやす分': mins, '公開': t.published ? 'TRUE' : 'FALSE'
     };
 

@@ -58,13 +58,26 @@
           </div>
 
           <div class="card">
-            <div class="card-h"><span class="h-badge">📋</span><h2>学習の手引き　<span class="sub-h">かならずやること／えらべること</span></h2></div>
-            <div class="card-b" id="guide"></div>
+            <div class="card-h"><span class="h-badge">🧭</span><h2>ゴールまでの道すじをつくろう　<span class="sub-h">やる順番は自分で決められます。あとから変えてもOK</span></h2></div>
+            <div class="card-b route-box">
+              <div class="route" id="route"></div>
+
+              <div class="tray-h">
+                <h3>そえる課題　<span class="sub-h">道すじに入れると、ゴールまでの計画になります</span></h3>
+              </div>
+              <div class="tray" id="route-tray"></div>
+
+              <div class="route-note">
+                タイルをつまんで動かすと、つながりがいったんはずれ、置いたところで結び直ります。<br>
+                ★必須の課題は外せませんが、順番は自由です。
+                🏁 の課題はゴールの成果物をつくる課題なので、いつも道すじのいちばん最後にすわります。
+              </div>
+            </div>
           </div>
 
           <div class="step-nav">
-            <span></span>
-            <button class="btn next" data-go="0,1">計画を立てる →</button>
+            <span class="route-sum" id="route-sum"></span>
+            <button class="btn next" data-go="0,1">きょうの計画を立てる →</button>
           </div>
         </section>
 
@@ -109,8 +122,15 @@
           </div>
         </div>
 
-        <h3 style="margin-bottom:8px">取り組む課題をえらぶ　<span class="sub-h">自分のペース・自分の順序でOK</span></h3>
+        <div class="mini-route" id="mini-route"></div>
+
+        <h3 style="margin-bottom:8px">取り組む課題をえらぶ　<span class="sub-h">自分の道すじの順にならんでいます。とばしてもOK</span></h3>
         <div class="task-cards" id="task-cards"></div>
+
+        <div class="off-route-h" id="off-route-h" style="display:none">
+          <h3>道すじに入れていない課題　<span class="sub-h">やりたくなったら道すじに入れよう</span></h3>
+        </div>
+        <div class="task-cards" id="task-cards-off"></div>
       </section>
 
       <!-- B. その課題だけの画面 -->
@@ -307,7 +327,15 @@ var MOODS = [
   {em:'😵', label:'わからなくて<br>こまった'}
 ];
 var ST_LABEL = ['未着手','取組中','できた'];
-var KIND_MARK = {'必須':'★ 必須','選択':'えらべる','発展':'⚡ 発展'};
+var KIND_MARK = {'必須':'★ 必須','選択':'えらべる','発展':'⚡ 発展','ゴール':'🏁 ゴール'};
+var GOAL_KIND = 'ゴール';
+// 道すじから外せない種別（サーバーの C.REQUIRED_KINDS と合わせる）
+var LOCKED_KINDS = ['必須', GOAL_KIND];
+function isLockedKind(k){ return LOCKED_KINDS.indexOf(k) >= 0; }
+var LOCK_MSG = {
+  '必須': '★必須の課題は道すじから外せません（順番は変えられます）',
+  'ゴール': '🏁 この課題でゴールの成果物をつくります。道すじのいちばん最後にすわります'
+};
 
 var S = null;      // サーバーからの状態
 var reg = [];      // きょうの Regulate
@@ -465,9 +493,11 @@ function render(){
   $('#s-unitgoal').textContent = U.unitGoal || '';
   $('#s-outcome2').textContent = U.outcome || '';
 
+  route = (S.plan && S.plan.route ? S.plan.route.slice() : []);
+
   renderStepbars();
   renderMeter();
-  renderGuide();
+  renderRoute();
   renderPlanInputs();
   renderTasks();
   renderCommonRes();
@@ -479,21 +509,334 @@ function render(){
   startVersionWatch();
 }
 
-/** 学習の手引き（契約書）：必須・選択・発展の一覧 */
-function renderGuide(){
-  var groups = [['必須','かならずやること'],['選択','えらべる活動'],['発展','やりきったら挑戦']];
-  $('#guide').innerHTML = groups.map(function(g){
-    var list = S.tasks.filter(function(t){ return t.kind === g[0]; });
-    if(!list.length) return '';
-    return '<div style="margin-bottom:10px"><h3>'+esc(g[1])+'（'+list.length+'）</h3>'+
-      '<div class="guide-list">'+ list.map(function(t){
-        return '<div class="guide-row"><span class="gk k'+esc(t.kind)+'">'+esc(KIND_MARK[t.kind]||t.kind)+'</span>'+
-          '<span class="gt">'+esc(t.title)+'</span>'+
-          '<span class="gs s'+t.status+'">'+ST_LABEL[t.status]+'</span>'+
-          '<span class="gm">めやす'+esc(t.mins)+'分</span></div>';
-      }).join('') +'</div></div>';
-  }).join('') + '<div class="sub-h">総時数 '+esc(S.unit.totalHours)+'時間。必須をやりきったら、えらべる活動と発展に進もう。</div>';
+/* ================= ゴールまでの道すじ =================
+   学習の手引き（必須・えらべる・発展）を、読むリストではなく
+   自分で組み立てる道すじにする。
+
+   ・課題＝飛び石（ノード）、あいだの線＝つながり（コネクタ）
+   ・つまんで動かすと、両どなりのつながりがはずれ、残ったどうしが結び直る
+   ・置きたいところに近づけると線が割れて受け口ができ、はなすと吸いつく
+   ・★必須は外せない（かならずやること）が、順番は自分で決める
+   ・えらべる活動と発展は、道すじに入れるかどうかから自分で決める
+
+   順序そのものが「単元をどう進むか」の計画なので、変えたらそのつど保存する。
+   ドラッグが使えない環境でも同じことができるよう、◀▶と＋／外すのボタンも置く。 */
+
+var route = [];            // 道すじ（taskId の並び）。S.plan.route の作業用コピー
+var SNAP_PX = 90;          // これ以上ポインタが動いてから、受け口を切り替える
+var LIFT_MS = 180;         // つながりがはずれ切るまで
+
+function taskIx(tid){
+  for(var i=0;i<S.tasks.length;i++){ if(S.tasks[i].taskId===tid) return i; }
+  return -1;
 }
+function taskOf(tid){ var i = taskIx(tid); return i<0 ? null : S.tasks[i]; }
+function routeTasks(){ return route.map(taskOf).filter(Boolean); }
+function offRouteTasks(){
+  return S.tasks.filter(function(t){
+    if(route.indexOf(t.taskId) >= 0) return false;
+    // 運んでいる最中のタイルは、手の中にあるのでトレイには出さない
+    return !(drag && drag.started && drag.tid === t.taskId);
+  });
+}
+
+/* ゴール課題は道すじの末尾にすわり続ける。
+   ほかの課題を入れたり動かしたりできるのは、その手前まで。 */
+function goalTasks(){ return routeTasks().filter(function(t){ return t.kind === GOAL_KIND; }); }
+function insertLimit(){ return route.length - goalTasks().length; }
+
+var savePlanDebounced = debounce(function(){ save('student_savePlan', route.slice()); }, 600);
+
+/**
+ * 道すじを描き直す。
+ * opts.joinAt … そのつながりを「結び直った」ように出す
+ * opts.landed … そのノードを「置かれた」ように出す
+ * opts.stuck  … そのノードを「動かせない」ように小さくゆらす
+ */
+function renderRoute(opts){
+  opts = opts || {};
+  var box = $('#route');
+  if(!box) return;
+
+  // つながりは、その先にあるタイルと1組にして折り返す。
+  // 別々に折り返すと、行の終わりに行き先のない線が残る。
+  var items = routeTasks();
+  var html = '<div class="goal-node start"><span class="gn-f">🚩</span><span class="gn-l">スタート</span></div>';
+  items.forEach(function(t, i){
+    html += '<span class="seg">' + lnkHtml(i, i ? items[i-1] : null, opts.joinAt) + nodeHtml(t, i) + '</span>';
+  });
+  html += '<span class="seg">' +
+    lnkHtml(items.length, items.length ? items[items.length-1] : null, opts.joinAt) + goalHtml() + '</span>';
+  box.innerHTML = html;
+
+  renderTray();
+  renderRouteSum();
+  if(opts.landed) flashNode(opts.landed, 'landed');
+  if(opts.stuck)  flashNode(opts.stuck, 'stuck');
+}
+
+function lnkHtml(i, prev, joinAt){
+  return '<i class="lnk'+(prev && prev.status===2 ? ' done' : '')+
+    (joinAt === i ? ' joining' : '')+'" data-gap="'+i+'"></i>';
+}
+
+function nodeHtml(t, i){
+  var here = openTask && taskIx(t.taskId) === curTask;
+  var pinned = t.kind === GOAL_KIND;               // ゴール課題は末尾から動かない
+  var lim = insertLimit();
+  return '<div class="node k'+esc(t.kind)+' s'+t.status+(here?' here':'')+(pinned?' pinned':'')+
+      '" data-tid="'+esc(t.taskId)+'">'+
+    '<span class="nd-k k'+esc(t.kind)+'">'+esc(KIND_MARK[t.kind]||t.kind)+'</span>'+
+    '<span class="nd-s s'+t.status+'">'+ST_LABEL[t.status]+'</span>'+
+    '<span class="nd-t">'+esc(t.title)+'</span>'+
+    '<span class="nd-m">めやす '+esc(t.mins)+'分</span>'+
+    '<span class="nd-ops">'+
+      (pinned
+        ? '<span class="nd-pin">🏁 ここでゴールにとどく</span>'
+        : '<button class="nd-op" data-mv="-1" aria-label="ひとつ前へ"'+(i===0?' disabled':'')+'>◀</button>'+
+          '<button class="nd-op" data-mv="1" aria-label="ひとつ後ろへ"'+(i>=lim-1?' disabled':'')+'>▶</button>'+
+          (isLockedKind(t.kind) ? '' : '<button class="nd-op drop" data-out="'+esc(t.taskId)+'">外す</button>'))+
+    '</span></div>';
+}
+
+function goalHtml(){
+  var g = S.unit.outcome || S.unit.unitGoal || 'ゴール';
+  return '<div class="goal-node"><span class="gn-f">🏁</span><span class="gn-l">ゴール</span>'+
+    '<span class="gn-t">'+esc(g)+'</span></div>';
+}
+
+function renderTray(){
+  var off = offRouteTasks();
+  $('#route-tray').innerHTML = off.length ? off.map(function(t){
+    return '<div class="node k'+esc(t.kind)+' s'+t.status+'" data-tid="'+esc(t.taskId)+'" data-tray="1">'+
+      '<span class="nd-k k'+esc(t.kind)+'">'+esc(KIND_MARK[t.kind]||t.kind)+'</span>'+
+      '<span class="nd-t">'+esc(t.title)+'</span>'+
+      '<span class="nd-m">めやす '+esc(t.mins)+'分</span>'+
+      '<span class="nd-ops"><button class="nd-op" data-in="'+esc(t.taskId)+'">＋ 道すじに入れる</button></span>'+
+    '</div>';
+  }).join('') : '<div class="empty">課題はぜんぶ道すじに入っています。</div>';
+}
+
+function renderRouteSum(){
+  var mins = 0, done = 0;
+  routeTasks().forEach(function(t){
+    mins += Number(t.mins)||0;
+    if(t.status===2) done++;
+  });
+  $('#route-sum').textContent = route.length
+    ? '道すじ '+route.length+'こ（すんだ '+done+'こ）・めやす合計 '+mins+'分　＊単元の総時数は'+S.unit.totalHours+'時間'
+    : '道すじがまだ空です。下の課題を入れてみよう。';
+}
+
+function nodeEl(tid, root){
+  var hit = null;
+  $$((root||'#route, #route-tray')+' .node').forEach(function(n){ if(n.dataset.tid===tid) hit = n; });
+  return hit;
+}
+
+function flashNode(tid, cls){
+  if(reduceMotion) return;
+  var el = nodeEl(tid);
+  if(!el) return;
+  el.classList.add(cls);
+  var done = function(){ el.classList.remove(cls); el.removeEventListener('animationend', done); };
+  el.addEventListener('animationend', done);
+}
+
+/* ---- ボタンでの並べ替え・出し入れ（ドラッグが使えなくても同じことができる） ---- */
+function moveNode(tid, dir){
+  var t = taskOf(tid), i = route.indexOf(tid), j = i + dir;
+  if(!t || t.kind === GOAL_KIND) return;              // ゴール課題は動かない
+  if(i<0 || j<0 || j>=insertLimit()) return;          // ゴール課題より後ろへは行けない
+  route.splice(j, 0, route.splice(i, 1)[0]);
+  commitPlan({ landed: tid, joinAt: Math.min(i, j) });
+}
+
+function addToRoute(tid, at){
+  if(route.indexOf(tid) >= 0) return;
+  var lim = insertLimit();
+  var i = Math.min(at == null ? lim : at, lim);       // ゴール課題の手前まで
+  route.splice(i, 0, tid);
+  commitPlan({ landed: tid, joinAt: i });
+}
+
+function removeFromRoute(tid){
+  var t = taskOf(tid), i = route.indexOf(tid);
+  if(!t || i<0) return;
+  if(isLockedKind(t.kind)){ renderRoute({ stuck: tid }); toast(LOCK_MSG[t.kind]); return; }
+  route.splice(i, 1);
+  commitPlan({ joinAt: i });
+}
+
+/** 道すじが変わったら、描き直して・課題一覧をそろえて・保存する */
+function commitPlan(opts){
+  renderRoute(opts);
+  renderTasks();
+  savePlanDebounced();
+}
+
+/* ---- つまんで動かす（つながりの着脱と結合） ----
+   ノードを持ち上げた時点で、その場のつながりは切れる。
+   残ったとなりどうしはすぐに結び直り、道すじは途切れたままにならない。 */
+var drag = null;
+
+function onNodeDown(e){
+  if(e.button != null && e.button !== 0) return;
+  if(e.target.closest('button')) return;
+  var node = e.target.closest('#route .node, #route-tray .node');
+  if(!node) return;
+
+  // ゴール課題は末尾に固定。持ち上げさせない（動かないものが動くように見えないように）
+  var nt = taskOf(node.dataset.tid);
+  if(nt && nt.kind === GOAL_KIND){ flashNode(nt.taskId, 'stuck'); toast(LOCK_MSG[GOAL_KIND]); return; }
+
+  var r = node.getBoundingClientRect();
+  drag = {
+    tid: node.dataset.tid,
+    from: node.dataset.tray ? 'tray' : 'route',
+    src: node, started: false, gap: null, ghost: null, hold: 0,
+    dx: e.clientX - r.left, dy: e.clientY - r.top, w: r.width, h: r.height,
+    x0: e.clientX, y0: e.clientY, gx: e.clientX, gy: e.clientY
+  };
+  // ノードごと差し替わるので、要素ではなく document で追いかける
+  document.addEventListener('pointermove', onNodeMove);
+  document.addEventListener('pointerup', onNodeUp);
+  document.addEventListener('pointercancel', onNodeUp);
+  e.preventDefault();
+}
+
+function onNodeMove(e){
+  var d = drag;
+  if(!d) return;
+  if(!d.started){
+    if(Math.abs(e.clientX-d.x0) + Math.abs(e.clientY-d.y0) < 6) return;
+    startDrag();
+  }
+  d.ghost.style.left = (e.clientX - d.dx) + 'px';
+  d.ghost.style.top  = (e.clientY - d.dy) + 'px';
+
+  // トレイに戻す動きは「外す」。置き場所がはっきりしていれば迷わない
+  d.onTray = overTray(e.clientX, e.clientY);
+  var tray = $('#route-tray');
+  if(tray) tray.classList.toggle('drop-here', d.onTray && d.from === 'route');
+
+  // 受け口はむやみに動かさない。ある程度ポインタが移ってから切り替える
+  if(Math.abs(e.clientX-d.gx) + Math.abs(e.clientY-d.gy) >= 14 || d.gap === null){
+    d.gx = e.clientX; d.gy = e.clientY;
+    setGap(d.onTray ? null : gapAt(e.clientX, e.clientY));
+  }
+}
+
+/** そえる課題の置き場の上にいるか */
+function overTray(x, y){
+  var tray = $('#route-tray');
+  if(!tray) return false;
+  var r = tray.getBoundingClientRect(), m = 24;
+  return x >= r.left-m && x <= r.right+m && y >= r.top-m && y <= r.bottom+m;
+}
+
+/** 持ち上げる：分身をつくり、両どなりのつながりをはずして、残りを結び直す */
+function startDrag(){
+  var d = drag;
+  d.started = true;
+
+  var g = d.src.cloneNode(true);
+  g.classList.add('ghost');
+  g.style.width = d.w+'px'; g.style.height = d.h+'px';
+  g.style.left = (d.x0 - d.dx)+'px'; g.style.top = (d.y0 - d.dy)+'px';
+  document.body.appendChild(g);
+  d.ghost = g;
+  d.src.classList.add('lifted');
+  $('#route').classList.add('dragging');
+
+  if(d.from !== 'route') return;
+
+  d.hold = route.indexOf(d.tid);
+  // 両どなりのつながり（このタイルの手前と先）をはずす
+  $$('#route .lnk').forEach(function(l){
+    var g = Number(l.dataset.gap);
+    if(g === d.hold || g === d.hold + 1) l.classList.add('parting');
+  });
+  route.splice(d.hold, 1);
+  // つながりがはずれ切ってから、となりどうしを結び直す
+  setTimeout(function(){
+    if(drag === d) renderRoute({ joinAt: d.hold });
+  }, reduceMotion ? 0 : LIFT_MS);
+}
+
+/**
+ * いまポインタがいる「すきま」の番号を返す（道すじの外なら null）。
+ * ノードの左半分に入ったらその手前、どこにも当たらなければ末尾（ゴールの手前）。
+ */
+function gapAt(x, y){
+  var rail = $('#route');
+  if(!rail) return null;
+  var r = rail.getBoundingClientRect();
+  var m = 36;   // 広げすぎると、外そうとした手が道すじに吸い込まれる
+  if(x < r.left-m || x > r.right+m || y < r.top-m || y > r.bottom+m) return null;
+
+  // ゴール課題より後ろには置けない（そこが単元の行き止まり）
+  var lim = insertLimit();
+  var nodes = $$('#route .node');
+  for(var i=0;i<Math.min(nodes.length, lim);i++){
+    var b = nodes[i].getBoundingClientRect();
+    if(y < b.bottom && x < b.left + b.width/2) return i;
+  }
+  return lim;
+}
+
+/** 受け口をひらく（そこだけ線が割れて、入る場所ができる） */
+function setGap(i){
+  var d = drag;
+  if(!d || d.gap === i) return;
+  d.gap = i;
+  $$('#route .lnk').forEach(function(l){
+    l.classList.toggle('open', i !== null && Number(l.dataset.gap) === i);
+  });
+  if(d.ghost) d.ghost.classList.toggle('snapped', i !== null);
+}
+
+/** はなす：受け口があれば吸いつき、なければ道すじから外れる（必須は戻る） */
+function onNodeUp(){
+  var d = drag;
+  document.removeEventListener('pointermove', onNodeMove);
+  document.removeEventListener('pointerup', onNodeUp);
+  document.removeEventListener('pointercancel', onNodeUp);
+  if(!d) return;
+  drag = null;
+
+  var rail = $('#route'), tray = $('#route-tray');
+  if(rail) rail.classList.remove('dragging');
+  if(tray) tray.classList.remove('drop-here');
+  if(!d.started){ d.src.classList.remove('lifted'); return; }   // ただのタップ
+  if(d.ghost) d.ghost.remove();
+
+  var t = taskOf(d.tid);
+  if(d.gap !== null){
+    route.splice(Math.min(d.gap, route.length), 0, d.tid);
+    commitPlan({ landed: d.tid, joinAt: d.gap });
+    return;
+  }
+  if(d.from !== 'route'){ renderRoute(); return; }              // 持ってきて、やめた
+
+  // 道すじから抜くのは、そえる課題の置き場に戻したときだけ。
+  // どこでもない所ではなにも起きない（うっかり外れて計画が消えないように）
+  if(!d.onTray){
+    route.splice(Math.min(d.hold, route.length), 0, d.tid);
+    renderRoute({ landed: d.tid, joinAt: d.hold });
+    return;
+  }
+  if(t && isLockedKind(t.kind)){
+    route.splice(Math.min(d.hold, route.length), 0, d.tid);     // 必須とゴールは道すじから外せない
+    renderRoute({ stuck: d.tid });
+    toast(LOCK_MSG[t.kind]);
+    return;
+  }
+  commitPlan({ joinAt: d.hold });
+  toast('道すじから外しました（いつでも戻せます）');
+}
+
+document.addEventListener('pointerdown', onNodeDown);
 
 function renderPlanInputs(){
   var g = S.my.goal;
@@ -519,27 +862,66 @@ function renderPlanInputs(){
   $('#eff').value = eff; $('#eff-v').textContent = eff; $('#eff-face').textContent = effFace(eff);
 }
 
-/** 課題プール＋いま選んでいる課題のカード */
-/* --- ② 一覧：課題カード --- */
+/* --- ② 一覧：課題カード ---
+   ならびは自分の道すじの順。道すじに入れていない課題は下にまとめ、
+   そこからも入れられるようにする（一覧で見て「やっぱりやる」と決められる）。 */
 function renderTasks(){
   if(!S.tasks.length){
     $('#task-cards').innerHTML = '<div class="card"><div class="card-b empty">課題がまだ公開されていません。</div></div>';
+    $('#task-cards-off').innerHTML = '';
+    $('#off-route-h').style.display = 'none';
+    $('#mini-route').innerHTML = '';
     return;
   }
   if(curTask >= S.tasks.length) curTask = 0;
 
-  $('#task-cards').innerHTML = S.tasks.map(function(t,i){
-    var u = undBy(t.understanding);
-    return '<button class="tcardx s'+t.status+'" data-open="'+i+'">'+
-      '<span class="tx-k k'+esc(t.kind)+'">'+esc(KIND_MARK[t.kind]||t.kind)+'</span>'+
-      '<span class="tx-t">'+esc(t.title)+'</span>'+
-      '<span class="tx-m">めやす '+esc(t.mins)+'分'+(u?('　'+esc(u.icon)+' '+esc(u.label)):'')+'</span>'+
-      '<span class="tx-s s'+t.status+'">'+ST_LABEL[t.status]+'</span>'+
-      '<span class="tx-go">ひらく →</span>'+
-    '</button>';
+  var inRoute = routeTasks(), off = offRouteTasks();
+
+  $('#task-cards').innerHTML = inRoute.length
+    ? inRoute.map(function(t,n){ return taskCardHtml(t, n+1); }).join('')
+    : '<div class="card"><div class="card-b empty">道すじがまだ空です。「みとおす」でつくろう。</div></div>';
+
+  $('#off-route-h').style.display = off.length ? '' : 'none';
+  $('#task-cards-off').innerHTML = off.map(function(t){
+    return '<div class="off-card">'+ taskCardHtml(t, null) +
+      '<button class="btn ghost sm" data-in="'+esc(t.taskId)+'">＋ 道すじに入れる</button></div>';
   }).join('');
 
+  renderMiniRoute();
   if(openTask){ flushTaskNote(); renderBands(); }
+}
+
+function taskCardHtml(t, no){
+  var u = undBy(t.understanding);
+  return '<button class="tcardx s'+t.status+'" data-open="'+taskIx(t.taskId)+'">'+
+    '<span class="tx-k k'+esc(t.kind)+'">'+(no ? '<b class="tx-no">'+no+'</b>' : '')+esc(KIND_MARK[t.kind]||t.kind)+'</span>'+
+    '<span class="tx-t">'+esc(t.title)+'</span>'+
+    '<span class="tx-m">めやす '+esc(t.mins)+'分'+(u?('　'+esc(u.icon)+' '+esc(u.label)):'')+'</span>'+
+    '<span class="tx-s s'+t.status+'">'+ST_LABEL[t.status]+'</span>'+
+    '<span class="tx-go">ひらく →</span>'+
+  '</button>';
+}
+
+/** 課題一覧の上に出す小さい道すじ。いまどこにいて、ゴールまであといくつかを見せる */
+function renderMiniRoute(){
+  var box = $('#mini-route');
+  if(!box) return;
+  var items = routeTasks();
+  if(!items.length){ box.innerHTML = ''; return; }
+
+  var html = items.map(function(t,n){
+    var i = taskIx(t.taskId);
+    return '<span class="seg">'+
+      (n ? '<i class="mini-lnk'+(items[n-1].status===2?' done':'')+'"></i>' : '')+
+      '<button class="mini-node s'+t.status+(openTask && i===curTask ? ' here' : '')+
+        '" data-open="'+i+'" title="'+esc(t.title)+'">'+
+        '<span class="mn-n">'+(t.status===2 ? '✓' : (n+1))+'</span>'+
+        '<span class="mn-t">'+esc(t.title)+'</span></button></span>';
+  }).join('');
+
+  html += '<span class="seg"><i class="mini-lnk'+(items[items.length-1].status===2?' done':'')+'"></i>'+
+    '<span class="mini-goal">🏁 <span class="mg-t">'+esc(S.unit.outcome || S.unit.unitGoal || 'ゴール')+'</span></span></span>';
+  box.innerHTML = html;
 }
 
 function undBy(v){
@@ -1111,6 +1493,18 @@ document.addEventListener('click', function(e){
   var peer = e.target.closest('.peer');
   if(peer){ peer.classList.toggle('open'); return; }
 
+  /* --- 道すじ（ボタンでの並べ替え・出し入れ） --- */
+  var mv = e.target.closest('[data-mv]');
+  if(mv){
+    var mvNode = mv.closest('.node');
+    if(mvNode) moveNode(mvNode.dataset.tid, Number(mv.dataset.mv));
+    return;
+  }
+  var addBtn = e.target.closest('[data-in]');
+  if(addBtn){ addToRoute(addBtn.dataset.in); toast('道すじに入れました'); return; }
+  var outBtn = e.target.closest('[data-out]');
+  if(outBtn){ removeFromRoute(outBtn.dataset.out); return; }
+
   /* --- ステップ移動 --- */
   var go = e.target.closest('[data-go]');
   if(go){
@@ -1140,10 +1534,10 @@ document.addEventListener('click', function(e){
     var t = S.tasks[curTask];
     t.status = Number(stBtn.dataset.status);
     save('student_setProgress', t.taskId, t.status).then(function(){
-      S.mustProgress.done = S.tasks.filter(function(x){ return x.kind==='必須' && x.status===2; }).length;
+      S.mustProgress.done = S.tasks.filter(function(x){ return isLockedKind(x.kind) && x.status===2; }).length;
       $('#h-name').textContent = S.me.displayName + ' さん';
       renderMeter();
-      renderGuide();
+      renderRoute();
     });
     if(t.status===2) celebrate(stBtn);
     toast('「'+ST_LABEL[t.status]+'」にしました');

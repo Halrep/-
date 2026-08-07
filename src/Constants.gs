@@ -20,8 +20,13 @@ var C = {
   // 単元の状態
   UNIT_STATE: { DRAFT: '準備中', OPEN: '公開中', CLOSED: '終了' },
 
-  // 課題の種別（学習の手引き：必ずやるミッション＋選べる活動＋発展問題）
-  TASK_KIND: { MUST: '必須', CHOICE: '選択', ADVANCED: '発展' },
+  // 課題の種別（学習の手引き：必ずやるミッション＋選べる活動＋発展問題＋ゴール）
+  //
+  // 「ゴール」は単元の成果物そのものを作る課題。
+  // 成果物イメージ（例：大名支配のしくみ新聞）を掲げても、それを作る課題が
+  // 「発展＝やりたい人だけ」のままでは、ゴールに着かないまま単元が終わる。
+  // ゴール課題は必ず道すじに入り、いちばん最後に置かれる。
+  TASK_KIND: { MUST: '必須', CHOICE: '選択', ADVANCED: '発展', GOAL: 'ゴール' },
 
   // 資料の種別（単元デザインのプルダウン用）
   RES_KIND: ['手もと資料', '動画', 'スライド', 'ドキュメント', 'Webページ', 'その他'],
@@ -52,6 +57,7 @@ var C = {
     RES:     '資料',
     USTRAT:  '単元_推奨方略',
     UCHOICE: '単元_選択肢設定',
+    PLAN:    '学習計画',
     GOAL:    '目標',
     SEL:     '選択',
     PROG:    '進度',
@@ -78,6 +84,12 @@ var C = {
   DEMO_PROP: 'DEMO_MODE'
 };
 
+// 種別の並び（プルダウン・編集画面・単元シートで共通に使う）
+C.TASK_KINDS = [C.TASK_KIND.MUST, C.TASK_KIND.CHOICE, C.TASK_KIND.ADVANCED, C.TASK_KIND.GOAL];
+
+// 道すじから外せない種別。「かならずやること」の数え方もこれに合わせる
+C.REQUIRED_KINDS = [C.TASK_KIND.MUST, C.TASK_KIND.GOAL];
+
 // 各シートの列見出し（順序が実際の列順になる）
 C.HEADERS = {};
 C.HEADERS[C.SH.USERS]   = ['user_id', '氏名', '表示名', '出席番号', '役割', 'email'];
@@ -101,6 +113,10 @@ C.HEADERS[C.SH.USTRAT]  = ['unit_id', 'task_id', 'strategy_id', '教師の一言
 C.HEADERS[C.SH.UCHOICE] = ['unit_id', 'カテゴリ', '開放'];
 
 // --- 記録系 ---
+// 単元をとおした計画（1人1単元1件）。ゴールまでの「道すじ」＝課題をやる順序。
+// 必須はかならず入り、えらべる活動・発展は本人が入れるかどうかを決める。
+// 教師の並び（課題シートの「並び」）はあくまで初期値で、ここが子どもの順序になる。
+C.HEADERS[C.SH.PLAN]    = ['plan_id', 'unit_id', 'user_id', '順序', '更新時刻'];
 // その日の計画（1人1日1件）
 C.HEADERS[C.SH.GOAL]    = ['goal_id', 'unit_id', 'user_id', '日付', 'Be', 'Do', 'Regulate', '自己効力感', '作成時刻', '更新時刻'];
 // 課題ごとの取り組み方（変更前の値を残して調整の履歴にする）
@@ -150,7 +166,7 @@ C.VALIDATIONS[C.SH.UNIT] = {
   '状態': [C.UNIT_STATE.DRAFT, C.UNIT_STATE.OPEN, C.UNIT_STATE.CLOSED]
 };
 C.VALIDATIONS[C.SH.TASK] = {
-  '種別': [C.TASK_KIND.MUST, C.TASK_KIND.CHOICE, C.TASK_KIND.ADVANCED],
+  '種別': C.TASK_KINDS,
   '公開': C.CHOICES.BOOL
 };
 C.VALIDATIONS[C.SH.RES] = { '種別': C.RES_KIND, '公開': C.CHOICES.BOOL };
@@ -162,10 +178,10 @@ C.VALIDATIONS[C.SH.UCHOICE] = { 'カテゴリ': C.CHOICES.PRESET_CAT, '開放': 
 C.SHEET_ORDER = [
   C.SH.USERS, C.SH.STRAT, C.SH.PRESET,
   C.SH.UNIT, C.SH.TASK, C.SH.RES, C.SH.USTRAT, C.SH.UCHOICE,
-  C.SH.GOAL, C.SH.SEL, C.SH.PROG, C.SH.SUSE, C.SH.HELP, C.SH.CHECK, C.SH.REFL, C.SH.FB, C.SH.OBS, C.SH.LOG
+  C.SH.PLAN, C.SH.GOAL, C.SH.SEL, C.SH.PROG, C.SH.SUSE, C.SH.HELP, C.SH.CHECK, C.SH.REFL, C.SH.FB, C.SH.OBS, C.SH.LOG
 ];
 
 // 記録系（授業のやり直しで消せるもの）
 // 学びログは入れない：シートの行を消しても Drive の写真は残り、
 // 消えたつもりの写真がドライブに残り続けるほうが危ない。写真は個別に取り消す。
-C.RECORD_SHEETS = [C.SH.GOAL, C.SH.SEL, C.SH.PROG, C.SH.SUSE, C.SH.HELP, C.SH.CHECK, C.SH.REFL, C.SH.FB, C.SH.OBS];
+C.RECORD_SHEETS = [C.SH.PLAN, C.SH.GOAL, C.SH.SEL, C.SH.PROG, C.SH.SUSE, C.SH.HELP, C.SH.CHECK, C.SH.REFL, C.SH.FB, C.SH.OBS];

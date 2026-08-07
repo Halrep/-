@@ -98,6 +98,9 @@ function student_getState() {
     };
   });
 
+  var planRow = firstWhere_(C.SH.PLAN, { unit_id: unitId, user_id: uid });
+  var route = normalizePlan_(planRow ? splitCsv_(planRow['順序']) : null, taskPayload);
+
   var myGoal = firstWhere_(C.SH.GOAL, { unit_id: unitId, user_id: uid, '日付': day });
   var myHelp = firstWhere_(C.SH.HELP, { unit_id: unitId, user_id: uid });
   var myRefl = firstWhere_(C.SH.REFL, { unit_id: unitId, user_id: uid, '日付': day });
@@ -105,8 +108,8 @@ function student_getState() {
     .map(function (c) { return { elapsedMin: c['経過分'], status: c['状態'], memo: c['メモ'], atMs: toMs_(c['時刻']) }; })
     .sort(function (a, b) { return a.atMs - b.atMs; });
 
-  var mustDone = taskPayload.filter(function (t) { return t.kind === C.TASK_KIND.MUST && t.status === C.PROGRESS.DONE; }).length;
-  var mustTotal = taskPayload.filter(function (t) { return t.kind === C.TASK_KIND.MUST; }).length;
+  var mustDone = taskPayload.filter(function (t) { return isRequiredKind_(t.kind) && t.status === C.PROGRESS.DONE; }).length;
+  var mustTotal = taskPayload.filter(function (t) { return isRequiredKind_(t.kind); }).length;
 
   return {
     ok: true,
@@ -126,6 +129,7 @@ function student_getState() {
       peerAnon: unit['他者参照モード'] === '匿名'
     },
     tasks: taskPayload,
+    plan: { route: route },
     commonResources: resCommon,
     commonStrategies: stCommon,
     allStrategies: Object.keys(strat).map(function (id) {
@@ -145,6 +149,64 @@ function student_getState() {
       reflection: myRefl ? reflToObj_(myRefl) : null
     }
   };
+}
+
+/**
+ * 「ゴールまでの道すじ」を正規化する。
+ *
+ * 子どもが並べ替えた順序をそのまま尊重するのが原則。
+ * ただし、公開されていない／消えた課題のIDは落とし、外せない課題の抜けだけ補う。
+ *
+ * ・必須 … 道すじから外せない。順番は自由
+ * ・ゴール … 成果物そのものを作る課題。外せず、いつも道すじのいちばん最後
+ *            （手前の課題は、この成果物のために積み上げるものになる）
+ * ・選択／発展 … 入れるかどうかも、どこに置くかも自分で決める
+ *
+ * saved が null（まだ一度も立てていない）ときは、必須とゴールを先生の並び順に
+ * 置いたものが初期の道すじ。先生が単元の途中で足した必須は最後にならぶ。
+ */
+function normalizePlan_(saved, tasks) {
+  var byId = {}, seen = {}, order = [], last = [];
+  tasks.forEach(function (t) { byId[t.taskId] = t; });
+
+  // ゴール課題だけは、どこに置かれていても末尾へ送る
+  function put(id) {
+    if (byId[id].kind === C.TASK_KIND.GOAL) last.push(id);
+    else order.push(id);
+  }
+
+  (saved || []).forEach(function (id) {
+    if (byId[id] && !seen[id]) { seen[id] = true; put(id); }
+  });
+  tasks.forEach(function (t) {
+    if (isRequiredKind_(t.kind) && !seen[t.taskId]) { seen[t.taskId] = true; put(t.taskId); }
+  });
+  return order.concat(last);
+}
+
+/**
+ * 単元の道すじ（課題をやる順序）を保存。1人1単元1件。
+ * 順序そのものが計画なので、履歴ではなく最新の1件を上書きする。
+ */
+function student_savePlan(taskIds) {
+  var ctx = requireWritable_();
+  var unit = requireCurrentUnit_();
+  var unitId = unit['unit_id'], uid = ctx.user.userId;
+
+  var tasks = Repo.where(C.SH.TASK, { unit_id: unitId })
+    .filter(function (t) { return truthy_(t['公開']); })
+    .sort(function (a, b) { return Number(a['並び']) - Number(b['並び']); })
+    .map(function (t) { return { taskId: t['task_id'], kind: t['種別'] }; });
+
+  var route = normalizePlan_(taskIds || [], tasks);
+  var match = { unit_id: unitId, user_id: uid };
+  var existing = firstWhere_(C.SH.PLAN, match);
+  Repo.upsert(C.SH.PLAN, match, {
+    plan_id: existing ? existing['plan_id'] : Repo.uuid(),
+    '順序': route.join(','),
+    '更新時刻': Repo.now()
+  });
+  return { ok: true, route: route };
 }
 
 /** きょうの計画（目標）を保存。1人1日1件 */
@@ -614,7 +676,7 @@ function student_getPeers() {
   var mustTotal = 0;
   Repo.where(C.SH.TASK, { unit_id: unitId }).forEach(function (t) {
     taskById[t['task_id']] = t;
-    if (t['種別'] === C.TASK_KIND.MUST) mustTotal++;
+    if (isRequiredKind_(t['種別'])) mustTotal++;
   });
 
   var students = Repo.readAll(C.SH.USERS).filter(function (u) { return u['役割'] === C.ROLE.STUDENT; });
@@ -630,7 +692,7 @@ function student_getPeers() {
     var progs = progByUser[pid] || [];
     var doneMust = progs.filter(function (p) {
       var t = taskById[p['task_id']];
-      return t && t['種別'] === C.TASK_KIND.MUST && Number(p['状態']) === C.PROGRESS.DONE;
+      return t && isRequiredKind_(t['種別']) && Number(p['状態']) === C.PROGRESS.DONE;
     }).length;
 
     // いま取り組んでいる課題（取組中のうち、最後に更新したもの）
@@ -695,7 +757,7 @@ function latestSelectionsByTask_(unitId, uid) {
   var rows = Repo.where(C.SH.SEL, { unit_id: unitId, user_id: uid });
   var latest = {};
   rows.forEach(function (r) {
-    var key = r['task_id'] + ' ' + r['カテゴリ'];
+    var key = r['task_id'] + '\u0000' + r['カテゴリ'];
     if (!latest[key] || toMs_(r['選択時刻']) > toMs_(latest[key]['選択時刻'])) latest[key] = r;
   });
   var out = {};

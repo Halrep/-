@@ -119,7 +119,7 @@
 <script>
 var META = null, selectedUser = null, monTimer = null;
 var ST_LABEL = ['未着手','取組中','できた'];
-var KIND_MARK = {'必須':'★ 必須','選択':'えらべる','発展':'⚡ 発展'};
+var KIND_MARK = {'必須':'★ 必須','選択':'えらべる','発展':'⚡ 発展','ゴール':'🏁 ゴール'};
 
 /* ---- スプレッドシートへのリンク ----
    アプリでできないこと（記録の細かい確認・一括の貼り付け）はシートのほうが早い。
@@ -475,7 +475,7 @@ function openEditor(kind, id, taskId){
   else if(kind === 'task'){
     var t = id ? (d.tasks.filter(function(x){ return x.taskId===id; })[0] || {}) : {};
     title = id ? '課題を編集' : '課題を追加';
-    body = edPick('種別', '種別', t.kind || '必須', ['必須','選択','発展']) +
+    body = edPick('種別', '種別', t.kind || '必須', ['必須','選択','発展','ゴール']) +
            edField('タイトル', 'タイトル', t.title) +
            edField('説明（子どもに見せる指示）', '説明', t.desc, {textarea:true, rows:3}) +
            edField('めやす分', 'めやす分', t.mins, {numeric:true});

@@ -24,7 +24,7 @@ function teacher_getMonitor() {
   var tasks = Repo.where(C.SH.TASK, { unit_id: unitId })
     .sort(function (a, b) { return Number(a['並び']) - Number(b['並び']); });
   var taskById = indexBy_(tasks, 'task_id');
-  var mustTotal = tasks.filter(function (t) { return t['種別'] === C.TASK_KIND.MUST; }).length;
+  var mustTotal = tasks.filter(function (t) { return isRequiredKind_(t['種別']); }).length;
 
   var students = Repo.readAll(C.SH.USERS).filter(function (u) { return u['役割'] === C.ROLE.STUDENT; });
   var day = today_();
@@ -58,7 +58,7 @@ function teacher_getMonitor() {
         if (st === C.PROGRESS.DOING) dist[p['task_id']].doing++;
         if (st === C.PROGRESS.DONE) dist[p['task_id']].done++;
       }
-      if (t['種別'] === C.TASK_KIND.MUST && st === C.PROGRESS.DONE) doneMust++;
+      if (isRequiredKind_(t['種別']) && st === C.PROGRESS.DONE) doneMust++;
       if (st === C.PROGRESS.DOING) {
         if (!doing || toMs_(p['更新時刻']) > toMs_(doing['更新時刻'])) doing = p;
       }
@@ -531,8 +531,8 @@ function teacher_saveTask(taskId, patch) {
   if (!title) throw new Error('課題のタイトルを入れてください。');
 
   var kind = p['種別'];
-  var kinds = [C.TASK_KIND.MUST, C.TASK_KIND.CHOICE, C.TASK_KIND.ADVANCED];
-  if (kinds.indexOf(kind) < 0) throw new Error('種別は 必須／選択／発展 のどれかにしてください。');
+  var kinds = C.TASK_KINDS;
+  if (kinds.indexOf(kind) < 0) throw new Error('種別は ' + kinds.join('／') + ' のどれかにしてください。');
 
   var mins = p['めやす分'] === '' || p['めやす分'] == null ? '' : Number(p['めやす分']);
   if (mins !== '' && (isNaN(mins) || mins < 0)) throw new Error('めやす分は0以上の数で入れてください。');
@@ -543,6 +543,7 @@ function teacher_saveTask(taskId, patch) {
     Repo.updateByKey(C.SH.TASK, 'task_id', taskId, {
       '種別': kind, 'タイトル': title, '説明': p['説明'] || '', 'めやす分': mins
     });
+    if (kind === C.TASK_KIND.GOAL) keepOneGoalTask_(cur['unit_id'], taskId);
     return { ok: true, taskId: taskId, design: designPayload_(cur['unit_id']) };
   }
 
@@ -559,7 +560,27 @@ function teacher_saveTask(taskId, patch) {
     // 作った直後は非公開。段階的公開のため、出すタイミングは教師が決める
     '公開': 'FALSE'
   });
+  if (kind === C.TASK_KIND.GOAL) keepOneGoalTask_(unitId, newId);
   return { ok: true, taskId: newId, design: designPayload_(unitId) };
+}
+
+/**
+ * ゴール課題は1単元に1つだけにする。
+ *
+ * ゴール（成果物）が2つあると、道すじの行き先が2つになって
+ * 「これができたら単元が終わる」がぼやける。
+ * あとから指定したほうを残し、前のものは「必須」に戻す
+ * （かならずやる課題であることは変わらないので、道すじからは落とさない）。
+ * 入れ替えた課題があれば、そのタイトルを返す（教師に知らせるため）。
+ */
+function keepOneGoalTask_(unitId, keepTaskId) {
+  var demoted = [];
+  Repo.where(C.SH.TASK, { unit_id: unitId }).forEach(function (t) {
+    if (t['種別'] !== C.TASK_KIND.GOAL || t['task_id'] === keepTaskId) return;
+    Repo.updateByKey(C.SH.TASK, 'task_id', t['task_id'], { '種別': C.TASK_KIND.MUST });
+    demoted.push(t['タイトル']);
+  });
+  return demoted;
 }
 
 /** 課題の並びを1つ上／下に動かす。dir は -1（上）か 1（下） */
