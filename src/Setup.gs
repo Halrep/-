@@ -16,6 +16,7 @@ function setupSheets() {
       .setFontWeight('bold').setBackground('#EDF0EA');
     s.setFrozenRows(1);
     s.autoResizeColumns(1, headers.length);
+    applySheetValidations_(s, name, headers);
   });
 
   var def = ss.getSheetByName('シート1') || ss.getSheetByName('Sheet1');
@@ -183,6 +184,26 @@ function setupToggleDemo() {
   }
   // メニューの文言を今の状態に合わせて作り直す
   onOpen();
+}
+
+/**
+ * 決まった選択肢の列をプルダウンにする。
+ * 「その他の値も許す」にしてあるので、既に入っている値が消えることはない
+ * （打ち間違いには警告の三角が出る）。
+ */
+function applySheetValidations_(sheet, name, headers) {
+  var spec = C.VALIDATIONS[name];
+  if (!spec) return;
+  var rows = 500;   // 名簿・課題ともこれだけあれば足りる
+  Object.keys(spec).forEach(function (col) {
+    var ix = headers.indexOf(col);
+    if (ix < 0) return;
+    try {
+      var rule = SpreadsheetApp.newDataValidation()
+        .requireValueInList(spec[col], true).setAllowInvalid(true).build();
+      sheet.getRange(2, ix + 1, rows, 1).setDataValidation(rule);
+    } catch (e) { /* 検証が使えなくても入力自体はできる */ }
+  });
 }
 
 /* ------- 小物 ------- */

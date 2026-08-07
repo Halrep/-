@@ -329,6 +329,17 @@ function teacher_sendFeedback(toUserId, comment) {
 /** 単元デザイン画面用：単元＝学習の手引きの全情報 */
 function teacher_getDesign(unitId) {
   requireTeacher_();
+  return designPayload_(unitId);
+}
+
+/**
+ * 編集したあとの画面をその場で返すための組み立て。
+ *
+ * 保存 → 取り直し の2往復にすると、GAS の往復（毎回シートを丸ごと読む）が
+ * 2回ぶんかかって「反映が遅い」と感じられる。保存の戻り値に最新の画面を
+ * 載せて1往復で済ませる。
+ */
+function designPayload_(unitId) {
   var units = Repo.readAll(C.SH.UNIT);
   if (units.length === 0) return { ok: true, hasUnit: false };
 
@@ -436,7 +447,7 @@ function teacher_createUnit(patch) {
     '状態': C.UNIT_STATE.DRAFT,
     '更新時刻': Repo.now()
   });
-  return { ok: true, unitId: unitId };
+  return { ok: true, unitId: unitId, design: designPayload_(unitId) };
 }
 
 /**
@@ -457,7 +468,7 @@ function teacher_deleteUnit(unitId) {
     Repo.remove(sh, { unit_id: unitId });
   });
   Repo.remove(C.SH.UNIT, { unit_id: unitId });
-  return { ok: true };
+  return { ok: true, design: designPayload_(null) };
 }
 
 /** その単元にぶら下がる子どもの記録の件数 */
@@ -492,7 +503,7 @@ function teacher_saveTask(taskId, patch) {
     Repo.updateByKey(C.SH.TASK, 'task_id', taskId, {
       '種別': kind, 'タイトル': title, '説明': p['説明'] || '', 'めやす分': mins
     });
-    return { ok: true, taskId: taskId };
+    return { ok: true, taskId: taskId, design: designPayload_(cur['unit_id']) };
   }
 
   var unitId = p.unitId;
@@ -508,7 +519,7 @@ function teacher_saveTask(taskId, patch) {
     // 作った直後は非公開。段階的公開のため、出すタイミングは教師が決める
     '公開': 'FALSE'
   });
-  return { ok: true, taskId: newId };
+  return { ok: true, taskId: newId, design: designPayload_(unitId) };
 }
 
 /** 課題の並びを1つ上／下に動かす。dir は -1（上）か 1（下） */
@@ -522,12 +533,14 @@ function teacher_moveTask(taskId, dir) {
   var at = -1;
   for (var i = 0; i < list.length; i++) if (list[i]['task_id'] === taskId) { at = i; break; }
   var to = at + (Number(dir) < 0 ? -1 : 1);
-  if (at < 0 || to < 0 || to >= list.length) return { ok: true, moved: false };
+  if (at < 0 || to < 0 || to >= list.length) {
+    return { ok: true, moved: false, design: designPayload_(task['unit_id']) };
+  }
 
   var tmp = list[at]; list[at] = list[to]; list[to] = tmp;
   // 入れ替えたあと通し番号を振り直す（欠番や重複が残らないように）
   list.forEach(function (t, ix) { Repo.updateByKey(C.SH.TASK, 'task_id', t['task_id'], { '並び': ix + 1 }); });
-  return { ok: true, moved: true };
+  return { ok: true, moved: true, design: designPayload_(task['unit_id']) };
 }
 
 /** 課題を消す。子どもの記録がぶら下がっていたら断る */
@@ -552,7 +565,7 @@ function teacher_deleteTask(taskId) {
   var rest = Repo.where(C.SH.TASK, { unit_id: task['unit_id'] })
     .sort(function (a, b) { return Number(a['並び']) - Number(b['並び']); });
   rest.forEach(function (t, ix) { Repo.updateByKey(C.SH.TASK, 'task_id', t['task_id'], { '並び': ix + 1 }); });
-  return { ok: true };
+  return { ok: true, design: designPayload_(task['unit_id']) };
 }
 
 /**
@@ -579,8 +592,9 @@ function teacher_saveResource(resourceId, patch) {
 
   if (resourceId) {
     if (!firstWhere_(C.SH.RES, { resource_id: resourceId })) throw new Error('資料が見つかりません。');
+    var owner = firstWhere_(C.SH.RES, { resource_id: resourceId });
     Repo.updateByKey(C.SH.RES, 'resource_id', resourceId, fields);
-    return { ok: true, resourceId: resourceId };
+    return { ok: true, resourceId: resourceId, design: designPayload_(owner['unit_id']) };
   }
 
   var unitId = p.unitId;
@@ -592,23 +606,25 @@ function teacher_saveResource(resourceId, patch) {
   var row = { resource_id: newId, unit_id: unitId, task_id: taskId, '公開': 'TRUE' };
   for (var k in fields) row[k] = fields[k];
   Repo.append(C.SH.RES, row);
-  return { ok: true, resourceId: newId };
+  return { ok: true, resourceId: newId, design: designPayload_(unitId) };
 }
 
 /** 資料を消す。資料は記録を持たないのでそのまま消せる */
 function teacher_deleteResource(resourceId) {
   requireTeacher_();
-  if (!firstWhere_(C.SH.RES, { resource_id: resourceId })) throw new Error('資料が見つかりません。');
+  var res = firstWhere_(C.SH.RES, { resource_id: resourceId });
+  if (!res) throw new Error('資料が見つかりません。');
   Repo.remove(C.SH.RES, { resource_id: resourceId });
-  return { ok: true };
+  return { ok: true, design: designPayload_(res['unit_id']) };
 }
 
 /** 資料の公開／非公開 */
 function teacher_setResourcePublish(resourceId, on) {
   requireTeacher_();
-  if (!firstWhere_(C.SH.RES, { resource_id: resourceId })) throw new Error('資料が見つかりません。');
+  var res = firstWhere_(C.SH.RES, { resource_id: resourceId });
+  if (!res) throw new Error('資料が見つかりません。');
   Repo.updateByKey(C.SH.RES, 'resource_id', resourceId, { '公開': on ? 'TRUE' : 'FALSE' });
-  return { ok: true };
+  return { ok: true, design: designPayload_(res['unit_id']) };
 }
 
 /** 単元の状態（準備中/公開中/終了）。公開は1件に絞る */

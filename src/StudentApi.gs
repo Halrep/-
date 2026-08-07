@@ -414,6 +414,33 @@ function student_getPortfolio() {
   };
 }
 
+/**
+ * いま子どもに見えている内容の指紋。
+ *
+ * 児童画面は起動時にしか読まないので、先生が課題や資料を足しても
+ * 開きっぱなしの端末には出てこない（これが「反映が遅い」の正体）。
+ * 軽い問い合わせで版だけ見て、変わっていたら読み直しを促す。
+ */
+function student_getVersion() {
+  var ctx = requireUser_();
+  var unit = currentUnit_();
+  if (!unit) return { ok: true, version: 'none' };
+
+  var unitId = unit['unit_id'];
+  var parts = [unitId, toMs_(unit['更新時刻'])];
+
+  // 公開されている課題と資料の数・更新の跡だけ見る（本文は読まない）
+  var tasks = Repo.where(C.SH.TASK, { unit_id: unitId }).filter(function (t) { return truthy_(t['公開']); });
+  parts.push(tasks.length);
+  tasks.forEach(function (t) { parts.push(t['task_id'], t['タイトル']); });
+
+  var res = Repo.where(C.SH.RES, { unit_id: unitId }).filter(function (r) { return truthy_(r['公開']); });
+  parts.push(res.length);
+  res.forEach(function (r) { parts.push(r['resource_id']); });
+
+  return { ok: true, version: parts.join('|') };
+}
+
 /* ==================== 学びログ（写真） ====================
  * 文字だけの足跡では、ノートも作品も残らない。撮った写真を課題に結びつけて残す。
  * 画像の実体は教師のドライブ、シートにはファイルIDだけを持つ。

@@ -9,7 +9,7 @@ const vm = require('vm');
 const path = require('path');
 
 const SRC = path.join(__dirname, '..', 'src');
-const GS_ORDER = ['Constants.gs', 'Repo.gs', 'Auth.gs', 'Code.gs', 'Setup.gs', 'StudentApi.gs', 'TeacherApi.gs'];
+const GS_ORDER = ['Constants.gs', 'Repo.gs', 'Auth.gs', 'Code.gs', 'Setup.gs', 'UnitSheet.gs', 'StudentApi.gs', 'TeacherApi.gs'];
 
 /* ---------- インメモリ・スプレッドシート ---------- */
 function makeSheet(name) {
@@ -39,7 +39,8 @@ function makeSheet(name) {
       },
       setValue(v) { const r = row - 1; if (!data[r]) data[r] = []; data[r][col - 1] = v; return R; },
       setFontWeight() { return R; }, setBackground() { return R; },
-      setNumberFormat() { return R; }, setFontColor() { return R; }
+      setNumberFormat() { return R; }, setFontColor() { return R; },
+      setDataValidation() { return R; }
     };
     return R;
   }
@@ -52,17 +53,24 @@ function makeSheet(name) {
     appendRow(row) { data.push(pad(row, Math.max(width(), row.length))); },
     deleteRow(r) { data.splice(r - 1, 1); },
     deleteRows(start, count) { data.splice(start - 1, count); },
-    setFrozenRows() {}, autoResizeColumns() {},
+    setFrozenRows() {}, autoResizeColumns() {}, setColumnWidth() {},
+    clear() { data = []; },
     _dump() { return data; }
   };
 }
 
 function makeSpreadsheet() {
   const sheets = {};
+  let active = null;
   const ui = {
-    alert: () => ui.Button.OK,
-    ButtonSet: { OK: 'OK', YES_NO: 'YES_NO' },
-    Button: { OK: 'OK', YES: 'YES', NO: 'NO' },
+    alert: (...a) => { ui.lastAlert = a[a.length - 2]; return ui.Button.OK; },
+    prompt: () => ({
+      getSelectedButton: () => (ui.promptCancel ? ui.Button.CANCEL : ui.Button.OK),
+      getResponseText: () => ui.promptText || ''
+    }),
+    ButtonSet: { OK: 'OK', YES_NO: 'YES_NO', OK_CANCEL: 'OK_CANCEL' },
+    Button: { OK: 'OK', YES: 'YES', NO: 'NO', CANCEL: 'CANCEL' },
+    ButtonSetOkCancel: 'OK_CANCEL',
     createMenu() { const m = { addItem() { return m; }, addSeparator() { return m; }, addToUi() {} }; return m; }
   };
   const ss = {
@@ -71,6 +79,8 @@ function makeSpreadsheet() {
     deleteSheet(s) { delete sheets[s.getName()]; },
     getUi() { return ui; },
     toast() {},
+    setActiveSheet(s) { active = s; return s; },
+    getActiveSheet() { return active; },
     _sheets: sheets
   };
   return { ss, ui };
@@ -153,7 +163,13 @@ function pad2(n) { return n < 10 ? '0' + n : String(n); }
 
 const sandbox = {
   console,
-  SpreadsheetApp: { getActive() { return ss; }, getUi() { return ui; }, getActiveSpreadsheet() { return ss; } },
+  SpreadsheetApp: {
+    getActive() { return ss; }, getUi() { return ui; }, getActiveSpreadsheet() { return ss; },
+    newDataValidation() {
+      const b = { requireValueInList() { return b; }, setAllowInvalid() { return b; }, build() { return {}; } };
+      return b;
+    }
+  },
   LockService: { getScriptLock() { return { waitLock() { return true; }, releaseLock() {} }; } },
   Session: {
     getActiveUser() { return { getEmail() { return CURRENT_EMAIL; } }; },
@@ -223,6 +239,8 @@ function call(fnName, ...args) {
 }
 function asUser(email) { CURRENT_EMAIL = email; }
 function sheetRows(name) { return vm.runInContext('Repo.readAll(' + JSON.stringify(name) + ')', sandbox); }
+function truthy_G(v) { return vm.runInContext('truthy_(__args[0])', Object.assign(sandbox, { __args: [v] })); }
+function C_HEADERS(name) { return vm.runInContext('C.HEADERS[' + JSON.stringify(name) + ']', sandbox); }
 function backdate(min) { return vm.runInContext('new Date(Date.now()-' + min + '*60000)', sandbox); }
 
 /* =================== テスト本体 =================== */
@@ -721,6 +739,162 @@ vm.runInContext('PropertiesService.getScriptProperties().setProperty(C.DEMO_PROP
 asUser('a@school.jp');
 call('doGet', { parameter: { as: 'teacher' } });
 ok(lastRender.file === 'student', 'オフに戻すと元の役割どおりになる');
+
+console.log('\n【29】単元シート：1枚で目標・課題・資料を書く');
+asUser('teacher@school.jp');
+// 既存の単元を書き出す（1件目＝デモ単元）
+ui.promptText = '1';
+call('unitSheetExport');
+const usName = '単元_' + sheetRows('単元')[0]['単元名'];
+const usSheet = ss._sheets[usName];
+ok(!!usSheet, '単元シートが作られる');
+const grid = usSheet._dump();
+ok(grid[0][0] === '単元シート', 'A1が目印になっている');
+ok(grid[0][1] === unitId, 'B1に unit_id が入る（次の取り込みで更新になる）');
+const labelCol = grid.map(r => String(r[0]));
+ok(labelCol.indexOf('■ 課題') > 0 && labelCol.indexOf('■ 資料') > labelCol.indexOf('■ 課題'),
+  '課題と資料の区切りが順に並ぶ');
+ok(labelCol.indexOf('単元の出口（成果物イメージ）') > 0, '単元の項目が縦に並ぶ');
+const taskMarkAt = labelCol.indexOf('■ 課題');
+ok(grid[taskMarkAt + 1][0] === '種別' && grid[taskMarkAt + 1][5].indexOf('task_id') === 0,
+  '課題の見出しに task_id 列がある');
+ok(grid[taskMarkAt + 2][1] === sheetRows('課題').filter(t => t['unit_id'] === unitId)
+  .sort((a, b) => Number(a['並び']) - Number(b['並び']))[0]['タイトル'], '課題が並び順に書き出される');
+const resMarkAt = labelCol.indexOf('■ 資料');
+ok(grid[resMarkAt + 2][0] === '' || Number(grid[resMarkAt + 2][0]) > 0,
+  '資料の課題番号は番号か空（unit_id を貼らなくてよい）');
+
+console.log('\n【30】単元シートの取り込み（何度でもやり直せる）');
+// 新しい単元シートを1枚おこして書き込む
+ui.promptText = 'ふりこの動き';
+call('unitSheetNew');
+const nsName = '単元_ふりこの動き';
+const ns = ss._sheets[nsName];
+ok(!!ns, '空のひな形が作られる');
+
+const setCell = (sheet, row, col, v) => sheet.getRange(row, col, 1, 1).setValue(v);
+const findRow = (sheet, label) => sheet._dump().map(r => String(r[0])).indexOf(label) + 1;
+setCell(ns, findRow(ns, '教科'), 2, '理科');
+setCell(ns, findRow(ns, '学年'), 2, '5年');
+setCell(ns, findRow(ns, '単元の問い・目標'), 2, 'ふりこが1往復する時間は何で決まるのか');
+setCell(ns, findRow(ns, '単元の出口（成果物イメージ）'), 2, '実験レポート');
+const nsTaskTop = findRow(ns, '■ 課題') + 2;
+[['必須','ふりこをつくる','糸とおもりで', 45, '公開'],
+ ['必須','長さを変えて調べる','', 45, '非公開'],
+ ['発展','身のまわりのふりこ','', 45, '非公開']].forEach((r, i) => {
+  r.forEach((v, c) => setCell(ns, nsTaskTop + i, c + 1, v));
+});
+const nsResTop = findRow(ns, '■ 資料') + 2;
+[[1, '🎬', 'ふりこのつくり方', '動画3分', '動画', 'https://www.nhk.or.jp/school/', '公開'],
+ ['', '📖', '安全のきまり', '', '手もと資料', '', '公開']].forEach((r, i) => {
+  r.forEach((v, c) => setCell(ns, nsResTop + i, c + 1, v));
+});
+
+ss.setActiveSheet(ns);
+call('unitSheetImport');
+const newUnitRow = sheetRows('単元').filter(u => u['単元名'] === 'ふりこの動き')[0];
+ok(!!newUnitRow, '単元が1件できる');
+ok(newUnitRow['状態'] === '準備中', '取り込んだ単元は準備中');
+ok(newUnitRow['教科'] === '理科' && newUnitRow['学年'] === '5年', '教科と学年が入る');
+ok(newUnitRow['成果物イメージ'] === '実験レポート', '単元の出口が入る');
+const nsId = newUnitRow['unit_id'];
+ok(ns._dump()[0][1] === nsId, 'B1に unit_id が書き戻される');
+
+const nsTasks = sheetRows('課題').filter(t => t['unit_id'] === nsId)
+  .sort((a, b) => Number(a['並び']) - Number(b['並び']));
+ok(nsTasks.length === 3, '課題が3件入る');
+ok(nsTasks.map(t => t['並び']).join(',') === '1,2,3', 'シートの行順が並びになる');
+ok(nsTasks[0]['タイトル'] === 'ふりこをつくる' && nsTasks[2]['種別'] === '発展', '種別とタイトルが入る');
+ok(truthy_G(nsTasks[0]['公開']) === true && truthy_G(nsTasks[1]['公開']) === false,
+  '「公開／非公開」がそのまま入る');
+ok(ns._dump()[nsTaskTop - 1][5].length > 0, '課題の task_id がシートに書き戻される');
+
+const nsRes = sheetRows('資料').filter(r => r['unit_id'] === nsId);
+ok(nsRes.length === 2, '資料が2件入る');
+ok(nsRes.filter(r => r['task_id'] === nsTasks[0]['task_id']).length === 1,
+  '課題番号1が1つ目の課題に結びつく');
+ok(nsRes.filter(r => !r['task_id']).length === 1, '課題番号が空なら「いつでも使える資料」になる');
+
+// 2回目の取り込みは追加ではなく更新（冪等）
+setCell(ns, nsTaskTop, 2, 'ふりこをつくる（改）');
+call('unitSheetImport');
+const again = sheetRows('課題').filter(t => t['unit_id'] === nsId);
+ok(again.length === 3, '取り込み直しても課題が増えない');
+ok(again.filter(t => t['タイトル'] === 'ふりこをつくる（改）').length === 1, '2回目は更新になる');
+ok(sheetRows('単元').filter(u => u['unit_id'] === nsId).length === 1, '単元も増えない');
+
+// 行を消すと消える（記録がなければ）
+setCell(ns, nsTaskTop + 2, 2, '');
+setCell(ns, nsTaskTop + 2, 6, '');
+call('unitSheetImport');
+ok(sheetRows('課題').filter(t => t['unit_id'] === nsId).length === 2, 'シートから消した課題は消える');
+
+// 種別の打ち間違いと不正URLは取り込まず、理由を知らせる
+setCell(ns, nsTaskTop + 2, 1, 'ひっす');
+setCell(ns, nsTaskTop + 2, 2, 'まちがえた課題');
+call('unitSheetImport');
+ok(sheetRows('課題').filter(t => t['タイトル'] === 'まちがえた課題').length === 0, '種別が不正な行は取り込まない');
+ok(String(ui.lastAlert).indexOf('読めなかった行') >= 0, '読めなかった行を知らせる');
+setCell(ns, nsTaskTop + 2, 2, '');
+setCell(ns, nsTaskTop + 2, 1, '');
+
+// 記録のある課題はシートから消しても残す
+asUser('a@school.jp');
+const keepTask = sheetRows('課題').filter(t => t['unit_id'] === nsId)[0];
+vm.runInContext('Repo.append(C.SH.PROG, {progress_id:"keep1", unit_id:' + JSON.stringify(nsId) +
+  ', task_id:' + JSON.stringify(keepTask['task_id']) + ', user_id:"U01", "状態":1, "更新時刻": Repo.now()})', sandbox);
+asUser('teacher@school.jp');
+setCell(ns, nsTaskTop, 2, '');
+call('unitSheetImport');
+ok(sheetRows('課題').filter(t => t['task_id'] === keepTask['task_id']).length === 1,
+  '子どもの記録がある課題は、シートから消しても残す');
+ok(String(ui.lastAlert).indexOf('消さずに残した') >= 0, '残したことを知らせる');
+
+// 単元シートでないところで実行したら断る
+ss.setActiveSheet(ss._sheets['名簿']);
+call('unitSheetImport');
+ok(String(ui.lastAlert).indexOf('単元シートではありません') >= 0, '単元シート以外では断る');
+
+console.log('\n【31】反映のタイムラグを減らす');
+asUser('teacher@school.jp');
+// 保存の戻り値に最新の画面が載る（保存→取り直しの2往復をやめる）
+const savedTask = call('teacher_saveTask', null, { unitId: nsId, '種別': '選択', 'タイトル': '往復時間をはかる' });
+ok(!!savedTask.design, '課題の保存が最新の画面を返す');
+ok(savedTask.design.tasks.filter(t => t.taskId === savedTask.taskId).length === 1, '返った画面に追加分が入っている');
+const savedRes = call('teacher_saveResource', null, { unitId: nsId, 'タイトル': 'ストップウォッチの使い方' });
+ok(!!savedRes.design, '資料の保存が最新の画面を返す');
+ok(savedRes.design.commonResources.filter(r => r.resourceId === savedRes.resourceId).length === 1,
+  '返った画面に資料が入っている');
+ok(!!call('teacher_moveTask', savedTask.taskId, -1).design, '並べ替えも最新の画面を返す');
+ok(!!call('teacher_deleteTask', savedTask.taskId).design, '削除も最新の画面を返す');
+
+// 児童は版を見て更新に気づける
+asUser('a@school.jp');
+const v1 = call('student_getVersion').version;
+ok(typeof v1 === 'string' && v1.length > 0, '児童は軽い版チェックができる');
+ok(call('student_getVersion').version === v1, '何も変わらなければ版は同じ');
+asUser('teacher@school.jp');
+const extra = call('teacher_saveTask', null, { unitId: unitId, '種別': '選択', 'タイトル': '追加の課題' });
+call('teacher_setTaskPublish', extra.taskId, true);
+asUser('a@school.jp');
+ok(call('student_getVersion').version !== v1, '先生が課題を公開すると版が変わる');
+asUser('teacher@school.jp');
+call('teacher_setTaskPublish', extra.taskId, false);
+asUser('a@school.jp');
+ok(call('student_getVersion').version === v1, '非公開に戻すと版も戻る');
+
+console.log('\n【32】決まった選択肢はプルダウンにする');
+const vs = vm.runInContext('C.VALIDATIONS', sandbox);
+ok(vs['名簿']['役割'].join(',') === 'teacher,student', '名簿の役割がプルダウン対象');
+ok(vs['課題']['種別'].join(',') === '必須,選択,発展', '課題の種別がプルダウン対象');
+ok(vs['資料']['種別'].indexOf('動画') >= 0, '資料の種別がプルダウン対象');
+ok(vs['単元']['状態'].join(',') === '準備中,公開中,終了', '単元の状態がプルダウン対象');
+ok(vs['単元']['他者参照'].join(',') === 'TRUE,FALSE', 'TRUE/FALSE の列もプルダウン対象');
+Object.keys(vs).forEach(function (sh) {
+  Object.keys(vs[sh]).forEach(function (col) {
+    ok(C_HEADERS(sh).indexOf(col) >= 0, 'プルダウン指定「' + sh + '.' + col + '」が実際の列に存在する');
+  });
+});
 
 /* =================== 結果 =================== */
 console.log('\n========================================');

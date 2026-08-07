@@ -124,6 +124,40 @@ C.HEADERS[C.SH.OBS]     = ['obs_id', 'unit_id', 'user_id', 'teacher_id', '事実
 // 画像の実体は Drive に置き、ここにはファイルIDだけを持つ。
 C.HEADERS[C.SH.LOG]     = ['log_id', 'unit_id', 'task_id', 'user_id', '日付', 'ファイルID', 'ファイル名', 'ひとこと', '共有', '撮影時刻'];
 
+/**
+ * プルダウンにする列。
+ * 先生が直接さわるシートの「決まった選択肢」を打ち間違えないようにする。
+ * （名簿の役割を打ち間違えるとログインできなくなる、など静かに壊れるのを防ぐ）
+ * 記録系シートはアプリが書くので対象にしない。
+ */
+C.CHOICES = {
+  GRADE: ['1年', '2年', '3年', '4年', '5年', '6年'],
+  BOOL: ['TRUE', 'FALSE'],
+  DISCRETION: ['1', '2', '3'],
+  PEER_MODE: ['記名', '匿名'],
+  STRAT_CAT: ['認知', 'メタ認知', '感情調節・時間', '援助要請'],
+  STRAT_PHASE: ['見通す', '実行', '振り返る'],
+  PRESET_CAT: ['学習形態', 'ツール', '場所']
+};
+
+C.VALIDATIONS = {};
+C.VALIDATIONS[C.SH.USERS] = { '役割': [C.ROLE.TEACHER, C.ROLE.STUDENT] };
+C.VALIDATIONS[C.SH.UNIT] = {
+  '学年': C.CHOICES.GRADE,
+  '裁量レベル': C.CHOICES.DISCRETION,
+  '他者参照': C.CHOICES.BOOL,
+  '他者参照モード': C.CHOICES.PEER_MODE,
+  '状態': [C.UNIT_STATE.DRAFT, C.UNIT_STATE.OPEN, C.UNIT_STATE.CLOSED]
+};
+C.VALIDATIONS[C.SH.TASK] = {
+  '種別': [C.TASK_KIND.MUST, C.TASK_KIND.CHOICE, C.TASK_KIND.ADVANCED],
+  '公開': C.CHOICES.BOOL
+};
+C.VALIDATIONS[C.SH.RES] = { '種別': C.RES_KIND, '公開': C.CHOICES.BOOL };
+C.VALIDATIONS[C.SH.STRAT] = { '分類': C.CHOICES.STRAT_CAT, '推奨フェーズ': C.CHOICES.STRAT_PHASE };
+C.VALIDATIONS[C.SH.PRESET] = { 'カテゴリ': C.CHOICES.PRESET_CAT, '複数選択可': C.CHOICES.BOOL };
+C.VALIDATIONS[C.SH.UCHOICE] = { 'カテゴリ': C.CHOICES.PRESET_CAT, '開放': C.CHOICES.BOOL };
+
 // Setup で作る順
 C.SHEET_ORDER = [
   C.SH.USERS, C.SH.STRAT, C.SH.PRESET,

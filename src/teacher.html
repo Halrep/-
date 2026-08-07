@@ -331,7 +331,11 @@ function sendFeedback(text){
 
 /* ---- 単元デザイン ---- */
 function loadDesign(unitId){
-  callServer('teacher_getDesign', unitId||null).then(function(d){
+  callServer('teacher_getDesign', unitId||null).then(applyDesign);
+}
+
+/* 保存の戻り値に最新の画面が載っているので、取り直さずそのまま描く */
+function applyDesign(d){
     if(!d.hasUnit){ $('#design-body').innerHTML='<div class="card"><div class="card-b empty">単元がありません。スプレッドシートのメニューから初期セットアップを実行してください。</div></div>'; return; }
     $('#unit-select').innerHTML = d.unitList.map(function(u){
       return '<option value="'+esc(u.unitId)+'"'+(u.unitId===d.unit.unitId?' selected':'')+'>'+esc(u.subject)+'／'+esc(u.name)+'（'+esc(u.state)+'）</option>';
@@ -339,7 +343,6 @@ function loadDesign(unitId){
     $('#unit-state').textContent = d.unit.state;
     edDesign = d;
     renderDesign(d);
-  });
 }
 
 function renderDesign(d){
@@ -507,29 +510,33 @@ function edSubmit(){
   // closeEditor() が edCtx を空にするので、先に控えておく
   var isNew = !edCtx.id;
   var done = function(msg){
-    closeEditor();
-    toast(msg);
-    loadDesign(uid);
-    btn.disabled = false;
+    return function(r){
+      closeEditor();
+      toast(msg);
+      if(r && r.design) applyDesign(r.design); else loadDesign(uid);
+      btn.disabled = false;
+    };
   };
   var failed = function(err){ toast(String(err && err.message || err)); btn.disabled = false; };
 
   if(edCtx.kind === 'unit'){
     callServer('teacher_createUnit', v).then(function(r){
-      closeEditor(); toast('単元をつくりました'); loadDesign(r.unitId); btn.disabled = false;
+      closeEditor(); toast('単元をつくりました');
+      if(r.design) applyDesign(r.design); else loadDesign(r.unitId);
+      btn.disabled = false;
     }).catch(failed);
     return;
   }
   if(edCtx.kind === 'task'){
     v.unitId = uid;
     callServer('teacher_saveTask', edCtx.id || null, v)
-      .then(function(){ done(isNew ? '課題を追加しました（非公開）' : '課題を更新しました'); })
+      .then(done(isNew ? '課題を追加しました（非公開）' : '課題を更新しました'))
       .catch(failed);
     return;
   }
   v.unitId = uid; v.taskId = edCtx.taskId;
   callServer('teacher_saveResource', edCtx.id || null, v)
-    .then(function(){ done(isNew ? '資料を足しました' : '資料を更新しました'); })
+    .then(done(isNew ? '資料を足しました' : '資料を更新しました'))
     .catch(failed);
 }
 
@@ -577,14 +584,16 @@ document.addEventListener('click', function(e){
   if(e.target.id==='ed-res-pub'){
     var rp = e.target, ron = rp.getAttribute('aria-pressed')!=='true';
     rp.setAttribute('aria-pressed', String(ron));
-    save('teacher_setResourcePublish', edCtx.id, ron);
+    callServer('teacher_setResourcePublish', edCtx.id, ron)
+      .then(function(r){ if(r.design) edDesign = r.design; });
     return;
   }
   if(e.target.id==='ed-res-del'){
     if(!confirm('この資料を消しますか？')) return;
     var rid = edCtx.id, ruid = currentUnitId();
-    callServer('teacher_deleteResource', rid).then(function(){
-      closeEditor(); toast('資料を消しました'); loadDesign(ruid);
+    callServer('teacher_deleteResource', rid).then(function(r){
+      closeEditor(); toast('資料を消しました');
+      if(r.design) applyDesign(r.design); else loadDesign(ruid);
     }).catch(function(err){ toast(String(err && err.message || err)); });
     return;
   }
@@ -606,7 +615,7 @@ document.addEventListener('click', function(e){
     }
     if(!confirm('単元「'+edDesign.unit.unitName+'」と、その課題・資料をまとめて消します。よろしいですか？')) return;
     callServer('teacher_deleteUnit', currentUnitId())
-      .then(function(){ toast('単元を消しました'); loadDesign(null); })
+      .then(function(r){ toast('単元を消しました'); if(r.design && r.design.hasUnit) applyDesign(r.design); else loadDesign(null); })
       .catch(function(err){ toast(String(err && err.message || err)); });
     return;
   }
@@ -620,15 +629,16 @@ document.addEventListener('click', function(e){
   if(tdel){
     if(!confirm('この課題を消しますか？　もとにもどせません。')) return;
     callServer('teacher_deleteTask', tdel.dataset.taskDel)
-      .then(function(){ toast('課題を消しました'); loadDesign(currentUnitId()); })
+      .then(function(r){ toast('課題を消しました'); if(r.design) applyDesign(r.design); else loadDesign(currentUnitId()); })
       .catch(function(err){ toast(String(err && err.message || err)); });
     return;
   }
 
   var mv = e.target.closest('[data-mv]');
   if(mv){
-    save('teacher_moveTask', mv.dataset.mv, Number(mv.dataset.dir))
-      .then(function(){ loadDesign(currentUnitId()); });
+    callServer('teacher_moveTask', mv.dataset.mv, Number(mv.dataset.dir))
+      .then(function(r){ if(r.design) applyDesign(r.design); else loadDesign(currentUnitId()); })
+      .catch(function(err){ toast(String(err && err.message || err)); });
     return;
   }
 

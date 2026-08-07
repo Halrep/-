@@ -230,6 +230,13 @@ textarea, input[type=text]{width:100%; border:1.5px solid var(--line); border-ra
 .d-memos{display:flex; flex-direction:column; gap:4px}
 .d-memo{background:var(--surface2); border-radius:8px; padding:6px 10px; font-size:12px; white-space:pre-wrap}
 .d-memo .mt{display:block; font-weight:800; font-size:10.5px; color:var(--muted)}
+/* 先生の更新のお知らせ */
+.update-bar{position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:85; display:flex; align-items:center; gap:12px;
+  background:var(--surface); border:2px solid var(--primary); border-radius:999px; padding:9px 12px 9px 20px;
+  box-shadow:0 4px 20px rgba(35,48,58,.2); font-size:13px; font-weight:700; max-width:94vw}
+.update-bar .btn{padding:6px 16px; font-size:12.5px}
+.ub-x{border:none; background:transparent; color:var(--muted); font-size:14px; padding:2px 6px}
+
 /* 単元デザインの編集 */
 .te-ops{display:flex; gap:3px; margin-left:6px}
 .mini{border:1px solid var(--line); background:var(--surface); border-radius:6px; padding:2px 7px; font-size:12px; color:var(--muted); line-height:1.5}

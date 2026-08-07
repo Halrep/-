@@ -268,6 +268,7 @@ function render(){
   loadPortfolio();
   loadLogs();
   startCheckin();
+  startVersionWatch();
 }
 
 /** 学習の手引き（契約書）：必須・選択・発展の一覧 */
@@ -700,6 +701,32 @@ function openLightbox(logId, cap){
   else callServer('student_getLogImage', logId).then(function(r){ logImgCache[logId] = r.dataUrl; show(r.dataUrl); });
 }
 
+/* ---- 先生の更新に気づく ----
+   起動時に読んだきりだと、先生が課題や資料を足しても画面に出てこない。
+   軽い版チェックだけ回して、変わっていたら本人に読み直してもらう。
+   勝手に描き直すと、書きかけのメモや選択中の課題が飛ぶので押しつけない。 */
+var myVersion = null, versionTimer = null;
+
+function startVersionWatch(){
+  if(versionTimer) clearInterval(versionTimer);
+  callServer('student_getVersion').then(function(r){ myVersion = r.version; });
+  versionTimer = setInterval(checkVersion, 30000);
+}
+
+function checkVersion(){
+  callServer('student_getVersion').then(function(r){
+    if(myVersion === null){ myVersion = r.version; return; }
+    if(r.version === myVersion || $('#update-bar')) return;
+    var bar = document.createElement('div');
+    bar.id = 'update-bar';
+    bar.className = 'update-bar';
+    bar.innerHTML = '<span>先生が学習の内容を新しくしました。</span>'+
+      '<button class="btn" id="update-reload">読み込み直す</button>'+
+      '<button class="ub-x" id="update-x" aria-label="閉じる">✕</button>';
+    document.body.appendChild(bar);
+  }).catch(function(){});
+}
+
 /* ---- 確認タイム ---- */
 var checkinTimer = null, checkinCount = 0;
 function startCheckin(){
@@ -795,6 +822,14 @@ document.addEventListener('click', function(e){
   }
 
   /* --- 学びログ --- */
+  if(e.target.closest('#update-reload')){
+    // 書きかけのメモを取りこぼさないよう、確定させてから読み直す
+    var f = flushTaskNote();
+    Promise.resolve(f).then(function(){ window.location.reload(); });
+    return;
+  }
+  if(e.target.closest('#update-x')){ var ub=$('#update-bar'); if(ub) ub.remove(); return; }
+
   if(e.target.closest('#cam-close')){ closeCamera(); return; }
   if(e.target.closest('#cam-shoot')){ camShoot(); return; }
   if(e.target.closest('#cam-retake')){ camRetake(); return; }
