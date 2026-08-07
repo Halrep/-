@@ -65,7 +65,12 @@ function student_getState() {
   // --- 自分の記録 ---
   var progMap = {};
   Repo.where(C.SH.PROG, { unit_id: unitId, user_id: uid }).forEach(function (p) {
-    progMap[p['task_id']] = Number(p['状態']);
+    progMap[p['task_id']] = {
+      status: Number(p['状態']) || 0,
+      understanding: p['理解度'] === '' || p['理解度'] == null ? null : Number(p['理解度']),
+      memo: p['メモ'] || '',
+      updatedMs: toMs_(p['更新時刻'])
+    };
   });
   var useMap = {};
   Repo.where(C.SH.SUSE, { unit_id: unitId, user_id: uid }).forEach(function (u) {
@@ -75,6 +80,7 @@ function student_getState() {
 
   var taskPayload = tasks.map(function (t) {
     var tid = t['task_id'];
+    var pr = progMap[tid];
     return {
       taskId: tid,
       order: t['並び'],
@@ -82,7 +88,9 @@ function student_getState() {
       title: t['タイトル'],
       desc: t['説明'],
       mins: t['めやす分'],
-      status: progMap[tid] || 0,
+      status: pr ? pr.status : 0,
+      understanding: pr ? pr.understanding : null,
+      memo: pr ? pr.memo : '',
       resources: resByTask[tid] || [],
       strategies: stByTask[tid] || [],
       selections: selMap[tid] || {},
@@ -125,6 +133,7 @@ function student_getState() {
       return { strategyId: id, name: s['カード名'], desc: s['説明'], icon: s['アイコン'], category: s['分類'] };
     }),
     choices: choices,
+    understandingLevels: C.UNDERSTANDING,
     mustProgress: { done: mustDone, total: mustTotal },
     my: {
       goal: myGoal ? {
@@ -185,6 +194,35 @@ function student_setProgress(taskId, status) {
   Repo.upsert(C.SH.PROG, match, {
     progress_id: existing ? existing['progress_id'] : Repo.uuid(),
     '状態': status,
+    '更新時刻': Repo.now()
+  });
+  return { ok: true };
+}
+
+/**
+ * 課題ごとの理解度とメモを保存。進度と同じ行に持つ（1人1課題1件）。
+ * Repo.upsert は渡した列だけを書くので、状態（進度）は保持される。
+ *
+ * 理解度は評価ではなく自己申告。あとで自分の弱点を見つけるための目盛り。
+ * メモは振り返りではなく、取り組みながら書く「気づき・大切なこと・わからなかったこと」。
+ */
+function student_saveTaskNote(taskId, understanding, memo) {
+  var ctx = requireUser_();
+  var unit = requireCurrentUnit_();
+  var match = { unit_id: unit['unit_id'], task_id: taskId, user_id: ctx.user.userId };
+  var existing = firstWhere_(C.SH.PROG, match);
+
+  var lv = '';
+  if (understanding !== '' && understanding != null) {
+    var n = Number(understanding);
+    if (C.UNDERSTANDING.some(function (u) { return u.value === n; })) lv = n;
+  }
+
+  Repo.upsert(C.SH.PROG, match, {
+    progress_id: existing ? existing['progress_id'] : Repo.uuid(),
+    '状態': existing ? existing['状態'] : C.PROGRESS.TODO,
+    '理解度': lv,
+    'メモ': memo == null ? '' : String(memo),
     '更新時刻': Repo.now()
   });
   return { ok: true };
@@ -264,26 +302,116 @@ function student_saveReflection(payload) {
 function student_getPortfolio() {
   var ctx = requireUser_();
   var uid = ctx.user.userId;
-  var unit = currentUnit_();
-  if (!unit) return { ok: true, items: [] };
-  var unitId = unit['unit_id'];
 
-  var comments = Repo.where(C.SH.FB, { unit_id: unitId, to_user_id: uid })
-    .map(function (f) { return f['コメント']; });
+  // 終わった単元も足跡として残す。現単元だけに絞ると、次の単元が始まった瞬間に
+  // それまでの学びが子どもの画面から消えてしまう。
+  var units = Repo.readAll(C.SH.UNIT).filter(function (u) {
+    return u['状態'] !== C.UNIT_STATE.DRAFT;
+  });
+  if (!units.length) return { ok: true, items: [], feedback: [], units: [] };
 
-  var items = Repo.where(C.SH.REFL, { unit_id: unitId, user_id: uid }).map(function (r) {
+  var unitById = indexBy_(units, 'unit_id');
+  var cur = currentUnit_();
+  var curId = cur ? cur['unit_id'] : '';
+
+  var unitLabel = function (id) {
+    var u = unitById[id];
+    return u ? (u['教科'] + '「' + u['単元名'] + '」') : '';
+  };
+
+  // 現単元の先生コメント（従来どおり）
+  var comments = curId
+    ? Repo.where(C.SH.FB, { unit_id: curId, to_user_id: uid }).map(function (f) { return f['コメント']; })
+    : [];
+
+  // --- 日ごとの足跡：計画と振り返りを組にする ---
+  var goalByKey = {};
+  Repo.where(C.SH.GOAL, { user_id: uid }).forEach(function (g) {
+    goalByKey[g['unit_id'] + '\t' + g['日付']] = g;
+  });
+
+  var items = Repo.where(C.SH.REFL, { user_id: uid })
+    .filter(function (r) { return !!unitById[r['unit_id']]; })
+    .map(function (r) {
+      var g = goalByKey[r['unit_id'] + '\t' + r['日付']];
+      return {
+        unitId: r['unit_id'],
+        unitLabel: unitLabel(r['unit_id']),
+        isCurrent: r['unit_id'] === curId,
+        day: r['日付'],
+        achievement: r['達成度'],
+        planGap: r['計画とのズレ'],
+        planGapReason: r['ズレの理由'],
+        mood: r['気持ち'],
+        selfEval: r['自己評価'],
+        nextPlan: r['次への適用'],
+        // 立てた計画と並べて初めて「ズレ」が足跡になる
+        goalBe: g ? g['Be'] : '',
+        goalDo: g ? g['Do'] : '',
+        efficacy: g && g['自己効力感'] !== '' ? Number(g['自己効力感']) : null,
+        updatedMs: toMs_(r['更新時刻'])
+      };
+    });
+  items.sort(function (a, b) { return String(b.day).localeCompare(String(a.day)); });
+
+  // --- 課題ごとの足跡：進んだ跡・理解度・メモ・使った工夫 ---
+  var strat = getStrategiesMap_();
+  var taskById = indexBy_(Repo.readAll(C.SH.TASK), 'task_id');
+
+  var usedByTask = {};
+  Repo.where(C.SH.SUSE, { user_id: uid }).forEach(function (u) {
+    if (!truthy_(u['状態'])) return;
+    var m = strat[u['strategy_id']];
+    (usedByTask[u['task_id']] = usedByTask[u['task_id']] || [])
+      .push(m ? (m['アイコン'] + ' ' + m['カード名']) : u['strategy_id']);
+  });
+
+  var tasks = Repo.where(C.SH.PROG, { user_id: uid })
+    .filter(function (p) {
+      // 手つかずの課題は足跡ではない。触れた跡のあるものだけ残す。
+      var touched = Number(p['状態']) > 0 || p['メモ'] || p['理解度'] !== '';
+      return touched && !!unitById[p['unit_id']] && !!taskById[p['task_id']];
+    })
+    .map(function (p) {
+      var t = taskById[p['task_id']];
+      return {
+        unitId: p['unit_id'],
+        unitLabel: unitLabel(p['unit_id']),
+        isCurrent: p['unit_id'] === curId,
+        taskId: p['task_id'],
+        kind: t['種別'],
+        title: t['タイトル'],
+        order: Number(t['並び']) || 0,
+        status: Number(p['状態']) || 0,
+        understanding: p['理解度'] === '' || p['理解度'] == null ? null : Number(p['理解度']),
+        memo: p['メモ'] || '',
+        used: usedByTask[p['task_id']] || [],
+        updatedMs: toMs_(p['更新時刻'])
+      };
+    });
+  tasks.sort(function (a, b) { return a.order - b.order; });
+
+  // --- 自己効力感と達成度の推移（古い順＝左から右へ読める向き） ---
+  var trend = items.slice().reverse().map(function (it) {
     return {
-      day: r['日付'],
-      achievement: r['達成度'],
-      planGap: r['計画とのズレ'],
-      mood: r['気持ち'],
-      selfEval: r['自己評価'],
-      nextPlan: r['次への適用'],
-      updatedMs: toMs_(r['更新時刻'])
+      day: it.day,
+      unitLabel: it.unitLabel,
+      achievement: it.achievement === '' || it.achievement == null ? null : Number(it.achievement),
+      efficacy: it.efficacy
     };
   });
-  items.sort(function (a, b) { return String(b.day).localeCompare(String(a.day)); });
-  return { ok: true, items: items, feedback: comments };
+
+  return {
+    ok: true,
+    items: items,
+    tasks: tasks,
+    trend: trend,
+    understandingLevels: C.UNDERSTANDING,
+    units: units.map(function (u) {
+      return { unitId: u['unit_id'], label: unitLabel(u['unit_id']), isCurrent: u['unit_id'] === curId };
+    }),
+    feedback: comments
+  };
 }
 
 /**

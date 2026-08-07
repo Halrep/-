@@ -26,6 +26,16 @@ var C = {
   // 進度の状態（数値で保持）
   PROGRESS: { TODO: 0, DOING: 1, DONE: 2 },
 
+  // 課題ごとの理解度（自己申告）。
+  // 評価ではなく、子どもが自分の弱点をつかむための目盛り。
+  // 未選択は '' で保持し、1〜4 のときだけ値が入る。
+  UNDERSTANDING: [
+    { value: 1, label: 'まだわからない', icon: '🌱' },
+    { value: 2, label: 'すこしわかった', icon: '🌿' },
+    { value: 3, label: 'だいたいわかった', icon: '🌳' },
+    { value: 4, label: '人に説明できる', icon: '🌟' }
+  ],
+
   // 手が止まっていると判定するまでの無操作時間（分）
   IDLE_MINUTES: 10,
 
@@ -79,7 +89,9 @@ C.HEADERS[C.SH.GOAL]    = ['goal_id', 'unit_id', 'user_id', '日付', 'Be', 'Do'
 // 課題ごとの取り組み方（変更前の値を残して調整の履歴にする）
 C.HEADERS[C.SH.SEL]     = ['selection_id', 'unit_id', 'task_id', 'user_id', 'カテゴリ', '選んだ値', '変更前の値', '選択時刻'];
 // 課題ごとの進度（1人1課題1件）
-C.HEADERS[C.SH.PROG]    = ['progress_id', 'unit_id', 'task_id', 'user_id', '状態', '更新時刻'];
+// 理解度とメモは同じ粒度（その子×その課題）なのでここに同居させる。
+// メモは振り返りではなく、取り組みながら書く気づき・大切なこと・わからなかったこと。
+C.HEADERS[C.SH.PROG]    = ['progress_id', 'unit_id', 'task_id', 'user_id', '状態', '理解度', 'メモ', '更新時刻'];
 // 課題ごとの方略利用
 C.HEADERS[C.SH.SUSE]    = ['use_id', 'unit_id', 'task_id', 'user_id', 'strategy_id', '状態', '更新時刻'];
 C.HEADERS[C.SH.HELP]    = ['help_id', 'unit_id', 'user_id', '状態', '更新時刻'];

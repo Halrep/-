@@ -125,8 +125,18 @@
         </div>
       </div>
       <div class="card">
-        <div class="card-h"><span class="h-badge">📚</span><h2>これまでのわたし（この単元のきろく）</h2></div>
-        <div class="card-b timeline" id="portfolio"><div class="empty">まだ記録がありません。</div></div>
+        <div class="card-h"><span class="h-badge">👣</span><h2>学びの足跡　<span class="sub-h">終わった単元も残ります</span></h2></div>
+        <div class="card-b stack">
+          <div id="fp-trend"></div>
+          <div>
+            <h3>課題ごとの足跡</h3>
+            <div class="fp-tasks" id="fp-tasks"><div class="empty">まだ記録がありません。</div></div>
+          </div>
+          <div>
+            <h3>日ごとのきろく　<span class="sub-h">新しい順</span></h3>
+            <div class="timeline" id="portfolio"><div class="empty">まだ記録がありません。</div></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -286,6 +296,11 @@ function renderTasks(){
   var resHtml = t.resources.length ? t.resources.map(resRow).join('')
     : '<div class="empty">この課題に紐づいた資料はありません（下の「いつでも使える資料」を使おう）</div>';
 
+  var undHtml = (S.understandingLevels||[]).map(function(u){
+    return '<button class="und" data-und="'+u.value+'" aria-pressed="'+(t.understanding===u.value)+'">'+
+      '<span class="ic">'+esc(u.icon)+'</span><span class="lb">'+esc(u.label)+'</span></button>';
+  }).join('');
+
   var stratHtml = t.strategies.length ? t.strategies.map(function(s){
     return '<button class="strat exec" data-sid="'+esc(s.strategyId)+'" aria-pressed="'+(!!t.strategyUse[s.strategyId])+'">'+
       '<span class="ic">'+esc(s.icon)+'</span><span class="nm">'+esc(s.name)+'</span>'+
@@ -301,6 +316,10 @@ function renderTasks(){
         '<div class="tsec"><h3>この課題の取り組み方をえらぶ</h3>'+(choiceHtml||'<div class="sub-h">先生が選択肢を開放していません</div>')+'</div>'+
         '<div class="tsec"><h3>この課題でつかう資料</h3><div class="res-list">'+resHtml+'</div></div>'+
         '<div class="tsec"><h3>この課題でつかう工夫　<span class="sub-h">使ったらタップ</span></h3><div class="strat-grid">'+stratHtml+'</div></div>'+
+        '<div class="tsec"><h3>いまの分かりぐあい　<span class="sub-h">点数ではありません。あとで見直すための目印です</span></h3>'+
+          '<div class="und-row">'+undHtml+'</div></div>'+
+        '<div class="tsec"><h3>この課題のメモ　<span class="sub-h">気づいたこと・大切だと思ったこと・分からなかったこと</span></h3>'+
+          '<textarea rows="3" id="task-memo" placeholder="例：年表は下から読むと流れが分かった／「摂関政治」がまだあいまい">'+esc(t.memo||'')+'</textarea></div>'+
         '<div class="tsec tstate">'+
           '<span class="now s'+t.status+'">いま：'+ST_LABEL[t.status]+'</span>'+
           '<button class="btn ghost" data-status="1">▶ 取りかかる</button>'+
@@ -368,14 +387,79 @@ function setHelp(on, silent){
   if(!silent){ save('student_raiseHelp', on); toast(on ? '先生の画面に表示されました' : '取り消しました'); }
 }
 
+function saveTaskNote(){
+  var t = S.tasks[curTask];
+  if(!t) return;
+  var el = $('#task-memo');
+  t.memo = el ? el.value : (t.memo||'');
+  return save('student_saveTaskNote', t.taskId, t.understanding, t.memo);
+}
+var saveTaskNoteDebounced = debounce(saveTaskNote, 700);
+
+// 再描画でメモが消えないよう、書きかけを先に確定させる。
+// 課題を切り替える前・進度を変える前に呼ぶこと（curTask が動く前）。
+function flushTaskNote(){
+  var t = S.tasks[curTask], el = $('#task-memo');
+  if(!t || !el || el.value === (t.memo||'')) return;
+  saveTaskNote();
+}
+
 function loadPortfolio(){
   callServer('student_getPortfolio').then(function(res){
+    var undBy = {};
+    (res.understandingLevels||[]).forEach(function(u){ undBy[u.value] = u; });
+
+    /* 課題ごとの足跡：単元ごとにまとめる（終わった単元も残す） */
+    var tasks = res.tasks || [];
+    if(!tasks.length){
+      $('#fp-tasks').innerHTML = '<div class="empty">まだ取りかかった課題がありません。</div>';
+    } else {
+      var byUnit = [], seen = {};
+      tasks.forEach(function(t){
+        if(!seen[t.unitId]){ seen[t.unitId] = { label: t.unitLabel, isCurrent: t.isCurrent, rows: [] }; byUnit.push(seen[t.unitId]); }
+        seen[t.unitId].rows.push(t);
+      });
+      $('#fp-tasks').innerHTML = byUnit.map(function(g){
+        return '<div class="fp-unit">'+
+          '<div class="fp-uh">'+esc(g.label)+(g.isCurrent?'<span class="fp-now">いまの単元</span>':'')+'</div>'+
+          g.rows.map(function(t){
+            var u = undBy[t.understanding];
+            return '<div class="fp-row">'+
+              '<span class="fp-st s'+t.status+'">'+ST_LABEL[t.status]+'</span>'+
+              '<div class="fp-body">'+
+                '<div class="fp-t"><span class="k'+esc(t.kind)+'">'+esc(KIND_MARK[t.kind]||t.kind)+'</span> '+esc(t.title)+
+                  (u?'<span class="fp-und">'+esc(u.icon)+' '+esc(u.label)+'</span>':'')+'</div>'+
+                (t.memo?'<div class="fp-memo">'+esc(t.memo)+'</div>':'')+
+                (t.used.length?'<div class="fp-used">つかった工夫：'+esc(t.used.join('・'))+'</div>':'')+
+              '</div></div>';
+          }).join('')+
+        '</div>';
+      }).join('');
+    }
+
+    /* 推移：自己効力感（やれそう）と達成度が、日を追ってどう動いたか */
+    var tr = (res.trend||[]).filter(function(p){ return p.achievement!=null || p.efficacy!=null; });
+    $('#fp-trend').innerHTML = tr.length < 2 ? '' :
+      '<h3>うつりかわり　<span class="sub-h">🔵 やれそう（計画のとき）／🟠 どこまで進んだか（ふりかえり）</span></h3>'+
+      '<div class="fp-trend">'+tr.map(function(p){
+        return '<div class="fp-bar" title="'+esc(p.day)+'">'+
+          '<div class="fp-cols">'+
+            '<i class="e" style="height:'+(p.efficacy==null?0:p.efficacy)+'%"></i>'+
+            '<i class="a" style="height:'+(p.achievement==null?0:p.achievement)+'%"></i>'+
+          '</div><span class="fp-d">'+esc(String(p.day).slice(5))+'</span></div>';
+      }).join('')+'</div>';
+
+    /* 日ごと：立てた計画とふりかえりを並べる */
     if(!res.items.length){ $('#portfolio').innerHTML = '<div class="empty">まだ記録がありません。</div>'; return; }
-    var fb = res.feedback.map(function(c){ return '<div class="fb-note"><b>先生から：</b>'+esc(c)+'</div>'; }).join('');
+    var fb = (res.feedback||[]).map(function(c){ return '<div class="fb-note"><b>先生から：</b>'+esc(c)+'</div>'; }).join('');
     $('#portfolio').innerHTML = res.items.map(function(it){
+      var plan = (it.goalBe||it.goalDo) ? '<div class="m plan">📝 その日の計画：'+esc([it.goalBe, it.goalDo].filter(Boolean).join('／'))+'</div>' : '';
       return '<div class="tl-item"><span class="tl-dot">'+esc(String(it.day).slice(5))+'</span><div class="tl-body">'+
+        (it.isCurrent?'':'<span class="fp-past">'+esc(it.unitLabel)+'</span>')+
         '<span class="d">達成度 <span class="num">'+esc(it.achievement)+'</span> ・ '+esc(it.mood||'')+
         (it.planGap?' ・ 計画: '+esc(it.planGap):'')+'</span>'+
+        plan+
+        (it.planGapReason?'<div class="m">ズレの理由：'+esc(it.planGapReason)+'</div>':'')+
         '<div class="m">'+esc(it.selfEval||'')+(it.nextPlan?('／次：'+esc(it.nextPlan)):'')+'</div></div></div>';
     }).join('') + fb;
   });
@@ -446,10 +530,11 @@ document.addEventListener('click', function(e){
   if(peer){ peer.classList.toggle('open'); return; }
 
   var nav = e.target.closest('.snav');
-  if(nav){ curTask = Number(nav.dataset.i); renderTasks(); return; }
+  if(nav){ flushTaskNote(); curTask = Number(nav.dataset.i); renderTasks(); return; }
 
   var stBtn = e.target.closest('[data-status]');
   if(stBtn){
+    flushTaskNote();
     var t = S.tasks[curTask];
     t.status = Number(stBtn.dataset.status);
     save('student_setProgress', t.taskId, t.status).then(function(){
@@ -471,6 +556,19 @@ document.addEventListener('click', function(e){
     var task = S.tasks[curTask];
     task.selections[choice.dataset.cat] = multi ? vals : (vals[0]||'');
     save('student_saveSelection', task.taskId, choice.dataset.cat, vals.join(','));
+    return;
+  }
+
+  var undBtn = e.target.closest('.und');
+  if(undBtn){
+    var uv = Number(undBtn.dataset.und);
+    var ut = S.tasks[curTask];
+    // もう一度押したら取り消し（言い切らない自由を残す）
+    ut.understanding = (ut.understanding === uv) ? null : uv;
+    $$('#task-panel .und').forEach(function(x){
+      x.setAttribute('aria-pressed', String(Number(x.dataset.und)===ut.understanding));
+    });
+    saveTaskNote();
     return;
   }
 
@@ -524,6 +622,7 @@ document.addEventListener('input', function(e){
   if(e.target.id==='ach'){ $('#ach-v').textContent = e.target.value; saveReflDebounced(); }
   if(e.target.id==='selfeval' || e.target.id==='nextplan' || e.target.id==='gapreason' || e.target.id==='materialreq'){ saveReflDebounced(); }
   if(e.target.id==='do-input'){ saveGoalDebounced(); }
+  if(e.target.id==='task-memo'){ saveTaskNoteDebounced(); }
   if(e.target.id==='eff'){ $('#eff-v').textContent = e.target.value; $('#eff-face').textContent = effFace(Number(e.target.value)); saveGoalDebounced(); }
 });
 

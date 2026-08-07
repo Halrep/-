@@ -217,7 +217,11 @@ function teacher_getStudentDetail(userId) {
     .sort(function (a, b) { return Number(a['並び']) - Number(b['並び']); });
   var progMap = {};
   Repo.where(C.SH.PROG, { unit_id: unitId, user_id: userId }).forEach(function (p) {
-    progMap[p['task_id']] = Number(p['状態']);
+    progMap[p['task_id']] = {
+      status: Number(p['状態']) || 0,
+      understanding: p['理解度'] === '' || p['理解度'] == null ? null : Number(p['理解度']),
+      memo: p['メモ'] || ''
+    };
   });
 
   var g = firstWhere_(C.SH.GOAL, { unit_id: unitId, user_id: userId, '日付': day });
@@ -255,13 +259,18 @@ function teacher_getStudentDetail(userId) {
     } : null,
     usedNames: usedNames,
     checkpoints: checks,
+    understandingLevels: C.UNDERSTANDING,
     tasks: tasks.map(function (t) {
       var tid = t['task_id'];
       var sel = selByTask[tid] || {};
       var form = sel['学習形態'];
+      var pr = progMap[tid];
       return {
         kind: t['種別'], title: t['タイトル'],
-        status: progMap[tid] || 0,
+        status: pr ? pr.status : 0,
+        // 「できた」なのに理解度が低い、メモに困りが書いてある——見取りの手がかり
+        understanding: pr ? pr.understanding : null,
+        memo: pr ? pr.memo : '',
         form: Array.isArray(form) ? form.join('・') : (form || '')
       };
     })

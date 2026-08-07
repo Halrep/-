@@ -340,6 +340,64 @@ const reflC = call('teacher_getReflections', null).rows.find(r => r.userId === '
 ok(reflC.planGap === '早く進んだ', '一覧に計画とのズレが出る');
 ok(reflC.planGapReason.indexOf('動画') >= 0, 'ズレの理由が保存される');
 
+console.log('\n【19】課題ごとの理解度とメモ（学びの足跡）');
+asUser('a@school.jp');
+// 理解度は評価ではなく自己申告。進度とは別に、同じ行へ記録する。
+call('student_saveTaskNote', t1.taskId, 2, '年表は下から読むと流れが分かった');
+call('student_saveTaskNote', t3.taskId, 4, '');
+let stN = call('student_getState');
+ok(stN.understandingLevels.length === 4, '理解度の目盛りが4段階返る');
+ok(stN.tasks[0].understanding === 2, '課題①の理解度が保存される');
+ok(stN.tasks[0].memo.indexOf('年表') >= 0, '課題①のメモが保存される');
+ok(stN.tasks[2].understanding === 4, '課題ごとに違う理解度を持てる');
+ok(stN.tasks[0].status === 1, 'メモを書いても進度は変わらない');
+// 進度の更新でメモが消えない（upsert が渡した列だけを書く）
+call('student_setProgress', t1.taskId, 2);
+stN = call('student_getState');
+ok(stN.tasks[0].status === 2, '進度が完了に変わる');
+ok(stN.tasks[0].memo.indexOf('年表') >= 0, '進度を変えてもメモが残る');
+ok(stN.tasks[0].understanding === 2, '進度を変えても理解度が残る');
+// 未選択に戻せる（言い切らない自由）
+call('student_saveTaskNote', t3.taskId, '', '');
+ok(call('student_getState').tasks[2].understanding === null, '理解度は未選択に戻せる');
+// 進度は1人1課題1件のまま
+ok(sheetRows('進度').filter(r => r['user_id'] === 'U01' && r['task_id'] === t1.taskId).length === 1,
+  'メモを足しても進度は1人1課題1件');
+
+console.log('\n【20】足跡は単元をまたいで残る');
+const fp = call('student_getPortfolio');
+ok(fp.tasks.length >= 2, '課題ごとの足跡が返る');
+const fpT1 = fp.tasks.find(t => t.taskId === t1.taskId);
+ok(fpT1.memo.indexOf('年表') >= 0, '足跡にメモが載る');
+ok(fpT1.understanding === 2, '足跡に理解度が載る');
+ok(fpT1.used.length >= 1, '足跡に使った工夫が載る');
+ok(fpT1.unitLabel.indexOf('社会') >= 0, '足跡がどの単元のものか分かる');
+ok(fp.tasks.every(t => t.status > 0 || t.memo || t.understanding != null),
+  '手つかずの課題は足跡に含めない');
+ok(fp.items.length >= 1, '日ごとのきろくが返る');
+ok(fp.items[0].goalDo !== undefined, '振り返りに、その日立てた計画が並ぶ');
+ok(Array.isArray(fp.trend), '推移が返る');
+// 単元が終わっても、前の単元の足跡は子どもの画面から消えない
+asUser('teacher@school.jp');
+call('teacher_setUnitState', unitId, '終了');
+asUser('a@school.jp');
+const fp2 = call('student_getPortfolio');
+ok(fp2.tasks.length >= 2, '単元が終了しても課題の足跡が残る');
+ok(fp2.tasks.every(t => t.isCurrent === false), '終わった単元は「いまの単元」ではない');
+ok(fp2.items.length >= 1, '終了後も日ごとのきろくが残る');
+asUser('teacher@school.jp');
+call('teacher_setUnitState', unitId, '公開中');
+
+console.log('\n【21】教師は理解度とメモを見取りに使える');
+asUser('teacher@school.jp');
+const detN = call('teacher_getStudentDetail', 'U01');
+const dT1 = detN.tasks.find(t => t.title === stN.tasks[0].title);
+ok(dT1.understanding === 2, '教師詳細に理解度が届く');
+ok(dT1.memo.indexOf('年表') >= 0, '教師詳細にメモが届く');
+ok(detN.understandingLevels.length === 4, '教師側にも理解度の目盛りが届く');
+// 「完了」なのに理解度が低い＝環境（手引き・資料）を見直すサイン
+ok(dT1.status === 2 && dT1.understanding <= 2, '完了なのに分かりぐあいが低い状態を検出できる');
+
 /* =================== 結果 =================== */
 console.log('\n========================================');
 console.log('  PASS: ' + pass + '   FAIL: ' + fail);

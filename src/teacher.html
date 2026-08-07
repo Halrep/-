@@ -199,11 +199,30 @@ function openDetail(uid){
   callServer('teacher_getStudentDetail', uid).then(function(d){
     if(!d.hasUnit) return;
     $('#d-name').textContent = d.number + '番 ' + d.name + 'さん';
+    var undBy = {};
+    (d.understandingLevels||[]).forEach(function(u){ undBy[u.value] = u; });
+
     var taskChips = d.tasks.map(function(t){
       var col = t.status===2?'var(--ok)':(t.status===1?'var(--busy)':'');
       var mk = t.status===2?'✔ ':(t.status===1?'▶ ':'・ ');
-      return '<span class="d-chip" style="color:'+col+'">'+mk+esc(t.title)+(t.form?('（'+esc(t.form)+'）'):'')+'</span>';
+      var u = undBy[t.understanding];
+      return '<span class="d-chip" style="color:'+col+'">'+mk+esc(t.title)+(t.form?('（'+esc(t.form)+'）'):'')+
+        (u?' '+esc(u.icon):'')+'</span>';
     }).join('');
+
+    // 「できた」なのに分かりぐあいが低い＝手引きか資料が足りていないサイン
+    var gaps = d.tasks.filter(function(t){ return t.status===2 && t.understanding!=null && t.understanding<=2; });
+    var gapHtml = gaps.length
+      ? '<div class="d-row"><b>気になるところ</b><span class="d-chips">'+ gaps.map(function(t){
+          return '<span class="d-chip" style="color:var(--warn)">'+esc(t.title)+'：'+esc(undBy[t.understanding].label)+'のまま完了</span>';
+        }).join('') +'</span></div>' : '';
+
+    var memos = d.tasks.filter(function(t){ return t.memo; });
+    var memoHtml = memos.length
+      ? '<div class="d-row"><b>課題のメモ　<span class="sub-h">本人が取り組みながら書いたもの</span></b>'+
+        '<div class="d-memos">'+ memos.map(function(t){
+          return '<div class="d-memo"><span class="mt">'+esc(t.title)+'</span>'+esc(t.memo)+'</div>';
+        }).join('') +'</div></div>' : '';
     var effHtml = (d.goal && d.goal.efficacy != null)
       ? '<div class="d-row"><b>できそう度（自己効力感）</b><span class="bar-mini"><i style="width:'+esc(d.goal.efficacy)+'%"></i></span><span class="num">'+esc(d.goal.efficacy)+'</span> ％</div>' : '';
     var chkHtml = (d.checkpoints && d.checkpoints.length)
@@ -219,6 +238,8 @@ function openDetail(uid){
       (d.usedNames.length ? '<div class="d-row"><b>使った工夫</b>'+esc(d.usedNames.join('、'))+'</div>' : '')+
       chkHtml +
       '<div class="d-row"><b>課題の進み方</b><span class="d-chips">'+taskChips+'</span></div>'+
+      gapHtml +
+      memoHtml +
       '<div class="obs">'+
         '<b>見取りメモ　<span class="sub-h">見取りは仮説。事実と解釈を分けて書くと、あとで同僚と語り合えます</span></b>'+
         '<input type="text" id="obs-fact" placeholder="事実：見えたこと（例：白地図を3分見て、色をぬらずに手が止まった）">'+
