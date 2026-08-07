@@ -147,6 +147,7 @@ let CURRENT_EMAIL = '';
 let uuidCounter = 0;
 const { ss, ui } = makeSpreadsheet();
 const scriptProps = {};
+let lastRender = null;
 
 function pad2(n) { return n < 10 ? '0' + n : String(n); }
 
@@ -187,8 +188,19 @@ const sandbox = {
     }
   },
   CacheService: { getScriptCache() { return { get() { return null; }, put() {} }; } },
+  ScriptApp: { getService() { return { getUrl() { return 'https://script.google.com/a/macros/school.jp/s/AKfy/exec'; } }; } },
   HtmlService: {
-    createTemplateFromFile() { return { evaluate() { return { setTitle() { return this; }, addMetaTag() { return this; }, setXFrameOptionsMode() { return this; } }; } }; },
+    // どのファイルを、どんな bootstrap で描画したかを覚えて doGet を検証できるようにする
+    createTemplateFromFile(name) {
+      const t = {
+        __file: name,
+        evaluate() {
+          lastRender = { file: t.__file, bootstrap: t.bootstrap };
+          return { setTitle() { return this; }, addMetaTag() { return this; }, setXFrameOptionsMode() { return this; } };
+        }
+      };
+      return t;
+    },
     createHtmlOutputFromFile() { return { getContent() { return ''; } }; },
     XFrameOptionsMode: { ALLOWALL: 'ALLOWALL' }
   }
@@ -586,6 +598,129 @@ ok(call('teacher_getLogImage', savedA.log.logId).dataUrl === PIX, '教師は画�
 // 記録消去は学びログに触れない（シートだけ消すと Drive に写真が残る）
 ok(vm.runInContext('C.RECORD_SHEETS.indexOf(C.SH.LOG)', sandbox) === -1,
   '記録消去の対象に学びログを入れない');
+
+console.log('\n【26】アプリから単元・課題・資料を編集する');
+asUser('teacher@school.jp');
+const newUnit = call('teacher_createUnit', { '教科': '理科', '学年': '6年', '単元名': '水よう液の性質' });
+ok(!!newUnit.unitId, '単元をアプリからおこせる');
+const nu = call('teacher_getDesign', newUnit.unitId);
+ok(nu.unit.state === '準備中', 'できた単元は準備中から始まる');
+ok(nu.unit.subject === '理科' && nu.unit.unitName === '水よう液の性質', '教科と単元名が入る');
+ok(nu.tasks.length === 0, '課題はまだ0件');
+let nameErr = '';
+try { call('teacher_createUnit', { '単元名': '  ' }); } catch (e) { nameErr = String(e.message || e); }
+ok(nameErr.indexOf('単元名') >= 0, '単元名が空なら断る');
+
+// 課題を3件足して並べ替える
+const nt1 = call('teacher_saveTask', null, { unitId: newUnit.unitId, '種別': '必須', 'タイトル': 'リトマス紙で調べる', 'めやす分': 45 });
+const nt2 = call('teacher_saveTask', null, { unitId: newUnit.unitId, '種別': '必須', 'タイトル': '結果を表にまとめる', 'めやす分': 45 });
+const nt3 = call('teacher_saveTask', null, { unitId: newUnit.unitId, '種別': '発展', 'タイトル': '身のまわりの液体を調べる', 'めやす分': 45 });
+let tasks3 = call('teacher_getDesign', newUnit.unitId).tasks;
+ok(tasks3.length === 3, '課題を3件追加できる');
+ok(tasks3.every(t => t.published === false), '追加した課題は非公開で入る（段階的公開のため）');
+ok(tasks3.map(t => t.order).join(',') === '1,2,3', '並びは追加した順に振られる');
+
+call('teacher_moveTask', nt3.taskId, -1);
+tasks3 = call('teacher_getDesign', newUnit.unitId).tasks;
+ok(tasks3[1].taskId === nt3.taskId, '課題を1つ上に動かせる');
+ok(tasks3.map(t => t.order).join(',') === '1,2,3', '入れ替えても並びは通し番号のまま');
+ok(call('teacher_moveTask', tasks3[0].taskId, -1).moved === false, '先頭より上には動かせない');
+
+// 編集と入力の検査
+call('teacher_saveTask', nt1.taskId, { '種別': '選択', 'タイトル': 'リトマス紙で調べる（改）', '説明': '安全めがねをつけよう', 'めやす分': 30 });
+const edited = call('teacher_getDesign', newUnit.unitId).tasks.filter(t => t.taskId === nt1.taskId)[0];
+ok(edited.kind === '選択' && edited.mins === 30, '課題の種別とめやす分を更新できる');
+ok(edited.desc.indexOf('安全めがね') >= 0, '説明を更新できる');
+let kindErr = '';
+try { call('teacher_saveTask', null, { unitId: newUnit.unitId, '種別': 'なんでも', 'タイトル': 'X' }); } catch (e) { kindErr = String(e.message || e); }
+ok(kindErr.indexOf('種別') >= 0, '種別が必須／選択／発展のどれでもなければ断る');
+let titleErr = '';
+try { call('teacher_saveTask', null, { unitId: newUnit.unitId, '種別': '必須', 'タイトル': '' }); } catch (e) { titleErr = String(e.message || e); }
+ok(titleErr.indexOf('タイトル') >= 0, 'タイトルが空なら断る');
+
+// 資料
+const nr = call('teacher_saveResource', null, {
+  unitId: newUnit.unitId, taskId: nt1.taskId, 'アイコン': '🎬',
+  'タイトル': 'リトマス紙の使い方', '種別': '動画', 'URL': 'https://www.nhk.or.jp/school/'
+});
+ok(!!nr.resourceId, '課題に資料を足せる');
+const withRes = call('teacher_getDesign', newUnit.unitId).tasks.filter(t => t.taskId === nt1.taskId)[0];
+ok(withRes.resources.length === 1 && withRes.resources[0].resourceId === nr.resourceId, '資料が課題に紐づいて返る');
+const commonRes = call('teacher_saveResource', null, { unitId: newUnit.unitId, 'タイトル': '安全のきまり', '種別': '手もと資料' });
+ok(call('teacher_getDesign', newUnit.unitId).commonResources.length === 1, 'task_id なしなら「いつでも使える資料」になる');
+let urlErr = '';
+try { call('teacher_saveResource', null, { unitId: newUnit.unitId, 'タイトル': 'X', 'URL': 'javascript:alert(1)' }); }
+catch (e) { urlErr = String(e.message || e); }
+ok(urlErr.indexOf('URL') >= 0, 'http(s) 以外のURLは断る（子どもの画面にリンクを出すため）');
+call('teacher_setResourcePublish', nr.resourceId, false);
+ok(call('teacher_getDesign', newUnit.unitId).tasks.filter(t => t.taskId === nt1.taskId)[0].resources[0].published === false,
+  '資料だけ隠せる');
+call('teacher_deleteResource', commonRes.resourceId);
+ok(call('teacher_getDesign', newUnit.unitId).commonResources.length === 0, '資料を消せる');
+
+console.log('\n【27】記録がぶら下がっているものは消させない');
+// 記録のない課題は消せる（資料も道連れ）
+call('teacher_deleteTask', nt2.taskId);
+const afterDel = call('teacher_getDesign', newUnit.unitId);
+ok(afterDel.tasks.length === 2, '記録のない課題は消せる');
+ok(afterDel.tasks.map(t => t.order).join(',') === '1,2', '消したあと並びが詰まる');
+// 記録のある課題・単元は消せない
+asUser('teacher@school.jp');
+let delTaskErr = '';
+try { call('teacher_deleteTask', t1.taskId); } catch (e) { delTaskErr = String(e.message || e); }
+ok(delTaskErr.indexOf('記録') >= 0 && delTaskErr.indexOf('公開') >= 0,
+  '記録のある課題は断り、「公開を切る」を案内する');
+let delUnitErr = '';
+try { call('teacher_deleteUnit', unitId); } catch (e) { delUnitErr = String(e.message || e); }
+ok(delUnitErr.indexOf('終了') >= 0, '記録のある単元は断り、「終了」を案内する');
+ok(call('teacher_getDesign', unitId).unitRecordCount > 0, '記録の件数が画面に返る（ボタンの出し分け用）');
+// 記録のない単元は課題ごと消せる
+call('teacher_deleteUnit', newUnit.unitId);
+ok(sheetRows('単元').filter(u => u['unit_id'] === newUnit.unitId).length === 0, '記録のない単元は消せる');
+ok(sheetRows('課題').filter(t => t['unit_id'] === newUnit.unitId).length === 0, '単元を消すと課題も消える');
+ok(sheetRows('資料').filter(r => r['unit_id'] === newUnit.unitId).length === 0, '単元を消すと資料も消える');
+
+console.log('\n【28】デモモード：役割を行き来する');
+// 既定ではオフ。児童は児童画面のまま
+ok(call('isDemoMode_') === false, '既定ではデモモードはオフ');
+asUser('a@school.jp');
+call('doGet', { parameter: {} });
+ok(lastRender.file === 'student', '児童は児童画面');
+call('doGet', { parameter: { as: 'teacher' } });
+ok(lastRender.file === 'student', 'オフのあいだ児童は教師画面に行けない');
+let roleErr = '';
+try { call('teacher_getMonitor'); } catch (e) { roleErr = String(e.message || e); }
+ok(roleErr.indexOf('教師のみ') >= 0, 'オフのあいだ児童は教師の操作を通せない');
+// 教師はいつでも児童画面を下見できる
+asUser('teacher@school.jp');
+call('doGet', { parameter: {} });
+ok(lastRender.file === 'teacher', '教師は教師画面');
+call('doGet', { parameter: { as: 'student' } });
+ok(lastRender.file === 'student', '教師はデモモードでなくても児童画面を下見できる');
+ok(lastRender.bootstrap.canSwitch.indexOf('https://') === 0, '切り替えリンク用のURLが渡る');
+
+// オンにすると児童も行き来できる
+vm.runInContext('PropertiesService.getScriptProperties().setProperty(C.DEMO_PROP, "TRUE")', sandbox);
+ok(call('isDemoMode_') === true, 'デモモードをオンにできる');
+asUser('a@school.jp');
+call('doGet', { parameter: { as: 'teacher' } });
+ok(lastRender.file === 'teacher', 'オンなら児童も教師画面を開ける');
+ok(lastRender.bootstrap.demo === true, '画面にデモ中であることが渡る');
+ok(call('teacher_getMonitor').hasUnit === true, 'オンなら児童でも教師の操作が通る');
+call('doGet', { parameter: { as: 'student' } });
+ok(lastRender.file === 'student', 'オンでも児童画面に戻れる');
+// 名簿にいない人はデモモードでも入れない
+asUser('unknown@school.jp');
+call('doGet', { parameter: { as: 'teacher' } });
+ok(lastRender.file === 'unauthorized', 'デモモードでも名簿外は入れない');
+let unkErr = '';
+try { call('teacher_getMonitor'); } catch (e) { unkErr = String(e.message || e); }
+ok(unkErr.indexOf('名簿') >= 0, 'デモモードでも名簿外は教師の操作を通せない');
+// 戻す
+vm.runInContext('PropertiesService.getScriptProperties().setProperty(C.DEMO_PROP, "FALSE")', sandbox);
+asUser('a@school.jp');
+call('doGet', { parameter: { as: 'teacher' } });
+ok(lastRender.file === 'student', 'オフに戻すと元の役割どおりになる');
 
 /* =================== 結果 =================== */
 console.log('\n========================================');

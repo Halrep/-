@@ -11,23 +11,53 @@ function onOpen() {
     .addSeparator()
     .addItem('デモ単元を「公開中」にする', 'setupPublishDemo')
     .addItem('記録系データを全消去（マスタは残す）', 'setupClearRecords')
+    .addSeparator()
+    .addItem('デモモード：役割の切り替えを' + (isDemoMode_() ? 'オフにする' : 'オンにする'), 'setupToggleDemo')
     .addToUi();
 }
 
-/** ウェブアプリ表示。ロールで児童用/教師用を出し分ける */
-function doGet() {
+/** デモモードか（スクリプトプロパティで切り替え。既定はオフ） */
+function isDemoMode_() {
+  return PropertiesService.getScriptProperties().getProperty(C.DEMO_PROP) === 'TRUE';
+}
+
+/**
+ * ウェブアプリ自身のURL。役割の切り替えリンクを組み立てるのに使う。
+ * 取れない環境もあるので、その時は空文字を返して切り替えUIを出さない
+ * （URLに ?as=teacher / ?as=student を手で付ければ同じことができる）。
+ */
+function appUrl_() {
+  try { return ScriptApp.getService().getUrl() || ''; } catch (e) { return ''; }
+}
+
+/**
+ * ウェブアプリ表示。ロールで児童用/教師用を出し分ける。
+ *
+ * ?as=student / ?as=teacher で表示を切り替えられる：
+ *   - 教師は、いつでも児童画面を下見できる（自分がどう見えているかの確認）
+ *   - 児童が教師画面を開けるのはデモモードのときだけ
+ */
+function doGet(e) {
   var ctx = getContext();
+  var demo = isDemoMode_();
+  var isTeacher = ctx.role === C.ROLE.TEACHER;
+  var want = (e && e.parameter && e.parameter.as) || '';
 
   var file, title;
   if (!ctx.user) {
     file = 'unauthorized';
     title = C.APP_NAME;
-  } else if (ctx.role === C.ROLE.TEACHER) {
-    file = 'teacher';
-    title = C.APP_NAME + '（先生）';
   } else {
-    file = 'student';
-    title = C.APP_NAME;
+    var viewAs = isTeacher ? C.ROLE.TEACHER : C.ROLE.STUDENT;
+    if (want === C.ROLE.STUDENT && (isTeacher || demo)) viewAs = C.ROLE.STUDENT;
+    if (want === C.ROLE.TEACHER && (isTeacher || demo)) viewAs = C.ROLE.TEACHER;
+
+    file = viewAs === C.ROLE.TEACHER ? 'teacher' : 'student';
+    title = viewAs === C.ROLE.TEACHER ? (C.APP_NAME + '（先生）') : C.APP_NAME;
+    ctx.viewAs = viewAs;
+    // 教師は素の権限で、児童はデモモードのときだけ行き来できる
+    ctx.canSwitch = (isTeacher || demo) ? appUrl_() : '';
+    ctx.demo = demo;
   }
 
   var t = HtmlService.createTemplateFromFile(file);

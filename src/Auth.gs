@@ -48,10 +48,19 @@ function getContext() {
   };
 }
 
-/** 教師でなければ例外。サーバー関数の入口で使う */
+/**
+ * 教師でなければ例外。サーバー関数の入口で使う。
+ *
+ * デモモードのあいだは、名簿に載っている人なら誰でも通す。
+ * 研修や説明会で1アカウントから両方の画面を見せるための緩和で、
+ * 授業で使うときは必ずオフに戻すこと（メニューから切り替えられる）。
+ */
 function requireTeacher_() {
   var ctx = getContext();
-  if (!ctx.user || ctx.role !== C.ROLE.TEACHER) {
+  if (!ctx.user) {
+    throw new Error('名簿に登録されていないアカウントです。担任の先生に連絡してください。');
+  }
+  if (ctx.role !== C.ROLE.TEACHER && !isDemoMode_()) {
     throw new Error('この操作は教師のみが実行できます。');
   }
   return ctx;

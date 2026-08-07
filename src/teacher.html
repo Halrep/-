@@ -7,6 +7,10 @@
     <span class="subj" id="h-class">先生</span>
     <span class="t" id="h-title">読み込み中…</span>
     <span class="n" id="h-meta"></span>
+    <? if (bootstrap.canSwitch) { ?>
+      <a class="role-sw" target="_top"
+         href="<?= bootstrap.canSwitch ?>?as=student">児童の画面へ<? if (bootstrap.demo) { ?><span class="rs-demo">デモ</span><? } ?></a>
+    <? } ?>
   </div>
 
   <div class="t-tabs" role="tablist">
@@ -72,6 +76,8 @@
       <label style="font-weight:700; font-size:13px">単元：</label>
       <select id="unit-select" style="padding:8px 10px; border:1.5px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink)"></select>
       <span id="unit-state" class="rtag"></span>
+      <button class="btn ghost" id="btn-unit-new" style="padding:6px 12px; font-size:12.5px">＋ 単元をつくる</button>
+      <button class="btn ghost danger" id="btn-unit-del" style="padding:6px 12px; font-size:12.5px">単元を消す</button>
       <div style="margin-left:auto; display:flex; gap:8px">
         <button class="btn ghost" id="btn-close">単元を終了</button>
         <button class="btn" id="btn-publish">この単元を公開</button>
@@ -92,6 +98,19 @@
     <div class="card" style="margin-top:14px">
       <div class="card-h"><span class="h-badge">💡</span><h2>単元の改善リスト　<span class="sub-h">子どもの「こんな教材があれば分かった」を、次の単元づくりに使う</span></h2></div>
       <div class="card-b" id="improve-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 単元・課題・資料の編集 -->
+<div class="modal" id="ed" role="dialog" aria-hidden="true">
+  <div class="modal-box">
+    <div class="modal-h"><span id="ed-title">編集</span>
+      <button class="modal-x" id="ed-cancel" aria-label="とじる">✕</button></div>
+    <div class="modal-b" id="ed-body"></div>
+    <div class="modal-f">
+      <button class="btn ghost" id="ed-close">やめる</button>
+      <button class="btn" id="ed-save">保存する</button>
     </div>
   </div>
 </div>
@@ -318,22 +337,36 @@ function loadDesign(unitId){
       return '<option value="'+esc(u.unitId)+'"'+(u.unitId===d.unit.unitId?' selected':'')+'>'+esc(u.subject)+'／'+esc(u.name)+'（'+esc(u.state)+'）</option>';
     }).join('');
     $('#unit-state').textContent = d.unit.state;
+    edDesign = d;
     renderDesign(d);
   });
 }
 
 function renderDesign(d){
   var U = d.unit;
-  var taskRows = d.tasks.map(function(t){
-    var res = t.resources.map(function(r){ return '<span class="d-chip">'+esc(r.icon)+' '+esc(r.title)+'</span>'; }).join('') || '<span class="sub-h">資料なし</span>';
+  var resChip = function(r){
+    return '<button class="d-chip res-chip'+(r.published?'':' unpub')+'" data-res="'+esc(r.resourceId)+'" title="クリックで編集">'+
+      esc(r.icon)+' '+esc(r.title)+(r.published?'':' 🚫')+'</button>';
+  };
+
+  var taskRows = d.tasks.map(function(t, ix){
+    var res = t.resources.map(resChip).join('');
     var st = t.strategies.map(function(s){ return '<span class="d-chip acc">'+esc(s.icon)+' '+esc(s.name)+'</span>'; }).join('') || '<span class="sub-h">おすすめ工夫なし</span>';
     return '<div class="task-edit'+(t.published?'':' unpub')+'">'+
       '<div class="te-h"><span class="gk k'+esc(t.kind)+'">'+esc(KIND_MARK[t.kind]||t.kind)+'</span>'+
         '<span class="te-t">'+esc(t.order)+'. '+esc(t.title)+'</span>'+
         '<span class="te-m">めやす'+esc(t.mins)+'分</span>'+
+        '<span class="te-ops">'+
+          '<button class="mini" data-mv="'+esc(t.taskId)+'" data-dir="-1"'+(ix===0?' disabled':'')+' aria-label="上へ">↑</button>'+
+          '<button class="mini" data-mv="'+esc(t.taskId)+'" data-dir="1"'+(ix===d.tasks.length-1?' disabled':'')+' aria-label="下へ">↓</button>'+
+          '<button class="mini" data-task-ed="'+esc(t.taskId)+'" aria-label="編集">✎</button>'+
+          '<button class="mini danger" data-task-del="'+esc(t.taskId)+'" aria-label="消す">🗑</button>'+
+        '</span>'+
         '<button class="switch" data-pub2="'+esc(t.taskId)+'" aria-pressed="'+t.published+'" aria-label="公開"></button></div>'+
       '<div class="te-b"><div class="te-d">'+esc(t.desc||'')+'</div>'+
-        '<div class="d-chips">'+res+'</div><div class="d-chips" style="margin-top:4px">'+st+'</div></div>'+
+        '<div class="d-chips">'+res+
+          '<button class="d-chip add" data-res-new="'+esc(t.taskId)+'">＋ 資料</button></div>'+
+        '<div class="d-chips" style="margin-top:4px">'+st+'</div></div>'+
     '</div>';
   }).join('');
 
@@ -367,12 +400,137 @@ function renderDesign(d){
       '</div></div>'+
 
       '<div class="card" style="grid-column:1/-1"><div class="card-h"><span class="h-badge">🗂</span><h2>課題（学習カード）　<span class="sub-h">スイッチで段階的に公開できます</span></h2></div>'+
-        '<div class="card-b"><div class="task-edit-list">'+taskRows+'</div>'+
-        '<div class="sub-h" style="margin-top:10px">課題・資料の追加はスプレッドシートの「課題」「資料」シートで行います。</div></div></div>'+
+        '<div class="card-b"><div class="task-edit-list">'+(taskRows||'<div class="empty">まだ課題がありません。</div>')+'</div>'+
+        '<div style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">'+
+          '<button class="btn ghost" id="btn-task-new" style="padding:7px 14px; font-size:13px">＋ 課題を追加</button>'+
+          '<span class="sub-h">追加した課題は非公開で入ります。出すタイミングはスイッチで決めてください。</span>'+
+        '</div></div></div>'+
 
-      (d.commonResources.length ? '<div class="card" style="grid-column:1/-1"><div class="card-h"><span class="h-badge">📎</span><h2>いつでも使える資料</h2></div><div class="card-b d-chips">'+
-        d.commonResources.map(function(r){ return '<span class="d-chip">'+esc(r.icon)+' '+esc(r.title)+'</span>'; }).join('')+'</div></div>' : '')+
+      '<div class="card" style="grid-column:1/-1"><div class="card-h"><span class="h-badge">📎</span><h2>いつでも使える資料　<span class="sub-h">課題に紐づかない、単元を通して使える資料</span></h2></div>'+
+        '<div class="card-b d-chips">'+
+          d.commonResources.map(resChip).join('')+
+          '<button class="d-chip add" data-res-new="">＋ 資料</button>'+
+        '</div></div>'+
     '</div>';
+}
+
+/* ---- 単元・課題・資料の編集 ---- */
+var edCtx = null;   // {kind:'unit'|'task'|'res', id, taskId}
+var edDesign = null;
+
+function edField(label, name, value, opt){
+  opt = opt || {};
+  var input = opt.textarea
+    ? '<textarea rows="'+(opt.rows||2)+'" data-ef="'+name+'">'+esc(value||'')+'</textarea>'
+    : '<input type="text" data-ef="'+name+'" value="'+esc(value||'')+'"'+(opt.numeric?' inputmode="numeric"':'')+'>';
+  return '<div class="ed-f"><h3>'+esc(label)+(opt.hint?' <span class="sub-h">'+esc(opt.hint)+'</span>':'')+'</h3>'+input+'</div>';
+}
+
+function edPick(label, name, value, options){
+  return '<div class="ed-f"><h3>'+esc(label)+'</h3><div class="chips" data-efpick="'+name+'">'+
+    options.map(function(o){
+      return '<button class="chip" data-v="'+esc(o)+'" aria-pressed="'+(String(o)===String(value))+'"><span class="cx">✓</span>'+esc(o)+'</button>';
+    }).join('')+'</div></div>';
+}
+
+function openEditor(kind, id, taskId){
+  edCtx = { kind: kind, id: id || '', taskId: taskId || '' };
+  var d = edDesign, body = '', title = '';
+
+  if(kind === 'unit'){
+    title = '新しい単元をつくる';
+    body = edField('教科', '教科', '', {hint:'例：社会'}) +
+           edField('学年', '学年', '', {hint:'例：6年'}) +
+           edField('単元名', '単元名', '') +
+           edField('単元の問い・目標', '単元目標', '', {textarea:true}) +
+           edField('単元の出口（成果物イメージ）', '成果物イメージ', '', {textarea:true});
+  }
+  else if(kind === 'task'){
+    var t = id ? (d.tasks.filter(function(x){ return x.taskId===id; })[0] || {}) : {};
+    title = id ? '課題を編集' : '課題を追加';
+    body = edPick('種別', '種別', t.kind || '必須', ['必須','選択','発展']) +
+           edField('タイトル', 'タイトル', t.title) +
+           edField('説明（子どもに見せる指示）', '説明', t.desc, {textarea:true, rows:3}) +
+           edField('めやす分', 'めやす分', t.mins, {numeric:true});
+  }
+  else {
+    var r = null;
+    if(id){
+      d.tasks.forEach(function(x){ (x.resources||[]).forEach(function(y){ if(y.resourceId===id) r = y; }); });
+      (d.commonResources||[]).forEach(function(y){ if(y.resourceId===id) r = y; });
+    }
+    r = r || {};
+    title = id ? '資料を編集' : (taskId ? 'この課題に資料を足す' : 'いつでも使える資料を足す');
+    body = edField('アイコン', 'アイコン', r.icon || '📄', {hint:'絵文字1つ'}) +
+           edField('タイトル', 'タイトル', r.title) +
+           edField('補足', '補足', r.note, {hint:'子どもへの一言'}) +
+           edPick('種別', '種別', r.kind || '手もと資料', d.resKinds || ['手もと資料']) +
+           edField('URL', 'URL', r.url, {hint:'http:// か https://。手もと資料なら空でOK'});
+    if(id){
+      body += '<div class="sw-row"><div><div class="lb">子どもに見せる</div>'+
+        '<div class="sb2">切ると、この資料だけ隠せます（あとから出せます）</div></div>'+
+        '<button class="switch" id="ed-res-pub" aria-pressed="'+(r.published!==false)+'"></button></div>'+
+        '<div class="ed-danger"><button class="btn ghost danger" id="ed-res-del">この資料を消す</button></div>';
+    }
+  }
+
+  $('#ed-title').textContent = title;
+  $('#ed-body').innerHTML = body;
+  $('#ed').classList.add('open');
+  $('#ed').setAttribute('aria-hidden','false');
+  var first = $('#ed-body [data-ef]');
+  if(first) first.focus();
+}
+
+function closeEditor(){
+  $('#ed').classList.remove('open');
+  $('#ed').setAttribute('aria-hidden','true');
+  edCtx = null;
+}
+
+function edValues(){
+  var out = {};
+  $$('#ed-body [data-ef]').forEach(function(el){ out[el.dataset.ef] = el.value; });
+  $$('#ed-body [data-efpick]').forEach(function(grp){
+    var on = grp.querySelector('.chip[aria-pressed="true"]');
+    out[grp.dataset.efpick] = on ? on.dataset.v : '';
+  });
+  return out;
+}
+
+function edSubmit(){
+  if(!edCtx) return;
+  var v = edValues(), uid = currentUnitId();
+  var btn = $('#ed-save');
+  btn.disabled = true;
+
+  // closeEditor() が edCtx を空にするので、先に控えておく
+  var isNew = !edCtx.id;
+  var done = function(msg){
+    closeEditor();
+    toast(msg);
+    loadDesign(uid);
+    btn.disabled = false;
+  };
+  var failed = function(err){ toast(String(err && err.message || err)); btn.disabled = false; };
+
+  if(edCtx.kind === 'unit'){
+    callServer('teacher_createUnit', v).then(function(r){
+      closeEditor(); toast('単元をつくりました'); loadDesign(r.unitId); btn.disabled = false;
+    }).catch(failed);
+    return;
+  }
+  if(edCtx.kind === 'task'){
+    v.unitId = uid;
+    callServer('teacher_saveTask', edCtx.id || null, v)
+      .then(function(){ done(isNew ? '課題を追加しました（非公開）' : '課題を更新しました'); })
+      .catch(failed);
+    return;
+  }
+  v.unitId = uid; v.taskId = edCtx.taskId;
+  callServer('teacher_saveResource', edCtx.id || null, v)
+    .then(function(){ done(isNew ? '資料を足しました' : '資料を更新しました'); })
+    .catch(failed);
 }
 
 function currentUnitId(){ return $('#unit-select') ? $('#unit-select').value : null; }
@@ -411,6 +569,74 @@ document.addEventListener('click', function(e){
 
   if(e.target.id==='btn-publish'){ save('teacher_setUnitState', currentUnitId(), '公開中').then(function(){ toast('単元を児童に公開しました'); loadDesign(currentUnitId()); }); return; }
   if(e.target.id==='btn-close'){ save('teacher_setUnitState', currentUnitId(), '終了').then(function(){ toast('単元を終了しました'); loadDesign(currentUnitId()); }); return; }
+
+  /* --- 単元・課題・資料の編集 --- */
+  if(e.target.id==='ed-cancel' || e.target.id==='ed-close'){ closeEditor(); return; }
+  if(e.target.id==='ed-save'){ edSubmit(); return; }
+
+  if(e.target.id==='ed-res-pub'){
+    var rp = e.target, ron = rp.getAttribute('aria-pressed')!=='true';
+    rp.setAttribute('aria-pressed', String(ron));
+    save('teacher_setResourcePublish', edCtx.id, ron);
+    return;
+  }
+  if(e.target.id==='ed-res-del'){
+    if(!confirm('この資料を消しますか？')) return;
+    var rid = edCtx.id, ruid = currentUnitId();
+    callServer('teacher_deleteResource', rid).then(function(){
+      closeEditor(); toast('資料を消しました'); loadDesign(ruid);
+    }).catch(function(err){ toast(String(err && err.message || err)); });
+    return;
+  }
+
+  var pick = e.target.closest('[data-efpick] .chip');
+  if(pick){
+    var grp = pick.closest('[data-efpick]');
+    $$('.chip', grp).forEach(function(x){ x.setAttribute('aria-pressed','false'); });
+    pick.setAttribute('aria-pressed','true');
+    return;
+  }
+
+  if(e.target.id==='btn-unit-new'){ openEditor('unit'); return; }
+  if(e.target.id==='btn-unit-del'){
+    if(!edDesign) return;
+    if(edDesign.unitRecordCount > 0){
+      toast('この単元には子どもの記録が'+edDesign.unitRecordCount+'件あります。消さずに「単元を終了」にしてください。');
+      return;
+    }
+    if(!confirm('単元「'+edDesign.unit.unitName+'」と、その課題・資料をまとめて消します。よろしいですか？')) return;
+    callServer('teacher_deleteUnit', currentUnitId())
+      .then(function(){ toast('単元を消しました'); loadDesign(null); })
+      .catch(function(err){ toast(String(err && err.message || err)); });
+    return;
+  }
+
+  if(e.target.id==='btn-task-new'){ openEditor('task'); return; }
+
+  var ted = e.target.closest('[data-task-ed]');
+  if(ted){ openEditor('task', ted.dataset.taskEd); return; }
+
+  var tdel = e.target.closest('[data-task-del]');
+  if(tdel){
+    if(!confirm('この課題を消しますか？　もとにもどせません。')) return;
+    callServer('teacher_deleteTask', tdel.dataset.taskDel)
+      .then(function(){ toast('課題を消しました'); loadDesign(currentUnitId()); })
+      .catch(function(err){ toast(String(err && err.message || err)); });
+    return;
+  }
+
+  var mv = e.target.closest('[data-mv]');
+  if(mv){
+    save('teacher_moveTask', mv.dataset.mv, Number(mv.dataset.dir))
+      .then(function(){ loadDesign(currentUnitId()); });
+    return;
+  }
+
+  var rnew = e.target.closest('[data-res-new]');
+  if(rnew){ openEditor('res', '', rnew.dataset.resNew); return; }
+
+  var rchip = e.target.closest('[data-res]');
+  if(rchip){ openEditor('res', rchip.dataset.res); return; }
 });
 
 /* ---- ふりかえり一覧 ---- */

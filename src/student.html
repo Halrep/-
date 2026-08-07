@@ -7,6 +7,10 @@
     <span class="subj" id="h-subj">読み込み中…</span>
     <span class="t" id="h-title"></span>
     <span class="n" id="h-name"></span>
+    <? if (bootstrap.canSwitch) { ?>
+      <a class="role-sw" target="_top"
+         href="<?= bootstrap.canSwitch ?>?as=teacher">先生の画面へ<? if (bootstrap.demo) { ?><span class="rs-demo">デモ</span><? } ?></a>
+    <? } ?>
   </div>
 
   <div id="nounit" class="card hidden"><div class="card-b center empty">

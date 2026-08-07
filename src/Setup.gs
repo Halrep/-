@@ -156,6 +156,35 @@ function setupClearRecords() {
   toastUi_('記録系データを消去しました。');
 }
 
+/**
+ * デモモードの切り替え。
+ * オンのあいだは名簿にいる誰でも教師画面と児童画面を行き来でき、
+ * 教師専用のガードも外れる。研修・説明会むけで、授業では必ずオフにする。
+ */
+function setupToggleDemo() {
+  var ui = SpreadsheetApp.getUi();
+  var props = PropertiesService.getScriptProperties();
+  var now = isDemoMode_();
+
+  if (!now) {
+    var res = ui.alert(C.APP_NAME,
+      'デモモードをオンにします。\n\n' +
+      '・名簿にいる人なら誰でも、教師画面と児童画面を行き来できます\n' +
+      '・教師だけに許していた操作（単元の編集・モニタ・見取りメモ）も通ります\n\n' +
+      '説明会や研修で1つのアカウントから両方を見せるための設定です。\n' +
+      '授業で使う前に必ずオフに戻してください。よろしいですか？',
+      ui.ButtonSet.YES_NO);
+    if (res !== ui.Button.YES) return;
+    props.setProperty(C.DEMO_PROP, 'TRUE');
+    toastUi_('デモモードをオンにしました。授業前にオフに戻してください。');
+  } else {
+    props.setProperty(C.DEMO_PROP, 'FALSE');
+    toastUi_('デモモードをオフにしました。役割どおりの画面に戻ります。');
+  }
+  // メニューの文言を今の状態に合わせて作り直す
+  onOpen();
+}
+
 /* ------- 小物 ------- */
 
 /** 見出し配列と値配列を {列:値} に */
