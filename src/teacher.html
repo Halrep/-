@@ -219,7 +219,8 @@ function renderTiles(tiles){
     var flag = s.status==='idle' ? ('⏳ '+s.idleMin+'分 動きなし') : (FLAG[s.status]||'');
     var pct = s.mustTotal ? (s.doneMust/s.mustTotal*100) : 0;
     return '<button class="tile'+(s.userId===selectedUser?' sel':'')+'" data-uid="'+esc(s.userId)+'" data-st="'+s.status+'">'+
-      '<span class="nm"><span class="no num">'+esc(s.number)+'</span>'+esc(s.name)+(flag?'<span class="flag">'+flag+'</span>':'')+'</span>'+
+      '<span class="nm"><span class="no num">'+esc(s.number)+'</span><span class="nmt">'+esc(s.name)+'</span>'+
+        (flag?'<span class="flag">'+flag+'</span>':'')+'</span>'+
       '<span class="meta">'+esc(s.doingTitle||'—')+'</span>'+
       '<span class="meta">'+esc(s.form||'')+'<span class="num" style="margin-left:auto">必須 '+s.doneMust+'/'+s.mustTotal+'</span></span>'+
       '<span class="pbar"><i style="width:'+pct+'%"></i></span></button>';

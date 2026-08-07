@@ -1002,6 +1002,40 @@ ui.promptText = '1';
 call('unitSheetExport');
 ok(call('teacher_getSheetLinks').unitSheet !== null, '公開中の単元の単元シートへのリンクが返る');
 
+console.log('\n【35】デモモードなら、その子の画面で記録できる');
+asUser('teacher@school.jp');
+// デモモードがオフのあいだは、これまでどおり読み取り専用
+call('doGet', { parameter: { as: 'student', who: 'U01' } });
+ok(lastRender.bootstrap.readOnly === true, 'オフのあいだは読み取り専用');
+let roErr = '';
+try { call('student_saveTaskNote', t1.taskId, 4, 'オフのとき'); } catch (e) { roErr = String(e.message || e); }
+ok(roErr.indexOf('読み取り専用') >= 0, 'オフのあいだは記録できない');
+
+// オンにすると、その子として記録できる（研修でモニタに映るところまで見せるため）
+vm.runInContext('PropertiesService.getScriptProperties().setProperty(C.DEMO_PROP, "TRUE")', sandbox);
+call('doGet', { parameter: { as: 'student', who: 'U01' } });
+ok(lastRender.bootstrap.readOnly === false, 'デモ中は読み取り専用ではないと画面に伝わる');
+ok(lastRender.bootstrap.viewingName === '青木', '誰として操作しているかは出したまま');
+call('student_saveTaskNote', t1.taskId, 4, 'デモで書いた');
+call('student_setProgress', t1.taskId, 1);
+const demoState = call('student_getState');
+ok(demoState.me.userId === 'U01', 'その子として動いている');
+ok(demoState.tasks[0].memo === 'デモで書いた', 'メモがその子の記録として残る');
+ok(demoState.tasks[0].status === 1, '進度もその子の記録として残る');
+// 教師のモニタにも反映される（デモで見せたいのはここ）
+asUser('teacher@school.jp');
+vm.runInContext('clearViewAs_("teacher@school.jp")', sandbox);
+ok(sheetRows('進度').filter(p => p['user_id'] === 'U01' && p['task_id'] === t1.taskId)[0]['メモ'] === 'デモで書いた',
+  '教師側から見ても、その子の行に記録されている');
+// 後片付け
+asUser('teacher@school.jp');
+call('doGet', { parameter: { as: 'student', who: 'U01' } });
+call('student_saveTaskNote', t1.taskId, 2, '年表は下から読むと流れが分かった');
+call('student_setProgress', t1.taskId, 2);
+vm.runInContext('PropertiesService.getScriptProperties().setProperty(C.DEMO_PROP, "FALSE")', sandbox);
+call('doGet', { parameter: { as: 'teacher' } });
+ok(call('getContext').viewingUser === null, '後片付け：見るのをやめる');
+
 /* =================== 結果 =================== */
 console.log('\n========================================');
 console.log('  PASS: ' + pass + '   FAIL: ' + fail);

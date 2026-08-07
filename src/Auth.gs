@@ -48,7 +48,8 @@ function getContext() {
       ctx.user = toUser_(target);
       ctx.role = C.ROLE.STUDENT;
       ctx.viewingUser = toUser_(target);
-      ctx.readOnly = true;
+      // ふだんは読み取り専用。デモモードのあいだだけ、その子として記録できる
+      ctx.readOnly = !isDemoMode_();
     } else {
       clearViewAs_(email);   // 名簿から消えた等。見に行くのをやめる
     }
@@ -120,6 +121,7 @@ function requireTeacher_() {
  */
 function requireWritable_() {
   var ctx = requireUser_();
+  // 見ているだけのときは断る（readOnly はデモモードでは立たない）
   if (ctx.readOnly) {
     throw new Error('いまは' + ctx.viewingUser.displayName + 'さんの画面を見ているだけです（読み取り専用）。記録はできません。');
   }

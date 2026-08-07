@@ -15,11 +15,15 @@
   </div>
 
   <? if (bootstrap.viewingName) { ?>
-    <div class="viewing">
-      <span class="vw-em">👀</span>
-      <span><b><?= bootstrap.viewingName ?></b>さんの画面を見ています
-        <span class="vw-ro">読み取り専用（記録はされません）</span></span>
-      <a class="btn ghost" target="_top" href="<?= bootstrap.canSwitch ?>?as=teacher">見るのをやめる</a>
+    <div class="viewing<? if (!bootstrap.readOnly) { ?> live<? } ?>">
+      <span class="vw-em"><? if (bootstrap.readOnly) { ?>👀<? } else { ?>✍️<? } ?></span>
+      <span><b><?= bootstrap.viewingName ?></b>さんの画面
+        <? if (bootstrap.readOnly) { ?>
+          <span class="vw-ro">読み取り専用（記録はされません）</span>
+        <? } else { ?>
+          <span class="vw-live">デモ中：操作すると<?= bootstrap.viewingName ?>さんの記録として残ります</span>
+        <? } ?></span>
+      <a class="btn ghost" target="_top" href="<?= bootstrap.canSwitch ?>?as=teacher">先生の画面にもどる</a>
     </div>
   <? } ?>
 
