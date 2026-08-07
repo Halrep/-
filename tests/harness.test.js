@@ -199,7 +199,8 @@ const sandbox = {
     getScriptProperties() {
       return {
         getProperty(k) { return Object.prototype.hasOwnProperty.call(scriptProps, k) ? scriptProps[k] : null; },
-        setProperty(k, v) { scriptProps[k] = String(v); return this; }
+        setProperty(k, v) { scriptProps[k] = String(v); return this; },
+        deleteProperty(k) { delete scriptProps[k]; return this; }
       };
     }
   },
@@ -895,6 +896,73 @@ Object.keys(vs).forEach(function (sh) {
     ok(C_HEADERS(sh).indexOf(col) >= 0, 'プルダウン指定「' + sh + '.' + col + '」が実際の列に存在する');
   });
 });
+
+console.log('\n【33】この子の画面を見る（読み取り専用）');
+asUser('teacher@school.jp');
+// 先生の画面から児童の画面へ
+call('doGet', { parameter: { as: 'student', who: 'U01' } });
+ok(lastRender.file === 'student', '児童画面が返る');
+ok(lastRender.bootstrap.viewingName === '青木', '誰の画面を見ているかが画面に渡る');
+ok(lastRender.bootstrap.readOnly === true, '読み取り専用として渡る');
+// 以降のサーバー関数もその子として動く（URLの引数は残らないので状態で持つ）
+const seen = call('student_getState');
+ok(seen.me.userId === 'U01', '続くサーバー関数もその子として動く');
+ok(seen.tasks[0].memo.indexOf('年表') >= 0, 'その子が書いたメモが見える');
+ok(seen.tasks[0].understanding === 2, 'その子の分かりぐあいが見える');
+ok(call('student_getPortfolio').tasks.length >= 1, 'その子の学びの足跡が見える');
+ok(call('teacher_getMonitor').hasUnit === true, '見ている最中でも先生の操作は通る（本人の役割で判定）');
+
+// 書き込みはすべて断る
+const writeCalls = [
+  ['student_saveGoal', ['集中して', 'テスト', [], 50]],
+  ['student_setProgress', [t1.taskId, 1]],
+  ['student_saveTaskNote', [t1.taskId, 4, '先生が書いた']],
+  ['student_saveSelection', [t1.taskId, '学習形態', 'ひとりで']],
+  ['student_useStrategy', [t1.taskId, 'S01', false]],
+  ['student_raiseHelp', [true]],
+  ['student_saveCheckpoint', [10, '順調', '']],
+  ['student_saveReflection', [{ achievement: 10 }]],
+  ['student_saveLog', [t1.taskId, PIX, '']]
+];
+let blocked = 0;
+writeCalls.forEach(function (c) {
+  try { call(c[0], ...c[1]); } catch (e) {
+    if (String(e.message || e).indexOf('読み取り専用') >= 0) blocked++;
+  }
+});
+ok(blocked === writeCalls.length, '書き込みは' + writeCalls.length + '件すべて断る');
+ok(call('student_getState').tasks[0].memo.indexOf('年表') >= 0, '断ったのでその子のメモは変わらない');
+ok(call('student_getState').tasks[0].understanding === 2, '断ったので分かりぐあいも変わらない');
+
+// 見るのをやめると先生に戻る
+call('doGet', { parameter: { as: 'teacher' } });
+ok(lastRender.file === 'teacher', '「見るのをやめる」で先生画面に戻れる');
+ok(!lastRender.bootstrap.viewingName, '見ている相手が消える');
+ok(call('getContext').user.userId === 'T01', '自分に戻る');
+// 戻ったあとは自分として書ける
+call('doGet', { parameter: { as: 'student' } });
+ok(lastRender.bootstrap.readOnly === false, '自分の児童画面は読み取り専用ではない');
+
+// 児童は他人の画面を見に行けない
+asUser('b@school.jp');
+call('doGet', { parameter: { as: 'student', who: 'U01' } });
+ok(call('student_getState').me.userId === 'U02', '児童は who を付けても他人になれない');
+// 教師でも、児童以外は見に行けない
+asUser('teacher@school.jp');
+call('doGet', { parameter: { as: 'student', who: 'T01' } });
+ok(call('getContext').viewingUser === null, '教師を見る対象には選べない');
+call('doGet', { parameter: { as: 'student', who: 'U99' } });
+ok(call('getContext').viewingUser === null, '名簿にないIDは無視する');
+call('doGet', { parameter: { as: 'teacher' } });
+
+// 見に行く状態は人ごとに分かれている（1人の設定が全員に及ばない）
+call('doGet', { parameter: { as: 'student', who: 'U01' } });
+asUser('c@school.jp');
+ok(call('student_getState').me.userId === 'U03', '先生が誰かを見ていても、児童は自分のまま');
+asUser('teacher@school.jp');
+ok(call('student_getState').me.userId === 'U01', '先生は見ている相手のまま');
+call('doGet', { parameter: { as: 'teacher' } });
+ok(call('getContext').viewingUser === null, '後片付け');
 
 /* =================== 結果 =================== */
 console.log('\n========================================');

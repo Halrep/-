@@ -26,26 +26,72 @@ function getActiveEmail_() {
  */
 function getContext() {
   var email = getActiveEmail_();
-  var me = null;
-  if (email) {
-    var users = Repo.readAll(C.SH.USERS);
-    for (var i = 0; i < users.length; i++) {
-      if (String(users[i]['email']).trim().toLowerCase() === email.trim().toLowerCase()) {
-        me = users[i];
-        break;
-      }
+  var me = findUserByEmail_(email);
+  var realRole = me ? me['役割'] : null;
+
+  var ctx = {
+    email: email,
+    realUser: toUser_(me),
+    realRole: realRole,
+    user: toUser_(me),
+    role: realRole,
+    viewingUser: null,   // 「この子の画面を見る」で見ている児童
+    readOnly: false
+  };
+
+  // 教師が児童の画面を見に行っているとき、以降のサーバー関数はその子として動く。
+  // ただし読み取り専用。先生の操作がその子の足跡に混ざってはいけない。
+  var seenId = getViewAs_(email);
+  if (seenId && (realRole === C.ROLE.TEACHER || isDemoMode_())) {
+    var target = firstWhere_(C.SH.USERS, { user_id: seenId });
+    if (target && target['役割'] === C.ROLE.STUDENT) {
+      ctx.user = toUser_(target);
+      ctx.role = C.ROLE.STUDENT;
+      ctx.viewingUser = toUser_(target);
+      ctx.readOnly = true;
+    } else {
+      clearViewAs_(email);   // 名簿から消えた等。見に行くのをやめる
     }
   }
-  return {
-    email: email,
-    user: me ? {
-      userId: me['user_id'],
-      name: me['氏名'],
-      displayName: me['表示名'] || me['氏名'],
-      number: me['出席番号']
-    } : null,
-    role: me ? me['役割'] : null
-  };
+  return ctx;
+}
+
+function findUserByEmail_(email) {
+  if (!email) return null;
+  var users = Repo.readAll(C.SH.USERS);
+  for (var i = 0; i < users.length; i++) {
+    if (String(users[i]['email']).trim().toLowerCase() === email.trim().toLowerCase()) return users[i];
+  }
+  return null;
+}
+
+function toUser_(row) {
+  return row ? {
+    userId: row['user_id'],
+    name: row['氏名'],
+    displayName: row['表示名'] || row['氏名'],
+    number: row['出席番号']
+  } : null;
+}
+
+/* ------- 「この子の画面を見る」の状態 -------
+ * ウェブアプリは「自分（＝デプロイした教師）として実行」なので、
+ * UserProperties は全員で共有されてしまう（1人の設定が全児童に影響する）。
+ * 実際にアクセスしている人のメールを鍵にして、スクリプトプロパティに持つ。
+ */
+function viewAsKey_(email) { return 'VIEW_AS::' + String(email || '').trim().toLowerCase(); }
+
+function getViewAs_(email) {
+  if (!email) return '';
+  return PropertiesService.getScriptProperties().getProperty(viewAsKey_(email)) || '';
+}
+
+function setViewAs_(email, userId) {
+  PropertiesService.getScriptProperties().setProperty(viewAsKey_(email), String(userId));
+}
+
+function clearViewAs_(email) {
+  PropertiesService.getScriptProperties().deleteProperty(viewAsKey_(email));
 }
 
 /**
@@ -57,11 +103,25 @@ function getContext() {
  */
 function requireTeacher_() {
   var ctx = getContext();
-  if (!ctx.user) {
+  if (!ctx.realUser) {
     throw new Error('名簿に登録されていないアカウントです。担任の先生に連絡してください。');
   }
-  if (ctx.role !== C.ROLE.TEACHER && !isDemoMode_()) {
+  // 児童の画面を見に行っている最中でも、先生の操作は本人の権限で判断する
+  if (ctx.realRole !== C.ROLE.TEACHER && !isDemoMode_()) {
     throw new Error('この操作は教師のみが実行できます。');
+  }
+  return ctx;
+}
+
+/**
+ * 書き込みを伴う児童の操作の入口。
+ * 「この子の画面を見る」で見ているあいだは断る。
+ * 先生がうっかり触った跡が、その子の学びの足跡に混ざらないようにする。
+ */
+function requireWritable_() {
+  var ctx = requireUser_();
+  if (ctx.readOnly) {
+    throw new Error('いまは' + ctx.viewingUser.displayName + 'さんの画面を見ているだけです（読み取り専用）。記録はできません。');
   }
   return ctx;
 }

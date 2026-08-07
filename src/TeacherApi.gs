@@ -788,6 +788,8 @@ function unitMeta_(unit) {
     grade: unit['学年'],
     unitName: unit['単元名'],
     totalHours: unit['総時数'],
-    state: unit['状態']
+    state: unit['状態'],
+    // 「この子の画面を見る」のリンクを組み立てるのに使う（取れない環境では空）
+    appUrl: appUrl_()
   };
 }

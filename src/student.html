@@ -13,6 +13,15 @@
     <? } ?>
   </div>
 
+  <? if (bootstrap.viewingName) { ?>
+    <div class="viewing">
+      <span class="vw-em">👀</span>
+      <span><b><?= bootstrap.viewingName ?></b>さんの画面を見ています
+        <span class="vw-ro">読み取り専用（記録はされません）</span></span>
+      <a class="btn ghost" target="_top" href="<?= bootstrap.canSwitch ?>?as=teacher">見るのをやめる</a>
+    </div>
+  <? } ?>
+
   <div id="nounit" class="card hidden"><div class="card-b center empty">
     いま公開されている単元はありません。先生が単元を公開すると、ここに表示されます。
   </div></div>

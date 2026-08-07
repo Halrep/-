@@ -44,17 +44,27 @@ function appUrl_() {
 function doGet(e) {
   var ctx = getContext();
   var demo = isDemoMode_();
-  var isTeacher = ctx.role === C.ROLE.TEACHER;
+  // 児童の画面を見ている最中は role が student になるので、本人の役割で判定する
+  var isTeacher = ctx.realRole === C.ROLE.TEACHER;
   var want = (e && e.parameter && e.parameter.as) || '';
 
+  // 「この子の画面を見る」の開始／終了。以降のサーバー関数もこの状態で動く
+  var who = (e && e.parameter && e.parameter.who) || '';
+  if (isTeacher || demo) {
+    if (who) setViewAs_(ctx.email, who);
+    else if (want === C.ROLE.TEACHER) clearViewAs_(ctx.email);
+    if (who || want === C.ROLE.TEACHER) ctx = getContext();  // 見る相手を反映して取り直す
+  }
+
   var file, title;
-  if (!ctx.user) {
+  if (!ctx.realUser) {
     file = 'unauthorized';
     title = C.APP_NAME;
   } else {
     var viewAs = isTeacher ? C.ROLE.TEACHER : C.ROLE.STUDENT;
     if (want === C.ROLE.STUDENT && (isTeacher || demo)) viewAs = C.ROLE.STUDENT;
     if (want === C.ROLE.TEACHER && (isTeacher || demo)) viewAs = C.ROLE.TEACHER;
+    if (ctx.viewingUser) viewAs = C.ROLE.STUDENT;   // 誰かの画面を見ているなら児童画面
 
     file = viewAs === C.ROLE.TEACHER ? 'teacher' : 'student';
     title = viewAs === C.ROLE.TEACHER ? (C.APP_NAME + '（先生）') : C.APP_NAME;
@@ -62,6 +72,7 @@ function doGet(e) {
     // 教師は素の権限で、児童はデモモードのときだけ行き来できる
     ctx.canSwitch = (isTeacher || demo) ? appUrl_() : '';
     ctx.demo = demo;
+    ctx.viewingName = ctx.viewingUser ? ctx.viewingUser.displayName : '';
   }
 
   var t = HtmlService.createTemplateFromFile(file);

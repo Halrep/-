@@ -218,6 +218,7 @@ function openDetail(uid){
   callServer('teacher_getStudentDetail', uid).then(function(d){
     if(!d.hasUnit) return;
     $('#d-name').textContent = d.number + '番 ' + d.name + 'さん';
+    var seeUrl = META && META.appUrl ? (META.appUrl + '?as=student&who=' + encodeURIComponent(uid)) : '';
     var undBy = {};
     (d.understandingLevels||[]).forEach(function(u){ undBy[u.value] = u; });
 
@@ -251,6 +252,7 @@ function openDetail(uid){
         }).join('') +'</span></div>' : '';
     $('#d-body').innerHTML =
       (d.help ? '<div style="background:var(--danger-soft); color:var(--danger); font-weight:800; border-radius:8px; padding:8px 12px">🆘 たすけてサインが出ています</div>' : '')+
+      (seeUrl ? '<a class="btn ghost see-btn" target="_top" href="'+esc(seeUrl)+'">👀 この子の画面を見る　<span class="sub-h">読み取り専用</span></a>' : '')+
       '<div class="d-row"><b>きょうの計画（BE / DO）</b>'+(d.goal? esc(d.goal.be)+' ／ '+esc(d.goal.doText) : '<span class="muted">未設定</span>')+'</div>'+
       effHtml +
       (d.goal && d.goal.regulateNames.length ? '<div class="d-row"><b>つかう工夫</b><span class="d-chips">'+d.goal.regulateNames.map(function(r){ return '<span class="d-chip acc">'+esc(r)+'</span>'; }).join('')+'</span></div>' : '')+

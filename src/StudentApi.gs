@@ -149,7 +149,7 @@ function student_getState() {
 
 /** きょうの計画（目標）を保存。1人1日1件 */
 function student_saveGoal(be, doText, regulateIds, efficacy) {
-  var ctx = requireUser_();
+  var ctx = requireWritable_();
   var unit = requireCurrentUnit_();
   var now = Repo.now(), day = today_();
   var match = { unit_id: unit['unit_id'], user_id: ctx.user.userId, '日付': day };
@@ -168,7 +168,7 @@ function student_saveGoal(be, doText, regulateIds, efficacy) {
 
 /** 課題ごとの取り組み方を記録。変更前の値も残して調整の履歴にする */
 function student_saveSelection(taskId, category, value) {
-  var ctx = requireUser_();
+  var ctx = requireWritable_();
   var unit = requireCurrentUnit_();
   var unitId = unit['unit_id'], uid = ctx.user.userId;
   var prev = latestSelectionRaw_(unitId, taskId, uid, category);
@@ -187,7 +187,7 @@ function student_saveSelection(taskId, category, value) {
 
 /** 課題の進度（0未着手/1取組中/2完了） */
 function student_setProgress(taskId, status) {
-  var ctx = requireUser_();
+  var ctx = requireWritable_();
   var unit = requireCurrentUnit_();
   var match = { unit_id: unit['unit_id'], task_id: taskId, user_id: ctx.user.userId };
   var existing = firstWhere_(C.SH.PROG, match);
@@ -207,7 +207,7 @@ function student_setProgress(taskId, status) {
  * メモは振り返りではなく、取り組みながら書く「気づき・大切なこと・わからなかったこと」。
  */
 function student_saveTaskNote(taskId, understanding, memo) {
-  var ctx = requireUser_();
+  var ctx = requireWritable_();
   var unit = requireCurrentUnit_();
   var match = { unit_id: unit['unit_id'], task_id: taskId, user_id: ctx.user.userId };
   var existing = firstWhere_(C.SH.PROG, match);
@@ -230,7 +230,7 @@ function student_saveTaskNote(taskId, understanding, memo) {
 
 /** 課題ごとの方略カードを「つかった！」/取り消し */
 function student_useStrategy(taskId, strategyId, on) {
-  var ctx = requireUser_();
+  var ctx = requireWritable_();
   var unit = requireCurrentUnit_();
   var match = { unit_id: unit['unit_id'], task_id: taskId, user_id: ctx.user.userId, strategy_id: strategyId };
   var existing = firstWhere_(C.SH.SUSE, match);
@@ -244,7 +244,7 @@ function student_useStrategy(taskId, strategyId, on) {
 
 /** こまったサインのオン/オフ */
 function student_raiseHelp(on) {
-  var ctx = requireUser_();
+  var ctx = requireWritable_();
   var unit = requireCurrentUnit_();
   var match = { unit_id: unit['unit_id'], user_id: ctx.user.userId };
   var existing = firstWhere_(C.SH.HELP, match);
@@ -258,7 +258,7 @@ function student_raiseHelp(on) {
 
 /** 確認タイムの記録（実行中の自己確認） */
 function student_saveCheckpoint(elapsedMin, status, memo) {
-  var ctx = requireUser_();
+  var ctx = requireWritable_();
   var unit = requireCurrentUnit_();
   Repo.append(C.SH.CHECK, {
     check_id: Repo.uuid(),
@@ -275,7 +275,7 @@ function student_saveCheckpoint(elapsedMin, status, memo) {
 
 /** きょうの振り返りを保存。1人1日1件 */
 function student_saveReflection(payload) {
-  var ctx = requireUser_();
+  var ctx = requireWritable_();
   var unit = requireCurrentUnit_();
   var now = Repo.now(), day = today_();
   var match = { unit_id: unit['unit_id'], user_id: ctx.user.userId, '日付': day };
@@ -451,7 +451,7 @@ function student_getVersion() {
  * dataUrl はクライアントで縮小済みの JPEG（'data:image/jpeg;base64,...'）。
  */
 function student_saveLog(taskId, dataUrl, comment) {
-  var ctx = requireUser_();
+  var ctx = requireWritable_();
   var unit = requireCurrentUnit_();
   var uid = ctx.user.userId;
 
@@ -567,7 +567,7 @@ function student_getLogImage(logId) {
 
 /** 自分の写真を取り消す（Drive の実体も消す。シートだけ消すと写真が残る） */
 function student_deleteLog(logId) {
-  var ctx = requireUser_();
+  var ctx = requireWritable_();
   var unit = requireCurrentUnit_();
   var match = { unit_id: unit['unit_id'], log_id: logId, user_id: ctx.user.userId };
   var row = firstWhere_(C.SH.LOG, match);
@@ -580,7 +580,7 @@ function student_deleteLog(logId) {
 
 /** 自分の写真をみんなに見せるか切り替える */
 function student_setLogShare(logId, on) {
-  var ctx = requireUser_();
+  var ctx = requireWritable_();
   var unit = requireCurrentUnit_();
   var match = { unit_id: unit['unit_id'], log_id: logId, user_id: ctx.user.userId };
   if (!firstWhere_(C.SH.LOG, match)) throw new Error('自分の写真だけ変えられます。');
