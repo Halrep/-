@@ -139,6 +139,8 @@ resetStore();
   check('事実メモが全員に入っている', figs.every(f => f.facts.trim() !== ''));
   check('事実メモに史料〔〕が付いている', figs.every(f => f.facts.includes('〔')));
   check('質問のたねが全員に3つある', figs.every(f => f.seeds.length === 3));
+  check('最初の一言が全員に入っている', figs.every(f => f.hello.trim() !== ''),
+    figs.filter(f => !f.hello.trim()).map(f => f.name).join());
   check('肖像のひとことが入っている', figs.every(f => f.portrait.note.trim() !== ''));
   check('並び順が1〜12', figs.map(f => f.order).join(',') === '1,2,3,4,5,6,7,8,9,10,11,12');
   check('既定では誰も公開されていない', figs.every(f => !f.open));
@@ -158,6 +160,7 @@ section('舞台裏を画面に渡さない');
   check('事実メモ・避ける話題・口調が漏れない', leaked.length === 0, leaked.join());
   check('画面に必要なものは揃っている',
     !!(c.name && c.era && c.portrait && c.voice && c.seeds && c.certLabel));
+  check('最初の一言は画面に渡す（人物から先に話しかけるため）', !!c.hello, c.hello);
 }
 
 /* ============================================================

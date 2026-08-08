@@ -77,6 +77,20 @@
     </div>
   </section>
 
+  <!-- ---- 読み上げの点検 ---- -->
+  <section class="card">
+    <h2>読み上げの点検（この端末で）</h2>
+    <p>この画面は Apps Script の iframe の中で動いています。<b>そこで音声合成が鳴るかは、
+      実機で試すまで分かりません。</b>授業で使う端末で、ここを一度押してください。</p>
+    <div class="row">
+      <button class="btn" id="voice-test">テストの声を出す</button>
+      <span id="voice-state" style="font-size:12.5px"></span>
+    </div>
+    <dl class="health" id="voice-info"></dl>
+    <p>鳴らなかった場合の逃げ道は <b>docs/VOICE.md §4</b> にあります
+      （Gemini TTS で音声ファイルを作って鳴らす。費用はかかるが iframe の制約は受けない）。</p>
+  </section>
+
   <!-- ---- 人物 ---- -->
   <section class="card">
     <h2>話せる人物</h2>
@@ -136,11 +150,66 @@ google.script.run.withSuccessHandler(function (b) {
   $('vdef').value = b.settings.voiceDefault ? 'オン' : 'オフ';
   $('vscale').value = b.settings.voiceScale;
   $('vallow').value = String(!!b.settings.voiceAllowed);
+  $('turns').value = b.settings.turns;
   if (b.teacherUrl) $('open-child').href = b.teacherUrl.replace('?view=teacher', '');
 }).apiBootstrap();
 
-// 履歴の往復数は bootstrap に出していないので、既定を置く
-$('turns').value = 6;
+/* ---- 読み上げの点検 ---- */
+(function () {
+  var info = $('voice-info'), state = $('voice-state');
+  function render(rows) {
+    info.innerHTML = rows.map(function (r) {
+      return '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>';
+    }).join('');
+  }
+  if (!('speechSynthesis' in window)) {
+    state.innerHTML = '<span class="ng">この端末は音声合成に対応していません</span>';
+    render([['対応', '<span class="ng">なし</span>']]);
+    $('voice-test').disabled = true;
+    return;
+  }
+  function scan() {
+    var all = speechSynthesis.getVoices();
+    var ja = all.filter(function (v) { return /^ja/i.test(v.lang); });
+    render([
+      ['この端末の音声', all.length + '件'],
+      ['日本語の音声', ja.length
+        ? '<span class="ok">' + ja.length + '件</span>（' +
+          ja.slice(0, 3).map(function (v) { return esc(v.name); }).join('、') + '）'
+        : '<span class="ng">なし ── 文字だけで動きます</span>'],
+      ['明朝体', '<span style="font-family:var(--mincho);font-size:17px">' +
+        'なんじゃ、そちは</span> ← これが明朝に見えれば入っています']
+    ]);
+    return ja.length > 0;
+  }
+  scan();
+  speechSynthesis.onvoiceschanged = scan;
+
+  $('voice-test').addEventListener('click', function () {
+    if (!scan()) { state.innerHTML = '<span class="ng">日本語の音声がありません</span>'; return; }
+    var ja = speechSynthesis.getVoices().filter(function (v) { return /^ja/i.test(v.lang); });
+    speechSynthesis.cancel();
+    var u = new SpeechSynthesisUtterance('なんじゃ、そちは。何が聞きたい。');
+    u.voice = ja[0]; u.lang = 'ja-JP'; u.rate = 0.92; u.pitch = 0.80;   // 信長の声
+    var spoke = false;
+    u.onstart = function () { spoke = true; state.innerHTML = '<span class="ok">鳴っています…</span>'; };
+    u.onend = function () {
+      state.innerHTML = spoke
+        ? '<span class="ok">鳴りました。この端末で使えます</span>'
+        : '<span class="ng">音が出ませんでした。端末の音量を確かめてください</span>';
+    };
+    u.onerror = function (e) {
+      state.innerHTML = '<span class="ng">鳴りませんでした（' + esc(e.error || '原因不明') + '）</span>';
+    };
+    state.textContent = '…';
+    speechSynthesis.speak(u);
+    // 発話が始まらないまま数秒たったら、iframe で止められている可能性が高い
+    setTimeout(function () {
+      if (!spoke) state.innerHTML =
+        '<span class="ng">鳴りませんでした。iframe で止められている可能性があります（docs/VOICE.md §4）</span>';
+    }, 4000);
+  });
+})();
 
 /* ---- モデル一覧 ---- */
 $('load-models').addEventListener('click', function () {

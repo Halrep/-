@@ -56,7 +56,8 @@ function apiBootstrap() {
       voiceAllowed: voiceAllowed,
       voiceScale:  Figures.num(st['読み上げ_速さ'], 1),
       maxLen:      Figures.num(st['入力文字数上限'], 120),
-      maxDay:      Figures.num(st['1日の往復上限'], 30)
+      maxDay:      Figures.num(st['1日の往復上限'], 30),
+      turns:       Figures.num(st['履歴の往復数'], 6)
     },
     remain: (function () {
       var maxDay = Figures.num(st['1日の往復上限'], 30);

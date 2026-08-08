@@ -235,6 +235,9 @@ function openFigure(f) {
 
   $('v-pick').classList.remove('on');
   $('v-talk').classList.add('on');
+
+  // 最初の一言は人物の側から出す。空の入力欄より、問いが出やすい
+  if (f.hello) say(f.hello, '', '', false);
 }
 
 $('about-t').addEventListener('click', function () {

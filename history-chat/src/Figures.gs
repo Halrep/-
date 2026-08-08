@@ -47,6 +47,7 @@ var Figures = (function () {
       person: String(r['一人称'] || 'わたし'),
       tone: String(r['口調メモ'] || ''),
       voice: { rate: num(r['声_速さ'], 1), pitch: num(r['声_高さ'], 1) },
+      hello: String(r['最初の一言'] || ''),
       sources: String(r['史料'] || ''),
       facts: String(r['事実メモ'] || ''),
       avoid: String(r['避ける話題'] || ''),
@@ -81,12 +82,14 @@ var Figures = (function () {
   /**
    * 画面に渡す形。事実メモ・避ける話題・口調は落とす。
    * これらはプロンプトの材料であって、子どもに見せるものではない。
+   * 最初の一言は画面に出すものなので渡す（人物の側から先に話しかけるため）。
    */
   function forClient(f) {
     return {
       id: f.id, name: f.name, yomi: f.yomi, era: f.era, sub: f.sub,
-      voice: f.voice, seeds: f.seeds, portrait: f.portrait,
-      certLabel: C.CERT_LABEL[f.portrait.cert] || C.CERT_LABEL.late
+      voice: f.voice, hello: f.hello, seeds: f.seeds, portrait: f.portrait,
+      certLabel: C.CERT_LABEL[f.portrait.cert] || C.CERT_LABEL.late,
+      open: f.open
     };
   }
 
