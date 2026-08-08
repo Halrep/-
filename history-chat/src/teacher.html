@@ -6,7 +6,7 @@
   <?!= include('css'); ?>
 </head>
 <body>
-<div class="t-wrap">
+<main class="t-wrap">
 
   <div class="t-h">
     <h1>歴史人物チャット ／ 先生の画面</h1>
@@ -16,7 +16,7 @@
   <!-- ---- 点検 ---- -->
   <section class="card">
     <h2>準備の点検</h2>
-    <dl class="health" id="health"><dd>読み込んでいます…</dd></dl>
+    <div class="health" id="health">読み込んでいます…</div>
     <p>APIキーはスプレッドシートには書き込まれません。登録・削除はシートのメニュー
       「歴史人物チャット ▸ APIキーを登録する」から行います。</p>
   </section>
@@ -32,7 +32,7 @@
       <button class="btn ghost" id="load-models">一覧を読む</button>
       <button class="btn" id="save-model" disabled>保存</button>
     </div>
-    <p id="model-msg" style="color:var(--shu)"></p>
+    <p id="model-msg" role="status" style="color:var(--shu)"></p>
   </section>
 
   <!-- ---- 使い方の設定 ---- -->
@@ -85,9 +85,9 @@
     <div class="row">
       <button class="btn" id="voice-test">テストの声を出す</button>
       <button class="btn ghost" id="mic-test">マイクを ためす</button>
-      <span id="voice-state" style="font-size:12.5px"></span>
+      <span id="voice-state" role="status" style="font-size:13px"></span>
     </div>
-    <dl class="health" id="voice-info"></dl>
+    <div class="health" id="voice-info"></div>
     <p><b>マイク（音声入力）も同じです。</b>書くのが壁になっている児童のために入れていますが、
       iframe の中でマイクの許可が下りるかは実機でしか分かりません。ここで試せます。</p>
     <p>鳴らなかった場合の逃げ道は <b>docs/VOICE.md §4</b> にあります
@@ -105,8 +105,8 @@
     </div>
   </section>
 
-</div>
-<div class="toast" id="toast"></div>
+</main>
+<div class="toast" id="toast" role="status"></div>
 
 <script>
 "use strict";
@@ -135,9 +135,9 @@ google.script.run.withSuccessHandler(function (h) {
       return s.exists ? esc(s.name) : '<span class="ng">' + esc(s.name) + ' なし</span>';
     }).join('、')]
   ];
-  $('health').innerHTML = rows.map(function (r) {
+  $('health').innerHTML = '<dl class="health">' + rows.map(function (r) {
     return '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>';
-  }).join('');
+  }).join('') + '</dl>';
   if (h.model) {
     var o = document.createElement('option');
     o.value = h.model; o.textContent = h.model + '（いま使っている）';
@@ -195,9 +195,9 @@ google.script.run.withSuccessHandler(function (b) {
 (function () {
   var info = $('voice-info'), state = $('voice-state');
   function render(rows) {
-    info.innerHTML = rows.map(function (r) {
+    info.innerHTML = '<dl class="health">' + rows.map(function (r) {
       return '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>';
-    }).join('');
+    }).join('') + '</dl>';
   }
   if (!('speechSynthesis' in window)) {
     state.innerHTML = '<span class="ng">この端末は音声合成に対応していません</span>';
@@ -328,6 +328,7 @@ google.script.run.withSuccessHandler(function (figs) {
     var sw = document.createElement('button');
     sw.className = 'sw';
     sw.setAttribute('aria-pressed', String(!!f.open));
+    sw.setAttribute('aria-label', f.name + ' を児童に公開する');
     sw.textContent = f.open ? '公開中' : '未公開';
     sw.addEventListener('click', function () {
       var next = sw.getAttribute('aria-pressed') !== 'true';

@@ -6,7 +6,7 @@
   <?!= include('css'); ?>
 </head>
 <body>
-<div class="shell">
+<main class="shell">
 
   <!-- ======== 人物えらび ======== -->
   <section class="view on" id="v-pick">
@@ -22,9 +22,9 @@
   <section class="view" id="v-talk">
     <div class="bar">
       <button class="bar-back" id="back">‹ もどる</button>
-      <span class="pt bar-face" id="bar-face"></span>
+      <span class="pt bar-face" id="bar-face" aria-hidden="true"></span>
       <span class="bar-t">
-        <span class="bar-nm" id="bar-nm"></span>
+        <h1 class="bar-nm" id="bar-nm"></h1>
         <span class="bar-era" id="bar-era"></span>
       </span>
       <button class="snd hidden" id="snd" aria-pressed="false">🔇 音オフ</button>
@@ -32,7 +32,7 @@
     <div class="watch" id="watch"></div>
 
     <div class="about">
-      <button class="about-t" id="about-t" aria-expanded="false">
+      <button class="about-t" id="about-t" aria-expanded="false" aria-controls="about-b">
         <span class="cert" id="about-cert"></span>
         <span class="lbl" id="about-lbl"></span>
         <span class="cx" id="about-cx">この絵について ▾</span>
@@ -43,29 +43,32 @@
       </div>
     </div>
 
-    <div class="talk" id="talk"></div>
+    <div class="talk" id="talk" role="log" aria-live="polite" aria-label="◯◯との やりとり"></div>
 
-    <div class="seeds">
-      <span class="seeds-l">きいてみる？</span>
+    <nav class="seeds" aria-labelledby="seeds-l">
+      <span class="seeds-l" id="seeds-l">きいてみる？</span>
       <div class="seeds-r" id="seeds-r"></div>
-    </div>
+    </nav>
 
     <div class="compose">
-      <span class="remain" id="remain-l"></span>
+      <span class="remain" id="remain-l" role="status"></span>
       <div class="compose-r">
-        <button class="mic hidden" id="mic" aria-pressed="false" title="話して 入れる">🎤</button>
-        <textarea id="input" placeholder="ききたいことを 書いてね"></textarea>
+        <button class="mic hidden" id="mic" aria-pressed="false"
+                aria-label="話して 入れる（音声入力）">🎤</button>
+        <textarea id="input" aria-label="ききたいこと"
+                  placeholder="ききたいことを 書いてね"></textarea>
         <button class="send" id="send">おくる</button>
       </div>
-      <span class="mic-state hidden" id="mic-state"></span>
+      <span class="mic-state hidden" id="mic-state" role="status"></span>
     </div>
   </section>
-</div>
+</main>
 
 <!-- 最初に一度だけ出す注意書き -->
 <div class="notice" id="notice">
-  <div class="notice-c">
-    <h2>はじめに 読んでね</h2>
+  <div class="notice-c" role="dialog" aria-modal="true"
+       aria-labelledby="notice-h" aria-describedby="notice-p">
+    <h2 id="notice-h">はじめに 読んでね</h2>
     <p id="notice-p"></p>
     <button class="btn" id="notice-ok">わかった</button>
   </div>
@@ -161,6 +164,7 @@ function onBoot(b) {
   b.figures.forEach(function (f) {
     var btn = document.createElement('button');
     btn.className = 'fig';
+    btn.setAttribute('data-id', f.id);
     var pt = document.createElement('span'); pt.className = 'pt';
     paintPortrait(pt, f, true);
     var tx = document.createElement('span'); tx.className = 'fig-txt';
@@ -181,15 +185,32 @@ function onBoot(b) {
   try {
     if (!localStorage.getItem('rekishi-notice-seen') && b.settings.notice) {
       $('notice-p').textContent = b.settings.notice;
-      $('notice').classList.add('on');
+      openNotice();
     }
   } catch (e) { /* localStorage が使えない端末では出さない */ }
 }
 
-$('notice-ok').addEventListener('click', function () {
+/* 注意書きは、読み上げソフトでもキーボードでも外に漏れないようにする。
+   出したらフォーカスを中へ移し、Tab は中で回し、Escape で閉じる。 */
+var noticeReturn = null;
+function openNotice() {
+  noticeReturn = document.activeElement;
+  $('notice').classList.add('on');
+  $('notice-ok').focus();
+  document.addEventListener('keydown', noticeKeys, true);
+}
+function closeNotice() {
   $('notice').classList.remove('on');
+  document.removeEventListener('keydown', noticeKeys, true);
   try { localStorage.setItem('rekishi-notice-seen', '1'); } catch (e) {}
-});
+  if (noticeReturn && noticeReturn.focus) noticeReturn.focus();
+  noticeReturn = null;
+}
+function noticeKeys(e) {
+  if (e.key === 'Escape') { e.preventDefault(); closeNotice(); return; }
+  if (e.key === 'Tab') { e.preventDefault(); $('notice-ok').focus(); }  // 中は1つだけ
+}
+$('notice-ok').addEventListener('click', closeNotice);
 
 /* ---------- 人物を開く ---------- */
 function openFigure(f) {
@@ -243,8 +264,15 @@ function openFigure(f) {
     sr.appendChild(b);
   });
 
+  $('talk').setAttribute('aria-label', f.name + 'との やりとり');
+
   $('v-pick').classList.remove('on');
   $('v-talk').classList.add('on');
+
+  // 画面が入れかわったので、フォーカスも連れていく。
+  // 置き去りにすると、キーボードと読み上げソフトの利用者が迷子になる。
+  $('bar-nm').setAttribute('tabindex', '-1');
+  $('bar-nm').focus();
 
   // 最初の一言は人物の側から出す。空の入力欄より、問いが出やすい
   if (f.hello) say(f.hello, '', '', false, null);   // 挨拶は言いかえ不要
@@ -260,6 +288,10 @@ $('back').addEventListener('click', function () {
   Speaker.stop();
   $('v-talk').classList.remove('on');
   $('v-pick').classList.add('on');
+  // 開いていた人物のカードに戻す
+  var card = current && document.querySelector('.fig[data-id="' + current.id + '"]');
+  if (card) card.focus();
+  else { var h = document.querySelector('.pick-h h1'); if (h) { h.setAttribute('tabindex','-1'); h.focus(); } }
 });
 
 /* ---------- 音 ---------- */
@@ -399,6 +431,7 @@ function send() {
   busy = true; $('send').disabled = true;
   var wait = document.createElement('div');
   wait.className = 'wait';
+  wait.setAttribute('role', 'status');
   wait.appendChild(document.createTextNode('筆をとっています '));
   for (var i = 0; i < 3; i++) wait.appendChild(document.createElement('i'));
   $('talk').appendChild(wait);
