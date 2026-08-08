@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <?!= include('css'); ?>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ======== 人物えらび ======== -->
+  <section class="view on" id="v-pick">
+    <div class="pick-h">
+      <h1>だれと 話す？</h1>
+      <p>絵の下の しるしは、その顔が どれくらい たしかかを あらわしています。</p>
+    </div>
+    <div class="setup hidden" id="setup-msg"></div>
+    <div class="pick" id="pick-list"></div>
+  </section>
+
+  <!-- ======== 対話 ======== -->
+  <section class="view" id="v-talk">
+    <div class="bar">
+      <button class="bar-back" id="back">‹ もどる</button>
+      <span class="pt bar-face" id="bar-face"></span>
+      <span class="bar-t">
+        <span class="bar-nm" id="bar-nm"></span>
+        <span class="bar-era" id="bar-era"></span>
+      </span>
+      <button class="snd hidden" id="snd" aria-pressed="false">🔇 音オフ</button>
+    </div>
+    <div class="watch" id="watch"></div>
+
+    <div class="about">
+      <button class="about-t" id="about-t" aria-expanded="false">
+        <span class="cert" id="about-cert"></span>
+        <span class="lbl" id="about-lbl"></span>
+        <span class="cx" id="about-cx">この絵について ▾</span>
+      </button>
+      <div class="about-b" id="about-b">
+        <span class="pt" id="about-pt"></span>
+        <div class="about-d" id="about-d"></div>
+      </div>
+    </div>
+
+    <div class="talk" id="talk"></div>
+
+    <div class="seeds">
+      <span class="seeds-l">きいてみる？</span>
+      <div class="seeds-r" id="seeds-r"></div>
+    </div>
+
+    <div class="compose">
+      <span class="remain" id="remain-l"></span>
+      <div class="compose-r">
+        <textarea id="input" placeholder="ききたいことを 書いてね"></textarea>
+        <button class="send" id="send">おくる</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- 最初に一度だけ出す注意書き -->
+<div class="notice" id="notice">
+  <div class="notice-c">
+    <h2>はじめに 読んでね</h2>
+    <p id="notice-p"></p>
+    <button class="btn" id="notice-ok">わかった</button>
+  </div>
+</div>
+
+<?!= include('js_voice'); ?>
+<script>
+"use strict";
+
+var BOOT = null, current = null, remain = -1, soundOn = false, busy = false;
+var $ = function (id) { return document.getElementById(id); };
+
+var SILHOUETTE =
+  '<svg viewBox="0 0 100 120" aria-hidden="true"><path fill="#274B6D" d="' +
+  'M50 14c12 0 20 10 20 23 0 9-4 17-9 21 15 5 27 15 30 29 1 5-3 9-8 9H17' +
+  'c-5 0-9-4-8-9 3-14 15-24 30-29-5-4-9-12-9-21 0-13 8-23 20-23z"/></svg>';
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+/* ---------- 肖像 ---------- */
+function paintPortrait(el, f) {
+  var p = f.portrait;
+  el.innerHTML = '';
+  if (p.cert === 'none') {
+    el.innerHTML = '<span class="pt-none" role="img" aria-label="' +
+      esc(f.name) + 'の肖像は残っていません">' + SILHOUETTE + '</span>';
+  } else if (p.src) {
+    var img = document.createElement('img');
+    img.src = p.src;
+    img.alt = p.title || f.name;
+    img.onerror = function () {
+      el.innerHTML = '<span class="pt-empty">' + esc(p.title || f.name) + '<br>（画像が よめません）</span>';
+    };
+    el.appendChild(img);
+  } else {
+    el.innerHTML = '<span class="pt-empty">' + esc(p.title || f.name) + '<br>（画像 未設定）</span>';
+  }
+}
+function certBadge(el, cert, label) {
+  el.className = 'cert ' + (cert || 'late');
+  el.textContent = label || '';
+}
+
+/* ---------- 起動 ---------- */
+google.script.run.withSuccessHandler(onBoot).withFailureHandler(function (e) {
+  document.body.innerHTML = '<div class="setup" style="margin:40px auto;max-width:520px"><b>ひらけませんでした</b>' +
+    esc(e.message || e) + '</div>';
+}).apiBootstrap();
+
+function onBoot(b) {
+  BOOT = b;
+  remain = b.remain;
+  $('watch').textContent = '👀 ' + b.settings.watchText;
+  $('input').setAttribute('maxlength', b.settings.maxLen);
+  drawRemain();
+
+  if (!b.ready) {
+    var m = $('setup-msg');
+    m.classList.remove('hidden');
+    m.innerHTML = '<b>まだ 準備が できていません</b>' +
+      (b.user.role === 'teacher'
+        ? 'メニュー「APIキーを登録する」で鍵を入れ、教師画面の「設定」でモデルを選んでください。'
+        : '先生に つたえてね。');
+  }
+
+  // 読み上げ
+  if (b.settings.voiceAllowed) {
+    Speaker.setScale(b.settings.voiceScale);
+    Speaker.init(function (ok) {
+      $('snd').classList.toggle('hidden', !ok);
+      if (!ok) soundOn = false;
+    });
+    soundOn = !!b.settings.voiceDefault;
+    applySoundBtn();
+  }
+
+  // 人物カード
+  var list = $('pick-list');
+  list.innerHTML = '';
+  if (!b.figures.length) {
+    list.innerHTML = '<p style="color:var(--muted);font-size:13px">' +
+      'まだ だれも 公開されていません。' +
+      (b.user.role === 'teacher' ? '人物マスタの「公開」に TRUE を立ててください。' : '先生に つたえてね。') +
+      '</p>';
+  }
+  b.figures.forEach(function (f) {
+    var btn = document.createElement('button');
+    btn.className = 'fig';
+    var pt = document.createElement('span'); pt.className = 'pt';
+    paintPortrait(pt, f);
+    var tx = document.createElement('span'); tx.className = 'fig-txt';
+    tx.innerHTML =
+      '<span class="fig-nm">' + esc(f.name) + '<em>' + esc(f.yomi) + '</em>' +
+      (f.open === false ? '<span class="fig-shut">未公開</span>' : '') + '</span>' +
+      '<span class="fig-sub">' + esc(f.era) + '／' + esc(f.sub) + '</span>';
+    var cb = document.createElement('span'); cb.className = 'fig-cert';
+    var badge = document.createElement('span');
+    certBadge(badge, f.portrait.cert, f.certLabel);
+    cb.appendChild(badge); tx.appendChild(cb);
+    btn.appendChild(pt); btn.appendChild(tx);
+    btn.addEventListener('click', function () { openFigure(f); });
+    list.appendChild(btn);
+  });
+
+  // 注意書き（この端末で一度だけ）
+  try {
+    if (!localStorage.getItem('rekishi-notice-seen') && b.settings.notice) {
+      $('notice-p').textContent = b.settings.notice;
+      $('notice').classList.add('on');
+    }
+  } catch (e) { /* localStorage が使えない端末では出さない */ }
+}
+
+$('notice-ok').addEventListener('click', function () {
+  $('notice').classList.remove('on');
+  try { localStorage.setItem('rekishi-notice-seen', '1'); } catch (e) {}
+});
+
+/* ---------- 人物を開く ---------- */
+function openFigure(f) {
+  current = f;
+  $('bar-nm').textContent = f.name;
+  $('bar-era').textContent = f.era;
+  paintPortrait($('bar-face'), f);
+
+  certBadge($('about-cert'), f.portrait.cert, f.certLabel);
+  $('about-lbl').textContent = f.portrait.cert === 'none'
+    ? 'この人の顔は だれも知りません' : (f.portrait.title || '（作品名 未設定）');
+  paintPortrait($('about-pt'), f);
+
+  var d = $('about-d');
+  d.innerHTML = '';
+  var rows = [];
+  if (f.portrait.title && f.portrait.cert !== 'none') rows.push(['作品', f.portrait.title]);
+  if (f.portrait.by)     rows.push(['筆', f.portrait.by]);
+  if (f.portrait.when)   rows.push(['いつ', f.portrait.when]);
+  if (f.portrait.holder) rows.push(['所蔵', f.portrait.holder]);
+  if (rows.length) {
+    var dl = document.createElement('dl');
+    rows.forEach(function (kv) {
+      var dt = document.createElement('dt'); dt.textContent = kv[0];
+      var dd = document.createElement('dd'); dd.textContent = kv[1];
+      dl.appendChild(dt); dl.appendChild(dd);
+    });
+    d.appendChild(dl);
+  }
+  if (f.portrait.note) {
+    var w = document.createElement('p');
+    w.className = 'warn'; w.textContent = f.portrait.note;
+    d.appendChild(w);
+  }
+  $('about-b').classList.remove('on');
+  $('about-t').setAttribute('aria-expanded', 'false');
+  $('about-cx').textContent = 'この絵について ▾';
+
+  $('talk').innerHTML = '';
+  var sr = $('seeds-r');
+  sr.innerHTML = '';
+  (f.seeds || []).forEach(function (s) {
+    var b = document.createElement('button');
+    b.className = 'seed'; b.textContent = s;
+    b.addEventListener('click', function () { $('input').value = s; send(); });
+    sr.appendChild(b);
+  });
+
+  $('v-pick').classList.remove('on');
+  $('v-talk').classList.add('on');
+}
+
+$('about-t').addEventListener('click', function () {
+  var on = $('about-b').classList.toggle('on');
+  $('about-t').setAttribute('aria-expanded', String(on));
+  $('about-cx').textContent = on ? 'とじる ▴' : 'この絵について ▾';
+});
+
+$('back').addEventListener('click', function () {
+  Speaker.stop();
+  $('v-talk').classList.remove('on');
+  $('v-pick').classList.add('on');
+});
+
+/* ---------- 音 ---------- */
+function applySoundBtn() {
+  $('snd').setAttribute('aria-pressed', String(soundOn));
+  $('snd').textContent = soundOn ? '🔊 音オン' : '🔇 音オフ';
+}
+$('snd').addEventListener('click', function () {
+  soundOn = !soundOn;
+  applySoundBtn();
+  if (!soundOn) Speaker.stop();
+});
+
+/* ---------- 吹き出し ---------- */
+function fill(host, text) {
+  var out = [];
+  splitSentences(text).forEach(function (s) {
+    var el = document.createElement('span');
+    el.className = 's'; el.textContent = s;
+    host.appendChild(el); out.push(el);
+  });
+  return out;
+}
+
+function say(text, cite, guess, autoRead) {
+  var bub = document.createElement('div');
+  bub.className = 'bub them';
+
+  var main = document.createElement('div');
+  bub.appendChild(main);
+  var spans = fill(main, text);
+
+  if (cite) {
+    var c = document.createElement('div');
+    c.className = 'cite';
+    c.textContent = '📖 出典：' + cite;
+    bub.appendChild(c);
+  }
+  if (guess) {
+    var g = document.createElement('div');
+    g.className = 'guess';
+    var tag = document.createElement('span');
+    tag.className = 'guess-tag'; tag.textContent = '記録にはない話';
+    g.appendChild(tag);
+    var p = document.createElement('p');
+    g.appendChild(p);
+    bub.appendChild(g);
+    spans = spans.concat(fill(p, guess));
+  }
+
+  if (Speaker.available()) {
+    var act = document.createElement('div');
+    act.className = 'bub-act';
+    var hear = document.createElement('button');
+    hear.className = 'hear'; hear.textContent = '▶ きく';
+    hear.addEventListener('click', function () {
+      var playing = hear.classList.contains('on');
+      Array.prototype.forEach.call(document.querySelectorAll('.hear.on'), function (h) {
+        h.classList.remove('on'); h.textContent = '▶ きく';
+      });
+      Speaker.stop();
+      if (playing) return;                       // 押し直しは停止
+      hear.classList.add('on'); hear.textContent = '■ とめる';
+      Speaker.read(spans, current.voice, function () {
+        hear.classList.remove('on'); hear.textContent = '▶ きく';
+      });
+    });
+    act.appendChild(hear);
+    bub.appendChild(act);
+    if (autoRead && soundOn) hear.click();
+  }
+
+  $('talk').appendChild(bub);
+  $('talk').scrollTop = $('talk').scrollHeight;
+}
+
+function errBubble(msg) {
+  var e = document.createElement('div');
+  e.className = 'bub err'; e.textContent = msg;
+  $('talk').appendChild(e);
+  $('talk').scrollTop = $('talk').scrollHeight;
+}
+
+function drawRemain() {
+  $('remain-l').textContent = remain < 0 ? '' : ('きょうは あと ' + remain + 'かい 話せます');
+}
+
+/* ---------- 送る ---------- */
+function send() {
+  if (busy || !current) return;
+  var t = $('input').value.trim();
+  if (!t) return;
+  if (remain === 0) { errBubble('きょうは もう 話せません。また あした。'); return; }
+
+  var me = document.createElement('div');
+  me.className = 'bub me'; me.textContent = t;
+  $('talk').appendChild(me);
+  $('input').value = '';
+
+  busy = true; $('send').disabled = true;
+  var wait = document.createElement('div');
+  wait.className = 'wait';
+  wait.appendChild(document.createTextNode('筆をとっています '));
+  for (var i = 0; i < 3; i++) wait.appendChild(document.createElement('i'));
+  $('talk').appendChild(wait);
+  $('talk').scrollTop = $('talk').scrollHeight;
+
+  google.script.run
+    .withSuccessHandler(function (res) {
+      wait.remove();
+      busy = false; $('send').disabled = false;
+      if (!res.ok) { errBubble(res.error); return; }
+      remain = res.data.remain;
+      drawRemain();
+      say(res.data.say, res.data.cite, res.data.guess, true);
+    })
+    .withFailureHandler(function (e) {
+      wait.remove();
+      busy = false; $('send').disabled = false;
+      errBubble('つながりませんでした。もう一度 おくってみて。');
+    })
+    .apiSend(current.id, t);
+}
+
+$('send').addEventListener('click', send);
+$('input').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send(); }
+});
+</script>
+</body>
+</html>

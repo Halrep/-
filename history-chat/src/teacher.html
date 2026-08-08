@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <?!= include('css'); ?>
+</head>
+<body>
+<div class="t-wrap">
+
+  <div class="t-h">
+    <h1>歴史人物チャット ／ 先生の画面</h1>
+    <p>第1段階（教師デモ）。設定とモデルを決め、話せる人物を選びます。</p>
+  </div>
+
+  <!-- ---- 点検 ---- -->
+  <section class="card">
+    <h2>準備の点検</h2>
+    <dl class="health" id="health"><dd>読み込んでいます…</dd></dl>
+    <p>APIキーはスプレッドシートには書き込まれません。登録・削除はシートのメニュー
+      「歴史人物チャット ▸ APIキーを登録する」から行います。</p>
+  </section>
+
+  <!-- ---- モデル ---- -->
+  <section class="card">
+    <h2>モデル</h2>
+    <p>こちらでモデル名を決め打ちしていません。<b>いまの鍵で実際に使えるものだけ</b>を一覧に出すので、
+      その中から選んでください。モデルは入れ替わるので、動かなくなったらここで選び直します。</p>
+    <div class="row">
+      <label for="model">使うモデル</label>
+      <select id="model"><option value="">（読み込んでいません）</option></select>
+      <button class="btn ghost" id="load-models">一覧を読む</button>
+      <button class="btn" id="save-model" disabled>保存</button>
+    </div>
+    <p id="model-msg" style="color:var(--shu)"></p>
+  </section>
+
+  <!-- ---- 使い方の設定 ---- -->
+  <section class="card">
+    <h2>使い方の設定</h2>
+    <div class="row">
+      <label for="maxday">1日の往復上限</label>
+      <input type="number" id="maxday" min="0" max="200" style="width:90px">
+      <span style="font-size:11.5px;color:var(--muted)">0 で無制限</span>
+    </div>
+    <div class="row">
+      <label for="maxlen">入力文字数上限</label>
+      <input type="number" id="maxlen" min="20" max="500" style="width:90px">
+    </div>
+    <div class="row">
+      <label for="turns">履歴の往復数</label>
+      <input type="number" id="turns" min="1" max="20" style="width:90px">
+      <span style="font-size:11.5px;color:var(--muted)">増やすと文脈は続くが費用も伸びる</span>
+    </div>
+    <div class="row">
+      <label for="vdef">読み上げの既定</label>
+      <select id="vdef" style="min-width:120px">
+        <option value="オフ">オフ</option>
+        <option value="オン">オン</option>
+      </select>
+      <span style="font-size:11.5px;color:var(--muted)">教室で30台が一斉に鳴らないよう、既定はオフ</span>
+    </div>
+    <div class="row">
+      <label for="vscale">読み上げの速さ</label>
+      <input type="number" id="vscale" min="0.5" max="1.5" step="0.05" style="width:90px">
+      <span style="font-size:11.5px;color:var(--muted)">人物ごとの速さにかける倍率</span>
+    </div>
+    <div class="row">
+      <label for="vallow">児童に音を許す</label>
+      <select id="vallow" style="min-width:120px">
+        <option value="true">許す</option>
+        <option value="false">先生の画面だけ</option>
+      </select>
+    </div>
+    <div class="row">
+      <button class="btn" id="save-settings">設定を保存</button>
+    </div>
+  </section>
+
+  <!-- ---- 人物 ---- -->
+  <section class="card">
+    <h2>話せる人物</h2>
+    <p>公開した人物だけが児童の画面に出ます。先生の画面では、未公開の人物も試せます。<br>
+      口調・事実メモ・肖像は <b>人物マスタ</b> シートで直接編集してください。</p>
+    <div class="t-figs" id="figs">読み込んでいます…</div>
+    <div class="row" style="margin-top:4px">
+      <a class="btn ghost" id="open-child" href="#" target="_blank">児童の画面をひらく</a>
+    </div>
+  </section>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+var $ = function (id) { return document.getElementById(id); };
+var SETTINGS = {};
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+function toast(m) {
+  var t = $('toast'); t.textContent = m; t.classList.add('on');
+  setTimeout(function () { t.classList.remove('on'); }, 2200);
+}
+
+/* ---- 点検 ---- */
+google.script.run.withSuccessHandler(function (h) {
+  var rows = [
+    ['APIキー', h.hasKey ? '<span class="ok">登録ずみ</span>'
+      : '<span class="ng">未登録 ── シートのメニューから登録してください</span>'],
+    ['モデル', h.model ? '<span class="ok">' + esc(h.model) + '</span>'
+      : '<span class="ng">未選択 ── 下で選んでください</span>'],
+    ['人物', h.figures + '人（うち公開 ' + h.published + '人）'],
+    ['シート', h.sheets.map(function (s) {
+      return s.exists ? esc(s.name) : '<span class="ng">' + esc(s.name) + ' なし</span>';
+    }).join('、')]
+  ];
+  $('health').innerHTML = rows.map(function (r) {
+    return '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>';
+  }).join('');
+  if (h.model) {
+    var o = document.createElement('option');
+    o.value = h.model; o.textContent = h.model + '（いま使っている）';
+    $('model').innerHTML = ''; $('model').appendChild(o);
+  }
+}).apiHealth();
+
+/* ---- 設定の読み込み（児童画面と同じ入口を使う） ---- */
+google.script.run.withSuccessHandler(function (b) {
+  SETTINGS = b.settings;
+  $('maxday').value = b.settings.maxDay;
+  $('maxlen').value = b.settings.maxLen;
+  $('vdef').value = b.settings.voiceDefault ? 'オン' : 'オフ';
+  $('vscale').value = b.settings.voiceScale;
+  $('vallow').value = String(!!b.settings.voiceAllowed);
+  if (b.teacherUrl) $('open-child').href = b.teacherUrl.replace('?view=teacher', '');
+}).apiBootstrap();
+
+// 履歴の往復数は bootstrap に出していないので、既定を置く
+$('turns').value = 6;
+
+/* ---- モデル一覧 ---- */
+$('load-models').addEventListener('click', function () {
+  $('model-msg').textContent = '';
+  this.disabled = true; this.textContent = '読んでいます…';
+  var btn = this;
+  google.script.run.withSuccessHandler(function (res) {
+    btn.disabled = false; btn.textContent = '一覧を読む';
+    if (!res.ok) { $('model-msg').textContent = res.error; return; }
+    var sel = $('model');
+    var keep = sel.value;
+    sel.innerHTML = '';
+    res.data.forEach(function (m) {
+      var o = document.createElement('option');
+      o.value = m.id; o.textContent = m.id;
+      sel.appendChild(o);
+    });
+    if (keep) sel.value = keep;
+    $('save-model').disabled = false;
+    toast(res.data.length + '件 見つかりました');
+  }).withFailureHandler(function (e) {
+    btn.disabled = false; btn.textContent = '一覧を読む';
+    $('model-msg').textContent = String(e.message || e);
+  }).apiListModels();
+});
+
+$('save-model').addEventListener('click', function () {
+  var v = $('model').value;
+  if (!v) return;
+  google.script.run.withSuccessHandler(function () { toast('モデルを保存しました'); })
+    .apiSaveSetting('モデル', v);
+});
+
+/* ---- 設定の保存 ---- */
+$('save-settings').addEventListener('click', function () {
+  var pairs = [
+    ['1日の往復上限', Number($('maxday').value)],
+    ['入力文字数上限', Number($('maxlen').value)],
+    ['履歴の往復数', Number($('turns').value)],
+    ['読み上げ_既定', $('vdef').value],
+    ['読み上げ_速さ', Number($('vscale').value)],
+    ['読み上げ_児童に許可', $('vallow').value === 'true']
+  ];
+  var left = pairs.length;
+  pairs.forEach(function (p) {
+    google.script.run.withSuccessHandler(function () {
+      if (--left === 0) toast('設定を保存しました');
+    }).apiSaveSetting(p[0], p[1]);
+  });
+});
+
+/* ---- 人物 ---- */
+var SILHOUETTE =
+  '<svg viewBox="0 0 100 120" aria-hidden="true"><path fill="#274B6D" d="' +
+  'M50 14c12 0 20 10 20 23 0 9-4 17-9 21 15 5 27 15 30 29 1 5-3 9-8 9H17' +
+  'c-5 0-9-4-8-9 3-14 15-24 30-29-5-4-9-12-9-21 0-13 8-23 20-23z"/></svg>';
+
+google.script.run.withSuccessHandler(function (figs) {
+  var host = $('figs');
+  host.innerHTML = '';
+  figs.forEach(function (f) {
+    var row = document.createElement('div');
+    row.className = 't-fig';
+
+    var pt = document.createElement('span');
+    pt.className = 'pt';
+    if (f.portrait.cert === 'none') pt.innerHTML = '<span class="pt-none">' + SILHOUETTE + '</span>';
+    else if (f.portrait.src) pt.innerHTML = '<img src="' + esc(f.portrait.src) + '" alt="">';
+    else pt.innerHTML = '<span class="pt-empty">未設定</span>';
+
+    var nm = document.createElement('span');
+    nm.className = 'nm';
+    nm.innerHTML = esc(f.name) + '<span>' + esc(f.era) + '／' + esc(f.sources || '史料 未設定') + '</span>';
+
+    var cert = document.createElement('span');
+    cert.className = 'cert ' + f.portrait.cert;
+    cert.textContent = f.certLabel;
+
+    var sw = document.createElement('button');
+    sw.className = 'sw';
+    sw.setAttribute('aria-pressed', String(!!f.open));
+    sw.textContent = f.open ? '公開中' : '未公開';
+    sw.addEventListener('click', function () {
+      var next = sw.getAttribute('aria-pressed') !== 'true';
+      sw.disabled = true;
+      google.script.run.withSuccessHandler(function () {
+        sw.disabled = false;
+        sw.setAttribute('aria-pressed', String(next));
+        sw.textContent = next ? '公開中' : '未公開';
+      }).withFailureHandler(function () { sw.disabled = false; })
+        .apiSetOpen(f.id, next);
+    });
+
+    row.appendChild(pt); row.appendChild(nm); row.appendChild(cert); row.appendChild(sw);
+    host.appendChild(row);
+  });
+}).apiFiguresForTeacher();
+</script>
+</body>
+</html>

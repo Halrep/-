@@ -1,0 +1,75 @@
+<script>
+/**
+ * js_voice.html
+ * 読み上げ。外から見える口は read() と stop() だけ。
+ * Gemini TTS に移すときは、この中身だけを入れ替える（呼ぶ側は変わらない）。
+ *
+ * 文の途中の位置（onboundary）は使わない。日本語での対応が端末ごとにまちまちで、
+ * 当てにすると崩れる。句点で区切った1文＝1発話なら、どの端末でも同じ動きになる。
+ */
+var Speaker = (function () {
+
+  var ok = false, voice = null, seq = 0, scale = 1;
+
+  function init(onState) {
+    if (!('speechSynthesis' in window)) { if (onState) onState(false); return; }
+    function pick() {
+      var vs = speechSynthesis.getVoices().filter(function (v) { return /^ja/i.test(v.lang); });
+      if (vs.length) { voice = vs[0]; ok = true; }
+      if (onState) onState(ok);
+    }
+    pick();
+    speechSynthesis.onvoiceschanged = pick;
+  }
+
+  function setScale(s) { scale = Number(s) || 1; }
+
+  function stop() {
+    seq++;
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+  }
+
+  /**
+   * 文の要素を順に読み、読んでいる文に .now を付ける。
+   * @param {Array<HTMLElement>} spans 句点で区切った文の要素
+   * @param {{rate:number,pitch:number}} cfg 人物ごとの声
+   * @param {Function} onEnd 読み終わり（途中で止めたときも呼ぶ）
+   */
+  function read(spans, cfg, onEnd) {
+    stop();
+    var my = ++seq;
+    if (!ok || !spans.length) { if (onEnd) onEnd(); return; }
+    var i = 0;
+    (function step() {
+      if (my !== seq) return;                       // 別の読み上げに割り込まれた
+      if (i > 0 && spans[i - 1]) spans[i - 1].classList.remove('now');
+      if (i >= spans.length) { if (onEnd) onEnd(); return; }
+      var el = spans[i];
+      el.classList.add('now');
+      var u = new SpeechSynthesisUtterance(el.textContent);
+      u.voice = voice;
+      u.lang = 'ja-JP';
+      u.rate = Math.max(0.5, Math.min(2, (cfg.rate || 1) * scale));
+      u.pitch = Math.max(0, Math.min(2, cfg.pitch || 1));
+      u.onend = function () { i++; step(); };
+      u.onerror = function () { i++; step(); };
+      speechSynthesis.speak(u);
+    })();
+  }
+
+  function available() { return ok; }
+
+  return { init: init, read: read, stop: stop, setScale: setScale, available: available };
+})();
+
+/** 句点で文に割る。後読み正規表現は古い端末で落ちるので手で割る */
+function splitSentences(t) {
+  var out = [], buf = '';
+  for (var i = 0; i < t.length; i++) {
+    buf += t[i];
+    if (t[i] === '。' || t[i] === '！' || t[i] === '？') { out.push(buf); buf = ''; }
+  }
+  if (buf.replace(/\s/g, '') !== '') out.push(buf);
+  return out.map(function (s) { return s.trim(); }).filter(Boolean);
+}
+</script>

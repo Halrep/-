@@ -1,0 +1,6 @@
+# clasp が Apps Script プロジェクトに push しないもの。
+# rootDir は ./src を想定（history-chat/.clasp.json 参照）。
+docs/**
+mockups/**
+README.md
+.claspignore
