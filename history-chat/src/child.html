@@ -87,8 +87,10 @@ function esc(s) {
   });
 }
 
-/* ---------- 肖像 ---------- */
-function paintPortrait(el, f) {
+/* ---------- 肖像 ----------
+   小さい枠では作品名を出さない。78px幅に長い作品名を詰めると、
+   子どもにとってはただの読めない文字の塊になる。名前は詳細の帯で読める。 */
+function paintPortrait(el, f, compact) {
   var p = f.portrait;
   el.innerHTML = '';
   if (p.cert === 'none') {
@@ -99,11 +101,12 @@ function paintPortrait(el, f) {
     img.src = p.src;
     img.alt = p.title || f.name;
     img.onerror = function () {
-      el.innerHTML = '<span class="pt-empty">' + esc(p.title || f.name) + '<br>（画像が よめません）</span>';
+      el.innerHTML = '<span class="pt-empty">えが よめません</span>';
     };
     el.appendChild(img);
   } else {
-    el.innerHTML = '<span class="pt-empty">' + esc(p.title || f.name) + '<br>（画像 未設定）</span>';
+    el.innerHTML = '<span class="pt-empty">' +
+      (compact ? 'えは まだ' : esc(p.title || f.name) + '<br>（画像 未設定）') + '</span>';
   }
 }
 function certBadge(el, cert, label) {
@@ -157,7 +160,7 @@ function onBoot(b) {
     var btn = document.createElement('button');
     btn.className = 'fig';
     var pt = document.createElement('span'); pt.className = 'pt';
-    paintPortrait(pt, f);
+    paintPortrait(pt, f, true);
     var tx = document.createElement('span'); tx.className = 'fig-txt';
     tx.innerHTML =
       '<span class="fig-nm">' + esc(f.name) + '<em>' + esc(f.yomi) + '</em>' +
@@ -191,7 +194,7 @@ function openFigure(f) {
   current = f;
   $('bar-nm').textContent = f.name;
   $('bar-era').textContent = f.era;
-  paintPortrait($('bar-face'), f);
+  paintPortrait($('bar-face'), f, true);
 
   certBadge($('about-cert'), f.portrait.cert, f.certLabel);
   $('about-lbl').textContent = f.portrait.cert === 'none'
