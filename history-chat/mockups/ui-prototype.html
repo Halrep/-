@@ -1,0 +1,617 @@
+<title>歴史人物チャット｜試作（読み上げ・肖像・出典）</title>
+<style>
+/* ============================================================
+   案B「藍と生成り」
+   朱はひとつの意味にしか使わない ── たしかめられていない。
+   推測の印にも、肖像の「本人か論争中」にも、同じ朱が出る。
+   ============================================================ */
+:root{
+  --ground:#E7E3D8; --paper:#F7F4EC; --paper-hi:#FDFBF5;
+  --sumi:#1A2733; --muted:#6B6355; --line:#D3CCBB;
+  --ai:#274B6D; --ai-soft:#E2E6EC; --ai-line:#C2CCD8;
+  --shu:#B33A2B; --shu-soft:#F5E6E2;
+  --gothic:"BIZ UDPGothic","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI",Meiryo,sans-serif;
+  --mincho:"Hiragino Mincho ProN","Yu Mincho",YuMincho,"BIZ UDMincho","Noto Serif JP",serif;
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--ground); color:var(--sumi);
+  font-family:var(--gothic); font-size:15px; line-height:1.75; -webkit-font-smoothing:antialiased}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+button{font-family:inherit; color:inherit; cursor:pointer; border:0; background:none}
+button:focus-visible,[tabindex]:focus-visible,textarea:focus-visible{outline:3px solid var(--shu); outline-offset:2px}
+
+.shell{max-width:640px; margin:0 auto; min-height:100vh; background:var(--paper);
+  border-left:1px solid var(--line); border-right:1px solid var(--line); display:flex; flex-direction:column}
+
+/* ---------- 帯 ---------- */
+.bar{display:flex; align-items:center; gap:11px; padding:10px 14px;
+  background:var(--ai); color:var(--paper); position:sticky; top:0; z-index:20}
+.bar-back{font-size:13px; font-weight:700; padding:5px 10px; border-radius:3px;
+  border:1px solid rgba(247,244,236,.32); color:var(--paper)}
+.bar-back:hover{background:rgba(247,244,236,.14)}
+.bar-face{width:40px; height:40px; flex:none; border-radius:2px; overflow:hidden;
+  border:1px solid rgba(247,244,236,.45)}
+.bar-t{display:flex; flex-direction:column; gap:1px; min-width:0; flex:1}
+.bar-nm{font-family:var(--mincho); font-size:17px; font-weight:600; letter-spacing:.04em; line-height:1.3}
+.bar-era{font-size:10.5px; letter-spacing:.12em; opacity:.78; font-weight:700}
+.snd{display:flex; align-items:center; gap:5px; font-size:11.5px; font-weight:800; letter-spacing:.03em;
+  border:1.5px solid rgba(247,244,236,.4); border-radius:999px; padding:6px 12px; color:var(--paper); flex:none}
+.snd:hover{background:rgba(247,244,236,.14)}
+.snd[aria-pressed="true"]{background:var(--paper); color:var(--ai); border-color:var(--paper)}
+
+.watch{display:flex; align-items:center; gap:8px; padding:9px 15px;
+  background:var(--ai-soft); border-bottom:1px solid var(--ai-line);
+  font-size:11.5px; font-weight:700; color:var(--ai)}
+
+.view{display:none; flex-direction:column; flex:1; min-height:0}
+.view.on{display:flex}
+
+/* ============================================================
+   肖像 ── 額と、その下の出典帯
+   ============================================================ */
+.pt{position:relative; background:var(--paper-hi); overflow:hidden}
+.pt img{display:block; width:100%; height:100%; object-fit:cover}
+/* 画像が入っていないとき（本番では先生が未設定のとき）の見え方 */
+.pt-empty{width:100%; height:100%; display:grid; place-items:center; padding:6px;
+  background:
+    repeating-linear-gradient(135deg, transparent 0 6px, rgba(107,99,85,.09) 6px 7px),
+    var(--paper-hi);
+  color:var(--muted); font-size:9px; font-weight:700; line-height:1.4; text-align:center; letter-spacing:.02em}
+/* 肖像が一枚も存在しない人物 ── 影だけを置く */
+.pt-none{width:100%; height:100%; display:grid; place-items:center; background:var(--ai-soft)}
+.pt-none svg{width:62%; height:62%; opacity:.4}
+
+/* 確からしさのしるし */
+.cert{display:inline-flex; align-items:center; gap:5px; font-size:10px; font-weight:800;
+  letter-spacing:.05em; padding:3px 9px; border-radius:999px; border:1.5px solid; white-space:nowrap}
+.cert.same{color:var(--ai); border-color:var(--ai-line); background:var(--ai-soft)}
+.cert.den {color:var(--shu); border-color:#E0BDB6; background:var(--shu-soft)}
+.cert.late{color:var(--muted); border-color:var(--line); background:var(--ground)}
+.cert.none{color:var(--muted); border-color:var(--line); background:transparent; border-style:dashed}
+
+/* ---------- 人物えらび ---------- */
+.pick-h{padding:24px 18px 12px; display:flex; flex-direction:column; gap:6px}
+.pick-h h1{font-family:var(--mincho); font-size:25px; font-weight:600; margin:0; letter-spacing:.03em}
+.pick-h p{margin:0; font-size:13px; color:var(--muted)}
+.pick{display:flex; flex-direction:column; gap:10px; padding:6px 15px 34px}
+.fig{display:flex; align-items:stretch; gap:0; width:100%; text-align:left;
+  background:var(--paper-hi); border:1.5px solid var(--line); border-radius:4px;
+  overflow:hidden; transition:border-color .15s, transform .1s}
+.fig:hover{border-color:var(--ai)}
+.fig:active{transform:translateY(1px)}
+.fig .pt{width:78px; flex:none; border-right:1px solid var(--line)}
+.fig-txt{display:flex; flex-direction:column; gap:3px; min-width:0; padding:12px 14px; justify-content:center}
+.fig-nm{font-family:var(--mincho); font-size:17px; font-weight:600; letter-spacing:.04em}
+.fig-nm em{font-family:var(--gothic); font-style:normal; font-size:10.5px; font-weight:700;
+  color:var(--muted); margin-left:8px; letter-spacing:.06em}
+.fig-sub{font-size:12px; color:var(--muted)}
+.fig-cert{margin-top:3px}
+
+/* ---------- 肖像の詳細（この絵について） ---------- */
+.about{border-bottom:1px solid var(--line); background:var(--ground)}
+.about-t{display:flex; align-items:center; gap:11px; width:100%; padding:10px 15px; text-align:left}
+.about-t .cert{flex:none}
+.about-t .lbl{font-size:11.5px; font-weight:700; color:var(--muted); flex:1; min-width:0}
+.about-t .cx{font-size:11px; font-weight:800; color:var(--ai)}
+.about-b{display:none; padding:0 15px 14px; gap:13px}
+.about-b.on{display:flex}
+.about-b .pt{width:104px; flex:none; border:1px solid var(--line); border-radius:2px; height:130px}
+.about-d{display:flex; flex-direction:column; gap:5px; min-width:0; font-size:12px; line-height:1.7}
+.about-d dl{display:grid; grid-template-columns:auto 1fr; gap:2px 10px; margin:0}
+.about-d dt{color:var(--muted); font-weight:700; white-space:nowrap; font-size:11px}
+.about-d dd{margin:0}
+.about-d .warn{color:var(--shu); font-weight:700; font-size:11.5px; line-height:1.65; margin:3px 0 0}
+
+/* ---------- 対話 ---------- */
+.talk{flex:1; overflow-y:auto; padding:16px 15px 8px; display:flex; flex-direction:column; gap:13px}
+.bub{max-width:88%; padding:13px 16px; border-radius:4px; line-height:1.85}
+.bub.them{align-self:flex-start; background:var(--paper-hi); border:1px solid var(--line);
+  font-family:var(--mincho); font-size:15.5px; letter-spacing:.015em}
+.bub.me{align-self:flex-end; background:var(--ai); color:var(--paper);
+  font-size:13.5px; font-weight:600; line-height:1.7}
+.s{transition:background .18s}
+.s.now{background:#EFE7CF; box-shadow:0 0 0 2px #EFE7CF}
+
+/* 出典 ── 語ったことの裏づけ */
+.cite{margin-top:10px; display:inline-flex; align-items:center; gap:6px; font-family:var(--gothic);
+  font-size:10.5px; font-weight:700; letter-spacing:.03em; color:var(--ai);
+  background:var(--ai-soft); border:1px solid var(--ai-line); border-radius:3px; padding:4px 10px}
+/* 推測 ── 裏づけが無いことの印。色は肖像の「論争中」と同じ朱 */
+.guess{margin-top:12px; padding-left:14px; border-left:2px solid var(--shu);
+  display:flex; flex-direction:column; gap:6px}
+.guess-tag{font-family:var(--gothic); font-size:10.5px; font-weight:800; letter-spacing:.11em;
+  color:var(--shu); align-self:flex-start}
+.guess p{margin:0}
+
+.bub-act{margin-top:11px; display:flex; gap:8px}
+.hear{font-family:var(--gothic); font-size:11px; font-weight:700; color:var(--ai);
+  border:1.5px solid var(--ai-line); border-radius:999px; padding:4px 12px}
+.hear:hover{background:var(--ai-soft)}
+.hear.on{background:var(--ai); color:var(--paper); border-color:var(--ai)}
+
+.wait{align-self:flex-start; display:flex; align-items:center; gap:9px; font-family:var(--mincho);
+  font-size:14.5px; color:var(--muted); background:var(--paper-hi);
+  border:1px dashed var(--line); border-radius:4px; padding:11px 16px}
+.wait i{width:5px; height:5px; border-radius:50%; background:var(--muted);
+  display:inline-block; animation:brush 1.3s ease-in-out infinite}
+.wait i:nth-child(2){animation-delay:.18s}
+.wait i:nth-child(3){animation-delay:.36s}
+@keyframes brush{0%,100%{opacity:.25; transform:translateY(0)} 50%{opacity:1; transform:translateY(-3px)}}
+
+.seeds{padding:2px 15px 0; display:flex; flex-direction:column; gap:7px}
+.seeds-l{font-size:10.5px; font-weight:800; letter-spacing:.13em; color:var(--muted)}
+.seeds-r{display:flex; flex-wrap:wrap; gap:7px}
+.seed{font-size:12.5px; font-weight:600; background:var(--paper-hi); color:var(--ai);
+  border:1.5px solid var(--ai-line); border-radius:999px; padding:6px 14px}
+.seed:hover{background:var(--ai-soft)}
+
+.compose{position:sticky; bottom:0; background:var(--paper); border-top:1px solid var(--line);
+  padding:10px 15px 15px; display:flex; flex-direction:column; gap:8px}
+.remain{font-size:11px; font-weight:700; color:var(--muted); font-variant-numeric:tabular-nums}
+.compose-r{display:flex; gap:9px; align-items:flex-end}
+textarea{flex:1; font-family:var(--gothic); font-size:14px; line-height:1.6; color:var(--sumi);
+  background:var(--paper-hi); border:1.5px solid var(--line); border-radius:4px;
+  padding:10px 12px; resize:none; height:48px}
+textarea::placeholder{color:#9C9484}
+.send{background:var(--ai); color:var(--paper); font-weight:800; font-size:14px;
+  border-radius:4px; padding:12px 20px; flex:none}
+.send:disabled{opacity:.4; cursor:default}
+
+.note{padding:14px 15px 26px; font-size:11.5px; line-height:1.8; color:var(--muted);
+  background:var(--ground); border-top:1px solid var(--line)}
+.note b{color:var(--sumi)}
+.note p{margin:0 0 7px}
+.note p:last-child{margin:0}
+.novoice{display:none; color:var(--shu); font-weight:700}
+.novoice.on{display:block}
+</style>
+
+<div class="shell">
+
+  <!-- ======== 人物えらび ======== -->
+  <section class="view on" id="v-pick">
+    <div class="pick-h">
+      <h1>だれと 話す？</h1>
+      <p>絵の下のしるしは、その顔が どれくらい たしかかを あらわしています。</p>
+    </div>
+    <div class="pick" id="pick-list"></div>
+  </section>
+
+  <!-- ======== 対話 ======== -->
+  <section class="view" id="v-talk">
+    <div class="bar">
+      <button class="bar-back" id="back">‹ もどる</button>
+      <span class="pt bar-face" id="bar-face"></span>
+      <span class="bar-t">
+        <span class="bar-nm" id="bar-nm"></span>
+        <span class="bar-era" id="bar-era"></span>
+      </span>
+      <button class="snd" id="snd" aria-pressed="false">🔇 音オフ</button>
+    </div>
+    <div class="watch">👀 このやりとりは 先生が 見ています</div>
+
+    <div class="about">
+      <button class="about-t" id="about-t" aria-expanded="false">
+        <span class="cert" id="about-cert"></span>
+        <span class="lbl" id="about-lbl"></span>
+        <span class="cx" id="about-cx">この絵について ▾</span>
+      </button>
+      <div class="about-b" id="about-b">
+        <span class="pt" id="about-pt"></span>
+        <div class="about-d" id="about-d"></div>
+      </div>
+    </div>
+
+    <div class="talk" id="talk"></div>
+
+    <div class="seeds">
+      <span class="seeds-l">きいてみる？</span>
+      <div class="seeds-r" id="seeds-r"></div>
+    </div>
+
+    <div class="compose">
+      <span class="remain">きょうは あと <span id="remain">12</span>かい 話せます</span>
+      <div class="compose-r">
+        <textarea id="input" maxlength="120" placeholder="ききたいことを 書いてね"></textarea>
+        <button class="send" id="send">おくる</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="note">
+    <p><b>これは試作です。</b>返事はあらかじめ用意したもので、まだ Gemini にはつないでいません。
+    声は端末に入っている音声合成です。<b>既定はミュート</b>で、右上の「音オフ」を押すと鳴ります。</p>
+    <p class="novoice" id="novoice">⚠ この端末には日本語の音声が見つかりませんでした。文字だけで動いています。</p>
+    <p><b>肖像の画像はまだ入っていません。</b>斜線の枠が、先生が画像を設定していないときの見え方です。
+    どの絵を入れるかは <code>docs/PORTRAITS.md</code> に一覧にしてあります。</p>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   人物マスタ（本番ではシートから読む）
+
+   portrait.cert ── 顔がどれくらいたしかか
+     same : 同じころに描かれた
+     den  : 本人かどうか、いま論争がある（＝「伝」つき）
+     late : 死んだあと、想像で描かれた
+     none : 肖像が一枚も残っていない
+   ============================================================ */
+const CERT = {
+  same:{ cls:"same", label:"同じころの絵" },
+  den :{ cls:"den",  label:"本人か 論争中" },
+  late:{ cls:"late", label:"あとの世の 想像" },
+  none:{ cls:"none", label:"肖像は のこっていない" }
+};
+
+const FIGURES = [
+  {
+    id:"F-09", name:"織田信長", yomi:"おだ のぶなが", era:"戦国",
+    sub:"天下統一をめざした戦国大名",
+    voice:{rate:0.92, pitch:0.80},
+    portrait:{
+      src:"", title:"紙本著色織田信長像", by:"狩野元秀 筆", when:"1583年（没の翌年）",
+      holder:"長興寺（愛知県豊田市）", cert:"same",
+      note:"信長を知る人が生きているうちに、その死をとむらうために描かれました。実際の顔に近いと考えられています。"
+    },
+    hello:"なんじゃ、そちは。何が聞きたい。",
+    seeds:["どうして 安土城を つくったの？","いちばん こまったことは 何？","家来から どう 見られていた？"],
+    replies:[
+      { k:["城","安土","天守"],
+        say:"琵琶湖のほとりよ。あそこは京へも北国へも道が通じておる。城を置けば、人も荷も、わしの目の前を通るというわけだ。天守は五重、石垣の上に高く積ませた。",
+        cite:"信長公記（太田牛一）",
+        guess:"天守から湖がよう見えたはずだ。だがこれはわしの言い分でな、書き残しはない。たしかめたくば、安土の絵図を見てみよ。" },
+      { k:["こまった","困","苦労","たいへん","大変","お金","銭"],
+        say:"銭よ。兵を養うにも、鉄砲を買うにも、まず銭がいる。ゆえに市の税をなくし、関所も取り払った。人と荷が動けば、銭は集まる。",
+        cite:"信長公記（太田牛一）",
+        guess:"一番こたえたのは、身内に背かれたときであろうな。……これも、わしがそう思うたというだけの話だ。" },
+      { k:["家来","家臣","部下","まわり","秀吉","どう見"],
+        say:"こわがられておったろうな。わしは働かぬ者を許さぬ。だが働く者には、身分を問わず領地をやった。秀吉を見よ、百姓の出だぞ。",
+        cite:"ルイス・フロイス『日本史』",
+        guess:"陰で何と言われていたかは、わしの耳には入らぬ。家臣の日記でも探してみることだ。" }
+    ],
+    fallback:{ say:"ふむ。それはわしの知らぬことよ。ほかに聞きたいことはあるか。", cite:null, guess:null }
+  },
+  {
+    id:"F-01", name:"卑弥呼", yomi:"ひみこ", era:"弥生",
+    sub:"邪馬台国をおさめた女王",
+    voice:{rate:0.88, pitch:1.10},
+    portrait:{
+      src:"", title:"— 肖像は一枚も存在しません —", by:"", when:"",
+      holder:"", cert:"none",
+      note:"卑弥呼を描いた絵は、古いものも新しいものも、本人を見て描かれたものが一つもありません。教科書や本にのっている姿は、すべて後の人の想像です。"
+    },
+    hello:"よう来やったな。……何を知りたい。",
+    seeds:["どうして 王に なれたの？","中国とは どんな やりとりを した？","ふだんは 何を していたの？"],
+    replies:[
+      { k:["王","女王","なれた","えらばれ"],
+        say:"争いが長う続いてな。国々の男の王では、どうにも収まらなんだ。そこで人々がわらわを立てたのじゃ。わらわは鬼道を用いて、人の心を一つにした。",
+        cite:"魏志倭人伝（三国志・魏書 東夷伝）",
+        guess:"鬼道が何であったか……占いか、祈りか。それを書き残した者はおらぬ。倭人伝を読んでも、そこは霧の中じゃ。" },
+      { k:["中国","魏","使い","鏡","金印"],
+        say:"魏に使いを送った。金印と、銅鏡を百枚たまわった。遠い国の王に認められたと、まわりの国々に見せるためじゃ。",
+        cite:"魏志倭人伝（三国志・魏書 東夷伝）",
+        guess:"あの鏡がいまどこにあるか……わらわにも分からぬ。掘り出された鏡が本当にそれかは、いまも決まっておらぬそうじゃな。" },
+      { k:["ふだん","毎日","くらし","生活","なにを","何を","していた"],
+        say:"人前にはほとんど出ぬ。宮の奥におり、弟が言葉を取り次いだ。姿を見せぬことにも、意味があったのじゃ。",
+        cite:"魏志倭人伝（三国志・魏書 東夷伝）",
+        guess:"さびしゅうなかったか、と聞かれれば……さて。そう書き残した記録は、ない。" }
+    ],
+    fallback:{ say:"それは、わらわの知らぬことじゃ。ほかを尋ねてみよ。", cite:null, guess:null }
+  },
+  {
+    id:"F-05", name:"源頼朝", yomi:"みなもとの よりとも", era:"鎌倉",
+    sub:"鎌倉に幕府をひらいた",
+    voice:{rate:0.90, pitch:0.88},
+    portrait:{
+      src:"", title:"伝源頼朝像", by:"", when:"鎌倉時代／南北朝時代",
+      holder:"神護寺（京都市）", cert:"den",
+      note:"教科書でおなじみのこの絵は、1995年に「これは足利直義ではないか」という説が出て、いまも決着していません。だから頭に「伝（つたえられる）」が付いています。"
+    },
+    hello:"……何用か。手短に申せ。",
+    seeds:["なぜ 鎌倉に 幕府を ひらいたの？","この絵は 本当に あなた？","武士は どう 変わったの？"],
+    replies:[
+      { k:["鎌倉","幕府","なぜ","ひらい"],
+        say:"鎌倉は三方を山に囲まれ、南は海。攻めるに難く、守るにやすい土地だ。それに、我が父祖ゆかりの地でもある。京から遠いことも、都合がよかった。",
+        cite:"吾妻鏡",
+        guess:"京を離れたのは、朝廷に飲み込まれぬためでもあった ── と、後の世は言うようだな。わし自身がそう書き残したわけではない。" },
+      { k:["絵","肖像","顔","本当","あなた"],
+        say:"その絵か。……神護寺に伝わるものであろう。だが近ごろ、あれはわしではなく足利直義だという説が出たと聞く。太刀の柄に桐の紋があるとか、三像の向きがどうとか。",
+        cite:"米倉迪夫の研究（1995年）",
+        guess:"わしにも分からぬ。分からぬ、と言えることが大事なのだ。教科書から外した会社もあるそうだな。" },
+      { k:["武士","変わ","御家人","ご恩"],
+        say:"わしは武士に土地を保証し、武士はわしに従った。ご恩と奉公よ。これで武士は、貴族に仕える者ではなく、みずから土地を治める者になった。",
+        cite:"吾妻鏡",
+        guess:"この仕組みが七百年続くとは、さすがに思うておらなんだ。" }
+    ],
+    fallback:{ say:"知らぬ。他を当たれ。", cite:null, guess:null }
+  },
+  {
+    id:"F-04", name:"紫式部", yomi:"むらさきしきぶ", era:"平安",
+    sub:"源氏物語を書いた",
+    voice:{rate:0.95, pitch:1.15},
+    portrait:{
+      src:"", title:"紫式部図（石山寺縁起絵巻ほか）", by:"", when:"鎌倉時代以降",
+      holder:"石山寺（滋賀県大津市）ほか", cert:"late",
+      note:"紫式部が亡くなってから、二百年以上あとに描かれたものです。石山寺で月を見ながら源氏物語を書きはじめた、という言い伝えを絵にしたもので、本人を見て描いたわけではありません。"
+    },
+    hello:"まあ、どなたかしら。何なりとお尋ねくださいませ。",
+    seeds:["源氏物語は なぜ 書いたの？","宮中の くらしは どうだった？","字は どうやって 習ったの？"],
+    replies:[
+      { k:["源氏","物語","書い","なぜ"],
+        say:"はじめは、なぐさみに書いたものでございます。それが人から人へ写されて、いつのまにやら宮中にまで。中宮さまのおそばに召されたのも、あれを読まれてのことでした。",
+        cite:"紫式部日記",
+        guess:"書きはじめた日のことは、日記にも記しておりませんの。もう、おぼえておりませんわ。" },
+      { k:["宮中","くらし","生活","どうだった","つらい"],
+        say:"はなやかに見えましょうが、気づまりなことも多くて。わたくしは学があると思われぬよう、漢字も知らぬふりをしておりました。",
+        cite:"紫式部日記",
+        guess:"……そう振る舞うのが、心底いやではなかったか。それは、どこにも書いてはおりませんわ。" },
+      { k:["字","漢字","習","学","勉強","父"],
+        say:"父が弟に漢籍を教えておりましたのを、そばで聞いておぼえました。父は「この子が男であったなら」と嘆いておりましたわ。",
+        cite:"紫式部日記",
+        guess:"弟がどう思っていたかは、聞かずじまいでした。" }
+    ],
+    fallback:{ say:"さあ、それは存じませんの。ほかのことなら。", cite:null, guess:null }
+  }
+];
+
+/* ============================================================
+   肖像を描く（画像・影絵・未設定の3状態）
+   ============================================================ */
+const SILHOUETTE =
+  '<svg viewBox="0 0 100 120" aria-hidden="true"><path fill="#274B6D" d="' +
+  'M50 14c12 0 20 10 20 23 0 9-4 17-9 21 15 5 27 15 30 29 1 5-3 9-8 9H17' +
+  'c-5 0-9-4-8-9 3-14 15-24 30-29-5-4-9-12-9-21 0-13 8-23 20-23z"/></svg>';
+
+function paintPortrait(el, f){
+  const p = f.portrait;
+  el.innerHTML = "";
+  if(p.cert === "none"){
+    el.innerHTML = '<span class="pt-none" role="img" aria-label="' +
+      f.name + 'の肖像は残っていません">' + SILHOUETTE + '</span>';
+  } else if(p.src){
+    const img = document.createElement("img");
+    img.src = p.src; img.alt = p.title;
+    el.appendChild(img);
+  } else {
+    el.innerHTML = '<span class="pt-empty">' + p.title + '<br>（画像 未設定）</span>';
+  }
+}
+function certBadge(el, cert){
+  const c = CERT[cert];
+  el.className = "cert " + c.cls;
+  el.textContent = c.label;
+}
+
+/* ============================================================
+   読み上げ（第1段階：ブラウザ内蔵）
+   Gemini TTS に替えるときは、この speaker だけ差し替える
+   ============================================================ */
+const speaker = {
+  ok:false, voice:null, seq:0,
+  init(){
+    if(!("speechSynthesis" in window)){ document.getElementById("novoice").classList.add("on"); return; }
+    const pick = () => {
+      const vs = speechSynthesis.getVoices().filter(v => /^ja/i.test(v.lang));
+      if(vs.length){ this.voice = vs[0]; this.ok = true; }
+      document.getElementById("novoice").classList.toggle("on", !this.ok);
+    };
+    pick();
+    speechSynthesis.onvoiceschanged = pick;
+  },
+  stop(){ this.seq++; if("speechSynthesis" in window) speechSynthesis.cancel(); },
+  read(spans, cfg, onEnd){
+    this.stop();
+    const my = ++this.seq;
+    if(!this.ok){ if(onEnd) onEnd(); return; }
+    let i = 0;
+    const step = () => {
+      if(my !== this.seq) return;
+      if(i > 0 && spans[i-1]) spans[i-1].classList.remove("now");
+      if(i >= spans.length){ if(onEnd) onEnd(); return; }
+      const el = spans[i];
+      el.classList.add("now");
+      const u = new SpeechSynthesisUtterance(el.textContent);
+      u.voice = this.voice; u.lang = "ja-JP";
+      u.rate = cfg.rate; u.pitch = cfg.pitch;
+      u.onend = () => { i++; step(); };
+      u.onerror = () => { i++; step(); };
+      speechSynthesis.speak(u);
+    };
+    step();
+  }
+};
+speaker.init();
+
+/* ============================================================
+   画面
+   ============================================================ */
+let current = null, remain = 12, soundOn = false, busy = false;
+const $ = id => document.getElementById(id);
+const talkEl = $("talk");
+
+FIGURES.forEach(f => {
+  const b = document.createElement("button");
+  b.className = "fig";
+  const pt = document.createElement("span"); pt.className = "pt";
+  paintPortrait(pt, f);
+  const tx = document.createElement("span"); tx.className = "fig-txt";
+  tx.innerHTML =
+    '<span class="fig-nm">' + f.name + '<em>' + f.yomi + '</em></span>' +
+    '<span class="fig-sub">' + f.era + '／' + f.sub + '</span>';
+  const cb = document.createElement("span"); cb.className = "fig-cert";
+  const badge = document.createElement("span");
+  certBadge(badge, f.portrait.cert);
+  cb.appendChild(badge); tx.appendChild(cb);
+  b.appendChild(pt); b.appendChild(tx);
+  b.addEventListener("click", () => open(f));
+  $("pick-list").appendChild(b);
+});
+
+function open(f){
+  current = f; remain = 12; $("remain").textContent = remain;
+  $("bar-nm").textContent = f.name;
+  $("bar-era").textContent = f.era;
+  paintPortrait($("bar-face"), f);
+
+  certBadge($("about-cert"), f.portrait.cert);
+  $("about-lbl").textContent = f.portrait.cert === "none"
+    ? "この人の顔は だれも知りません" : f.portrait.title;
+  paintPortrait($("about-pt"), f);
+
+  const d = $("about-d");
+  d.innerHTML = "";
+  const dl = document.createElement("dl");
+  const rows = [];
+  if(f.portrait.title && f.portrait.cert !== "none") rows.push(["作品", f.portrait.title]);
+  if(f.portrait.by)     rows.push(["筆", f.portrait.by]);
+  if(f.portrait.when)   rows.push(["いつ", f.portrait.when]);
+  if(f.portrait.holder) rows.push(["所蔵", f.portrait.holder]);
+  rows.forEach(([k, v]) => {
+    const dt = document.createElement("dt"); dt.textContent = k;
+    const dd = document.createElement("dd"); dd.textContent = v;
+    dl.appendChild(dt); dl.appendChild(dd);
+  });
+  if(rows.length) d.appendChild(dl);
+  const w = document.createElement("p");
+  w.className = "warn"; w.textContent = f.portrait.note;
+  d.appendChild(w);
+
+  $("about-b").classList.remove("on");
+  $("about-t").setAttribute("aria-expanded", "false");
+  $("about-cx").textContent = "この絵について ▾";
+
+  talkEl.innerHTML = "";
+  $("seeds-r").innerHTML = "";
+  f.seeds.forEach(s => {
+    const b = document.createElement("button");
+    b.className = "seed"; b.textContent = s;
+    b.addEventListener("click", () => { $("input").value = s; send(); });
+    $("seeds-r").appendChild(b);
+  });
+
+  $("v-pick").classList.remove("on");
+  $("v-talk").classList.add("on");
+  say(f.hello, null, null, false);
+}
+
+$("about-t").addEventListener("click", () => {
+  const on = $("about-b").classList.toggle("on");
+  $("about-t").setAttribute("aria-expanded", String(on));
+  $("about-cx").textContent = on ? "とじる ▴" : "この絵について ▾";
+});
+
+$("back").addEventListener("click", () => {
+  speaker.stop();
+  $("v-talk").classList.remove("on");
+  $("v-pick").classList.add("on");
+});
+
+$("snd").addEventListener("click", e => {
+  soundOn = !soundOn;
+  e.currentTarget.setAttribute("aria-pressed", String(soundOn));
+  e.currentTarget.textContent = soundOn ? "🔊 音オン" : "🔇 音オフ";
+  if(!soundOn) speaker.stop();
+});
+
+/* 句点で文に割る（読み上げの単位＝強調の単位）
+   後読み正規表現は古い Safari で落ちるため、手で割る */
+function sentences(t){
+  const out = []; let buf = "";
+  for(const ch of t){
+    buf += ch;
+    if(ch === "。" || ch === "！" || ch === "？"){ out.push(buf); buf = ""; }
+  }
+  if(buf.trim()) out.push(buf);
+  return out.map(s => s.trim()).filter(Boolean);
+}
+function fill(host, text){
+  const out = [];
+  sentences(text).forEach(s => {
+    const el = document.createElement("span");
+    el.className = "s"; el.textContent = s;
+    host.appendChild(el); out.push(el);
+  });
+  return out;
+}
+
+function say(text, cite, guess, autoRead){
+  const bub = document.createElement("div");
+  bub.className = "bub them";
+
+  const main = document.createElement("div");
+  bub.appendChild(main);
+  let spans = fill(main, text);
+
+  if(cite){
+    const c = document.createElement("div");
+    c.className = "cite";
+    c.textContent = "📖 出典：" + cite;
+    bub.appendChild(c);
+  }
+  if(guess){
+    const g = document.createElement("div");
+    g.className = "guess";
+    g.innerHTML = '<span class="guess-tag">記録にはない話</span>';
+    const p = document.createElement("p");
+    g.appendChild(p);
+    bub.appendChild(g);
+    spans = spans.concat(fill(p, guess));
+  }
+
+  const act = document.createElement("div");
+  act.className = "bub-act";
+  const hear = document.createElement("button");
+  hear.className = "hear"; hear.textContent = "▶ きく";
+  hear.addEventListener("click", () => {
+    document.querySelectorAll(".hear.on").forEach(h => {
+      h.classList.remove("on"); h.textContent = "▶ きく";
+    });
+    hear.classList.add("on"); hear.textContent = "■ とめる";
+    speaker.read(spans, current.voice, () => {
+      hear.classList.remove("on"); hear.textContent = "▶ きく";
+    });
+  });
+  act.appendChild(hear);
+  bub.appendChild(act);
+
+  talkEl.appendChild(bub);
+  talkEl.scrollTop = talkEl.scrollHeight;
+  if(autoRead && soundOn) hear.click();
+}
+
+function send(){
+  if(busy) return;
+  const t = $("input").value.trim();
+  if(!t || remain <= 0) return;
+
+  const me = document.createElement("div");
+  me.className = "bub me"; me.textContent = t;
+  talkEl.appendChild(me);
+  $("input").value = "";
+  talkEl.scrollTop = talkEl.scrollHeight;
+
+  busy = true; $("send").disabled = true;
+  const wait = document.createElement("div");
+  wait.className = "wait";
+  wait.innerHTML = "筆をとっています <i></i><i></i><i></i>";
+  talkEl.appendChild(wait);
+  talkEl.scrollTop = talkEl.scrollHeight;
+
+  const hit = current.replies.find(r => r.k.some(k => t.includes(k))) || current.fallback;
+
+  setTimeout(() => {
+    wait.remove();
+    remain--; $("remain").textContent = remain;
+    say(hit.say, hit.cite, hit.guess, true);
+    busy = false; $("send").disabled = false;
+  }, 1500);
+}
+
+$("send").addEventListener("click", send);
+$("input").addEventListener("keydown", e => {
+  if(e.key === "Enter" && (e.ctrlKey || e.metaKey)){ e.preventDefault(); send(); }
+});
+</script>
