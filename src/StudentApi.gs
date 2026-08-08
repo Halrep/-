@@ -754,9 +754,29 @@ function getStrategiesMap_() {
 /** 課題×カテゴリの最新の選択（生の行） */
 function latestSelectionRaw_(unitId, taskId, uid, category) {
   var rows = Repo.where(C.SH.SEL, { unit_id: unitId, task_id: taskId, user_id: uid, 'カテゴリ': category });
-  if (!rows.length) return null;
-  rows.sort(function (a, b) { return toMs_(b['選択時刻']) - toMs_(a['選択時刻']); });
-  return rows[0];
+  return newestPick_(rows);
+}
+
+/**
+ * 「あとから選んだほう」を返す。
+ *
+ * 選択は履歴として積むので、同じ項目を続けて押し直すと
+ * 時刻がミリ秒まで同じになることがある。時刻だけで比べると
+ * 古いほうが残り、変えたはずの値に戻って見える（先生の画面にも古い値が出る）。
+ * そのときはシートの行順（あとに書いたものほど下）で決着をつける。
+ */
+function newestPick_(rows) {
+  var hit = null;
+  (rows || []).forEach(function (r) {
+    if (!hit || isNewerPick_(r, hit)) hit = r;
+  });
+  return hit;
+}
+
+function isNewerPick_(a, b) {
+  var ta = toMs_(a['選択時刻']), tb = toMs_(b['選択時刻']);
+  if (ta !== tb) return ta > tb;
+  return (a.__row || 0) > (b.__row || 0);
 }
 
 /** {task_id: {カテゴリ: 値 or [値...]}} */
@@ -765,7 +785,7 @@ function latestSelectionsByTask_(unitId, uid) {
   var latest = {};
   rows.forEach(function (r) {
     var key = r['task_id'] + '\u0000' + r['カテゴリ'];
-    if (!latest[key] || toMs_(r['選択時刻']) > toMs_(latest[key]['選択時刻'])) latest[key] = r;
+    if (!latest[key] || isNewerPick_(r, latest[key])) latest[key] = r;
   });
   var out = {};
   Object.keys(latest).forEach(function (key) {
@@ -805,8 +825,6 @@ function indexBy_(arr, key) {
 
 /** 選択行配列から指定カテゴリの最新値 */
 function latestOf_(sels, category) {
-  var rows = sels.filter(function (s) { return s['カテゴリ'] === category; });
-  if (!rows.length) return null;
-  rows.sort(function (a, b) { return toMs_(b['選択時刻']) - toMs_(a['選択時刻']); });
-  return rows[0]['選んだ値'];
+  var hit = newestPick_(sels.filter(function (s) { return s['カテゴリ'] === category; }));
+  return hit ? hit['選んだ値'] : null;
 }

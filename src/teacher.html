@@ -234,6 +234,67 @@ document.addEventListener('click', function(e){
   if(pub){ save('teacher_setTaskPublish', pub.dataset.pub, pub.dataset.on==='true').then(function(){ toast(pub.dataset.on==='true'?'課題を公開しました':'課題を閉じました'); pollMonitor(); }); return; }
 });
 
+/**
+ * その子が組んだ道すじ。児童画面と同じ並びを、見取り用に細くして出す。
+ *
+ * 何を先にやると決めたか、いまどこで止まっているか、何を道すじから外したか。
+ * 進み具合だけを並べても「その子がどう計画したか」は見えないので、順序ごと出す。
+ */
+function studentRouteHtml(d, undBy){
+  var byId = {};
+  (d.tasks||[]).forEach(function(t){ byId[t.taskId] = t; });
+  var route = (d.plan && d.plan.route) ? d.plan.route : [];
+
+  var upto = [], beyond = [];
+  route.forEach(function(id){
+    var t = byId[id];
+    if(!t) return;
+    (t.kind === '発展' ? beyond : upto).push(t);
+  });
+  if(!upto.length && !beyond.length){
+    return '<div class="d-row"><b>この子の道すじ</b><span class="muted">まだ立てていません</span></div>';
+  }
+
+  var pin = function(t, label){
+    var u = undBy[t.understanding];
+    return '<span class="tr-node s'+t.status+' k'+esc(t.kind)+'" title="'+esc(t.title)+
+        (t.form?('／'+esc(t.form)):'')+'">'+
+      '<span class="tr-n">'+(t.status===2 ? '✓' : label)+'</span>'+
+      '<span class="tr-t">'+esc(t.title)+'</span>'+
+      (u ? '<span class="tr-u">'+esc(u.icon)+'</span>' : '')+
+    '</span>';
+  };
+
+  var left = upto.filter(function(t){ return t.status !== 2; }).length;
+  var html = '<span class="tr-cap">🚩</span>' +
+    upto.map(function(t, i){
+      return '<i class="tr-lnk'+(i && upto[i-1].status===2 ? ' done' : '')+'"></i>' + pin(t, i+1);
+    }).join('') +
+    '<i class="tr-lnk'+(upto.length && upto[upto.length-1].status===2 ? ' done' : '')+'"></i>'+
+    '<span class="tr-goal'+(left===0 && upto.length ? ' reached' : '')+'">🏁 '+
+      (upto.length ? (left ? 'あと '+left+'こ' : 'とどいた！') : 'ゴール')+'</span>' +
+    beyond.map(function(t){ return '<i class="tr-lnk beyond"></i>' + pin(t, '＋'); }).join('');
+
+  // 道すじに入れていないもの。何を選ばなかったかも、その子の計画のうち
+  var off = (d.tasks||[]).filter(function(t){
+    return t.published && route.indexOf(t.taskId) < 0;
+  });
+  var offHtml = off.length
+    ? '<div class="tr-off"><span class="sub-h">道すじに入れていない：</span>'+
+      off.map(function(t){
+        return '<span class="d-chip'+(t.status ? ' acc' : '')+'">'+esc(t.title)+
+          (t.status ? '（'+(t.status===2?'できた':'取組中')+'）' : '')+'</span>';
+      }).join('') +'</div>'
+    : '';
+
+  var when = d.plan && d.plan.updatedMs
+    ? '<span class="sub-h">　最後に組んだのは '+ new Date(d.plan.updatedMs).toLocaleString('ja-JP', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'}) +'</span>'
+    : '';
+
+  return '<div class="d-row"><b>この子の道すじ　<span class="sub-h">自分で決めた順序と、いまいるところ</span>'+when+'</b>'+
+    '<div class="t-route">'+html+'</div>'+ offHtml +'</div>';
+}
+
 function openDetail(uid){
   selectedUser = uid;
   $$('.tile').forEach(function(t){ t.classList.toggle('sel', t.dataset.uid===uid); });
@@ -244,13 +305,7 @@ function openDetail(uid){
     var undBy = {};
     (d.understandingLevels||[]).forEach(function(u){ undBy[u.value] = u; });
 
-    var taskChips = d.tasks.map(function(t){
-      var col = t.status===2?'var(--ok)':(t.status===1?'var(--busy)':'');
-      var mk = t.status===2?'✔ ':(t.status===1?'▶ ':'・ ');
-      var u = undBy[t.understanding];
-      return '<span class="d-chip" style="color:'+col+'">'+mk+esc(t.title)+(t.form?('（'+esc(t.form)+'）'):'')+
-        (u?' '+esc(u.icon):'')+'</span>';
-    }).join('');
+    var routeHtml = studentRouteHtml(d, undBy);
 
     // 「できた」なのに分かりぐあいが低い＝手引きか資料が足りていないサイン
     var gaps = d.tasks.filter(function(t){ return t.status===2 && t.understanding!=null && t.understanding<=2; });
@@ -280,7 +335,7 @@ function openDetail(uid){
       (d.goal && d.goal.regulateNames.length ? '<div class="d-row"><b>つかう工夫</b><span class="d-chips">'+d.goal.regulateNames.map(function(r){ return '<span class="d-chip acc">'+esc(r)+'</span>'; }).join('')+'</span></div>' : '')+
       (d.usedNames.length ? '<div class="d-row"><b>使った工夫</b>'+esc(d.usedNames.join('、'))+'</div>' : '')+
       chkHtml +
-      '<div class="d-row"><b>課題の進み方</b><span class="d-chips">'+taskChips+'</span></div>'+
+      routeHtml +
       gapHtml +
       memoHtml +
       '<div class="d-row" id="d-logs"></div>'+

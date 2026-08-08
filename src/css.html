@@ -503,9 +503,15 @@ textarea, input[type=text]{width:100%; border:1.5px solid var(--line); border-ra
    置きたいところに近づけると線が割れて受け口ができ、指をはなすと吸いつく。
    ドラッグができない環境でも進められるよう、同じ操作をボタンでも用意している。 */
 .route-box{position:relative}
-.route{display:flex; flex-wrap:wrap; align-items:center; row-gap:12px; padding:4px 0 2px; min-height:118px}
+/* 幅ぴったりに詰める flex だと、行ごとに切れる位置がずれて散らかって見える。
+   同じ幅の列に並べて、どの行も頭がそろうようにする。 */
+.route{display:grid; grid-template-columns:repeat(auto-fill, minmax(212px, 1fr));
+  align-items:stretch; row-gap:12px; padding:4px 0 2px}
 /* つながり＋その先のタイルで1組。折り返しても線が置き去りにならない */
-.seg{display:flex; align-items:center; flex:none}
+.seg{display:flex; align-items:stretch; min-width:0}
+/* 列の幅は grid が決める。タイルはそこから線のぶんを引いた残りを使う */
+.route .seg>.node, .route .seg>.goal-node{flex:1 1 auto; width:auto; min-width:0}
+.route>.goal-node{width:auto}
 .route.dragging, .route.dragging .node{cursor:grabbing}
 
 .node{position:relative; display:flex; flex-direction:column; flex:none; width:186px; min-height:104px;
@@ -542,7 +548,7 @@ textarea, input[type=text]{width:100%; border:1.5px solid var(--line); border-ra
 .lnk::after{content:''; position:absolute; right:-1px; top:-3px; border:4.5px solid transparent; border-left-color:var(--line)}
 .lnk.done::after{border-left-color:var(--ok)}
 /* 受け口。広げすぎると道すじ全体が動いて狙いにくいので、ほどほどに割る */
-.lnk.open{flex-basis:98px; height:100px; border:2.5px dashed var(--primary); border-radius:12px; background:var(--primary-soft)}
+.lnk.open{flex-basis:58px; align-self:stretch; height:auto; border:2.5px dashed var(--primary); border-radius:12px; background:var(--primary-soft)}
 .lnk.open::after{display:none}
 .lnk.parting{animation:lnkPart .2s ease-in forwards}
 .lnk.joining{animation:lnkJoin .3s cubic-bezier(.2,.8,.2,1)}
@@ -566,37 +572,63 @@ textarea, input[type=text]{width:100%; border:1.5px solid var(--line); border-ra
 .goal-node .gn-f{font-size:24px; line-height:1}
 .goal-node .gn-l{font-size:10px; font-weight:800; letter-spacing:.14em; color:var(--accent)}
 .goal-node .gn-t{font-size:12px; font-weight:800; line-height:1.45}
-.goal-node.start{width:96px; border-color:var(--primary-line); background:var(--primary-soft)}
+.goal-node.start{border-color:var(--primary-line); background:var(--primary-soft)}
 .goal-node.start .gn-l{color:var(--primary)}
 
 /* ゴールのむこう。着いた先にもう一歩ある、と見えるように少し引いた色にする */
-.beyond{display:flex; flex-wrap:wrap; align-items:center; row-gap:12px; border-radius:12px;
+.beyond{grid-column:1/-1; display:grid; grid-template-columns:repeat(auto-fill, minmax(212px, 1fr));
+  align-items:stretch; row-gap:12px; border-radius:12px;
   outline:2.5px dashed transparent; outline-offset:6px; transition:outline-color .16s, background .16s}
 .beyond.armed{outline-color:var(--accent); background:var(--accent-soft)}
 .beyond .lnk{background:var(--accent-soft)}
 .beyond .lnk::after{border-left-color:var(--accent-soft)}
 .beyond .node{border-style:dashed}
-.beyond-tail{font-size:11px; font-weight:700; color:var(--muted); line-height:1.5; padding:8px 12px;
-  border:2px dashed var(--line); border-radius:12px; min-width:120px; text-align:center}
+.beyond-tail{display:grid; align-content:center; font-size:11px; font-weight:700; color:var(--muted); line-height:1.5;
+  padding:8px 12px; border:2px dashed var(--line); border-radius:12px; text-align:center; flex:1 1 auto; min-width:0}
 .beyond-tail b{display:block; color:var(--accent); font-size:12px}
 .beyond.empty .beyond-tail{background:var(--surface2)}
+.route.work .beyond{display:contents}
 /* トレイのタイルにも行き先を出す */
 .tray .node.to-beyond{border-color:var(--accent-soft)}
 /* 道すじの外に置いてある課題（そえる） */
 .tray-h{display:flex; align-items:baseline; gap:8px; margin:14px 0 6px; padding-top:12px; border-top:1.5px dashed var(--line)}
 .tray-h h3{margin:0}
-.tray{display:flex; flex-wrap:wrap; gap:10px; min-height:56px; border-radius:12px; transition:background .16s, outline-color .16s;
+.tray{display:grid; grid-template-columns:repeat(auto-fill, minmax(186px, 1fr)); align-items:stretch; gap:10px;
+  min-height:56px; border-radius:12px; transition:background .16s, outline-color .16s;
   outline:2.5px dashed transparent; outline-offset:6px}
 /* 運んできたタイルを受け取れる状態。「ここに戻せば外れる」を先に見せる */
 .tray.drop-here{outline-color:var(--primary); background:var(--primary-soft)}
-.tray .node{width:174px; min-height:98px; border-style:dashed; background:var(--surface2)}
+.tray .node{width:auto; min-height:98px; border-style:dashed; background:var(--surface2)}
+.tray .empty{grid-column:1/-1}
 .tray .empty{font-size:12px}
 .route-note{font-size:11.5px; color:var(--muted); margin-top:10px; line-height:1.7}
 .route-sum{font-size:12.5px; font-weight:800; color:var(--muted)}
 
+/* 教師の見取り：その子が組んだ道すじ。児童画面と同じ並びを細くして出す */
+.t-route{display:flex; flex-wrap:wrap; align-items:center; row-gap:6px; margin-top:4px}
+.tr-cap{font-size:15px; flex:none}
+.tr-lnk{flex:0 0 12px; height:2.5px; background:var(--line); border-radius:2px}
+.tr-lnk.done{background:var(--ok)}
+.tr-lnk.beyond{background:var(--accent); opacity:.5}
+.tr-node{display:flex; align-items:center; gap:5px; max-width:216px; border:1.5px solid var(--line);
+  background:var(--surface); border-radius:999px; padding:3px 11px 3px 5px; font-size:12px; font-weight:700}
+.tr-node .tr-n{display:grid; place-items:center; width:19px; height:19px; border-radius:50%; flex:none;
+  background:var(--surface2); color:var(--muted); font-size:10.5px; font-weight:800}
+.tr-node .tr-t{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.tr-node .tr-u{flex:none}
+.tr-node.s1{border-color:var(--busy); background:var(--busy-soft)}
+.tr-node.s1 .tr-n{background:var(--busy); color:#fff}
+.tr-node.s2{border-color:var(--ok); background:var(--ok-soft)}
+.tr-node.s2 .tr-n{background:var(--ok); color:#fff}
+.tr-node.kゴール{border-color:var(--accent)}
+.tr-node.k発展{border-style:dashed}
+.tr-goal{flex:none; border:1.5px solid var(--accent); background:var(--accent-soft); color:var(--accent);
+  border-radius:999px; padding:3px 11px; font-size:12px; font-weight:800; white-space:nowrap}
+.tr-goal.reached{border-color:var(--ok); background:var(--ok-soft); color:var(--ok)}
+.tr-off{display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:7px}
+
 /* ② やってみる：みとおすと同じ地図を歩く。並べ替えはせず、タップで開く */
-.route.work{min-height:0; margin-bottom:4px}
-.route.work .node{width:200px}
+.route.work{margin-bottom:4px}
 .node.tap{cursor:pointer; text-align:left}
 .node.tap:hover{border-color:var(--primary); transform:translateY(-2px); box-shadow:0 6px 18px rgba(35,48,58,.10)}
 .node .nd-go{font-size:11.5px; font-weight:800; color:var(--primary); opacity:.55; transition:opacity .16s}
@@ -616,6 +648,8 @@ textarea, input[type=text]{width:100%; border:1.5px solid var(--line); border-ra
 .btn.sm{justify-self:start; padding:6px 14px; font-size:12.5px}
 
 @media (max-width:640px){
+  .route, .beyond, .tray{grid-template-columns:1fr}
+  .seg{flex-direction:column}
   .node, .tray .node{width:100%}
   .lnk{flex-basis:100%; height:22px; width:3px; margin:0 auto; border-radius:3px}
   .lnk::after{right:auto; left:-3px; top:auto; bottom:-1px; border-left-color:transparent; border-top-color:var(--line)}

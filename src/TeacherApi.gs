@@ -237,6 +237,13 @@ function teacher_getStudentDetail(userId) {
   var u = firstWhere_(C.SH.USERS, { user_id: userId });
   var selByTask = latestSelectionsByTask_(unitId, userId);
 
+  // その子が組んだ道すじ。児童画面と同じならし方をするので、見え方がずれない。
+  // 子どもが見ているのは公開済みの課題だけなので、道すじもそれで組む。
+  var planRow = firstWhere_(C.SH.PLAN, { unit_id: unitId, user_id: userId });
+  var route = normalizePlan_(planRow ? splitCsv_(planRow['順序']) : null,
+    tasks.filter(function (t) { return truthy_(t['公開']); })
+      .map(function (t) { return { taskId: t['task_id'], kind: t['種別'] }; }));
+
   var observations = Repo.where(C.SH.OBS, { unit_id: unitId, user_id: userId })
     .sort(function (a, b) { return toMs_(b['時刻']) - toMs_(a['時刻']); })
     .slice(0, 5)
@@ -260,12 +267,15 @@ function teacher_getStudentDetail(userId) {
     usedNames: usedNames,
     checkpoints: checks,
     understandingLevels: C.UNDERSTANDING,
+    // 道すじを立て直した時刻もつける（いつ計画を変えたかは見取りの手がかりになる）
+    plan: { route: route, updatedMs: planRow ? toMs_(planRow['更新時刻']) : 0 },
     tasks: tasks.map(function (t) {
       var tid = t['task_id'];
       var sel = selByTask[tid] || {};
       var form = sel['学習形態'];
       var pr = progMap[tid];
       return {
+        taskId: tid, published: truthy_(t['公開']),
         kind: t['種別'], title: t['タイトル'],
         status: pr ? pr.status : 0,
         // 「できた」なのに理解度が低い、メモに困りが書いてある——見取りの手がかり

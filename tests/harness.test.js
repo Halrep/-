@@ -1150,6 +1150,74 @@ call('teacher_saveTask', goalTaskId, {
 });
 ok(call('teacher_getDesign', unitId).tasks.filter(t => t.kind === 'ゴール').length === 1, '後片付け：ゴールは1件');
 
+console.log('\n【38】教師が、その子の道すじを見る');
+asUser('a@school.jp');
+const detailRoute = [mustIds[2], choiceIds[1], mustIds[0], mustIds[1], mustIds[3], goalTaskId];
+// サーバーがならしたあとの並びが、その子の道すじの正
+const savedRoute = call('student_savePlan', detailRoute).route;
+
+asUser('teacher@school.jp');
+const detA = call('teacher_getStudentDetail', 'U01');
+ok(!!detA.plan && Array.isArray(detA.plan.route), '児童詳細に道すじが載る');
+ok(detA.plan.route.join(',') === savedRoute.join(','),
+  'その子の道すじがそのまま届く（' + detA.plan.route.length + '件）');
+// ゴール課題は末尾に回るので、そこまでの並びで見る（先生が足した必須はそのあいだに入る）
+ok(savedRoute.slice(0, 5).join(',') === detailRoute.slice(0, 5).join(','),
+  '本人が決めた順序が先頭から保たれている');
+ok(savedRoute[savedRoute.length - 1] === goalTaskId, '教師に届く道すじでもゴール課題が最後');
+ok(detA.plan.updatedMs > 0, 'いつ組んだかも分かる');
+ok(detA.tasks.every(t => !!t.taskId), '道すじのIDと突き合わせられるよう taskId が付く');
+ok(detA.tasks.some(t => t.published === false), '非公開の課題は教師には見えている');
+ok(detA.plan.route.every(id => {
+  const t = detA.tasks.filter(x => x.taskId === id)[0];
+  return t && t.published;
+}), '道すじには公開済みの課題しか出ない（子どもに見えているものと同じ）');
+
+// 道すじに入れていない課題も、教師側で拾えるようにしておく
+const offIds = detA.tasks.filter(t => t.published && detA.plan.route.indexOf(t.taskId) < 0)
+  .map(t => t.taskId);
+ok(offIds.length > 0, '道すじに入れていない課題が分かる（実際: ' + offIds.length + '件）');
+
+// まだ立てていない子は、初期の道すじが出る（空にはしない）
+const detD = call('teacher_getStudentDetail', 'U04');
+ok(detD.plan.route.length > 0, '計画をまだ立てていない子も初期の道すじが出る');
+ok(detD.plan.updatedMs === 0, '立てていないことは updatedMs で分かる');
+ok(detD.plan.route[detD.plan.route.length - 1] === goalTaskId, '初期の道すじでもゴール課題が最後');
+
+console.log('\n【39】単元シートでのゴール課題');
+ui.promptText = '1';
+call('unitSheetExport');
+const gsGrid = ss._sheets['単元_' + sheetRows('単元')[0]['単元名']]._dump();
+const gsTaskMark = gsGrid.map(r => String(r[0])).indexOf('■ 課題');
+ok(String(gsGrid[gsTaskMark][1]).indexOf('ゴール＝') >= 0, '課題の区切りに種別の意味が書いてある');
+ok(String(gsGrid[gsTaskMark][1]).indexOf('単元にひとつだけ') >= 0, 'ゴールは1つだけと書いてある');
+
+// ふりこの単元シートで、ゴールを2つ書いてみる
+const ns2 = ss._sheets[nsName];
+const ns2TaskTop = ns2._dump().map(r => String(r[0])).indexOf('■ 課題') + 3;
+setCell(ns2, ns2TaskTop, 1, 'ゴール');
+setCell(ns2, ns2TaskTop, 2, '実験レポートをまとめる');
+setCell(ns2, ns2TaskTop + 1, 1, 'ゴール');
+setCell(ns2, ns2TaskTop + 1, 2, 'ポスターにする');
+ss.setActiveSheet(ns2);
+call('unitSheetImport');
+const ns2Goals = sheetRows('課題').filter(t => t['unit_id'] === nsId && t['種別'] === 'ゴール');
+ok(ns2Goals.length === 1, 'ゴールは1件だけ取り込まれる');
+ok(ns2Goals[0]['タイトル'] === '実験レポートをまとめる', '上にあるほうがゴールになる');
+ok(sheetRows('課題').filter(t => t['unit_id'] === nsId && t['タイトル'] === 'ポスターにする')[0]['種別'] === '必須',
+  '2つ目は必須として取り込む（捨てない）');
+ok(String(ui.lastAlert).indexOf('そろえたところ') >= 0, '直したことは「そろえたところ」で知らせる');
+ok(String(ui.lastAlert).indexOf('読めなかった行') < 0, '読めなかった行あつかいにはしない');
+ok(String(ui.lastAlert).indexOf('ゴールに直結する課題がありません') < 0, 'ゴールがあるので呼びかけは出ない');
+
+// シートからゴールを1つも書かないと、公開前に気づけるよう呼びかける
+setCell(ns2, ns2TaskTop, 1, '必須');
+setCell(ns2, ns2TaskTop + 1, 1, '必須');
+call('unitSheetImport');
+ok(String(ui.lastAlert).indexOf('ゴールに直結する課題がありません') >= 0, 'ゴールが無いことを知らせる');
+ok(String(ui.lastAlert).indexOf('実験レポート') >= 0, '単元の出口を添えて知らせる');
+ok(sheetRows('課題').filter(t => t['unit_id'] === nsId).length > 0, '知らせるだけで、取り込みは止めない');
+
 /* =================== 結果 =================== */
 console.log('\n========================================');
 console.log('  PASS: ' + pass + '   FAIL: ' + fail);

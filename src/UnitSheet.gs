@@ -28,6 +28,13 @@ var US = {
     ['裁量レベル（1指定／2選択／3自由）', '2']
   ],
   TASK_COLS: ['種別', 'タイトル', '説明', 'めやす分', '公開', 'task_id（自動・消さない）'],
+
+  // 種別の意味はシートの上に書いておく。プルダウンに「ゴール」が並んでいても、
+  // 何のためのものか分からなければ選ばれない。
+  TASK_NOTE: '上から順に並びます。行を入れ替えれば順番が変わります。　' +
+    '［種別］必須＝かならずやること／選択＝えらべる活動／発展＝やりきったら挑戦／' +
+    'ゴール＝成果物そのものをつくる課題（単元にひとつだけ。子どもの道すじでは必ず最後にきます）',
+
   RES_COLS: ['課題番号（空＝いつでも使える）', 'アイコン', 'タイトル', '補足', '種別', 'URL', '公開', 'resource_id（自動・消さない）']
 };
 
@@ -115,9 +122,24 @@ function unitSheetImport() {
     '課題：追加 ' + r.taskAdded + ' ／ 更新 ' + r.taskUpdated + ' ／ 削除 ' + r.taskDeleted + '\n' +
     '資料：追加 ' + r.resAdded + ' ／ 更新 ' + r.resUpdated + ' ／ 削除 ' + r.resDeleted +
     (r.kept.length ? '\n\n消さずに残したもの（子どもの記録があります）：\n・' + r.kept.join('\n・') : '') +
+    (r.notes.length ? '\n\nそろえたところ：\n・' + r.notes.join('\n・') : '') +
     (r.skipped.length ? '\n\n読めなかった行：\n・' + r.skipped.join('\n・') : '') +
+    goalHint_(r) +
     '\n\n単元デザインの画面を開き直すと反映されます。',
     ui.ButtonSet.OK);
+}
+
+/**
+ * ゴール課題が無いときの呼びかけ。
+ * 成果物イメージを掲げていても、それを作る課題が無ければ子どもはゴールに着かない。
+ * 止めはしないが、公開する前に気づけるようにする。
+ */
+function goalHint_(r) {
+  if (!r.noGoal) return '';
+  return '\n\n【ゴールに直結する課題がありません】\n' +
+    (r.outcome ? '単元の出口は「' + r.outcome + '」ですが、\nそれをつくる課題が種別「ゴール」になっていません。\n'
+               : '単元の出口（成果物イメージ）をつくる課題が見あたりません。\n') +
+    '種別を「ゴール」にした課題を1つ置くと、子どもの道すじの最後にすわります。';
 }
 
 /* ==================== シートの組み立て ==================== */
@@ -140,7 +162,7 @@ function buildUnitSheet_(unitName, unitId, unit, tasks, resources, taskRow) {
   rows.push(['', '', '']);
 
   var taskMarkRow = rows.length + 1;
-  rows.push([US.TASK_MARK, '上から順に並びます。行を入れ替えれば順番が変わります。', '']);
+  rows.push([US.TASK_MARK, US.TASK_NOTE, '']);
   rows.push(US.TASK_COLS.slice());
   (tasks || []).forEach(function (t) {
     rows.push([t['種別'], t['タイトル'], t['説明'], t['めやす分'],
@@ -288,7 +310,7 @@ function importUnitSheet_(sheet, p) {
   var kinds = C.TASK_KINDS;
   var out = {
     unitName: name, taskAdded: 0, taskUpdated: 0, taskDeleted: 0,
-    resAdded: 0, resUpdated: 0, resDeleted: 0, kept: [], skipped: []
+    resAdded: 0, resUpdated: 0, resDeleted: 0, kept: [], skipped: [], notes: []
   };
 
   /* --- 単元 --- */
@@ -334,7 +356,7 @@ function importUnitSheet_(sheet, p) {
     if (kind === C.TASK_KIND.GOAL) {
       if (goalTaken) {
         kind = C.TASK_KIND.MUST;
-        out.skipped.push(t.row + '行目「' + t.title + '」：ゴールは単元に1つだけなので「必須」で取り込みました');
+        out.notes.push(t.row + '行目「' + t.title + '」：ゴールは単元に1つだけなので「必須」にしました');
       } else {
         goalTaken = true;
       }
@@ -420,6 +442,11 @@ function importUnitSheet_(sheet, p) {
     Repo.remove(C.SH.RES, { resource_id: r['resource_id'] });
     out.resDeleted++;
   });
+
+  // ゴール課題が無いまま公開すると、成果物を作らずに単元が終わってしまう。
+  // 取り込みは通したうえで、気づけるように知らせる。
+  out.noGoal = !goalTaken;
+  out.outcome = String(p.fields['成果物イメージ'] || '').trim();
 
   return out;
 }

@@ -650,7 +650,8 @@ function lnkHtml(zone, gap, prev, opts){
 function nodeHtml(t, zone, i, count, mode, nextTid){
   var work = mode === 'work';
   var ix = taskIx(t.taskId);
-  var here = work ? (t.taskId === nextTid) : (openTask && ix === curTask);
+  // 「つぎに立つ石」は進度から決まる。どちらの地図でも同じ石が光る
+  var here = t.taskId === nextTid;
   var pinned = t.kind === GOAL_KIND;               // ゴール課題はゴールの直前から動かない
   var u = undBy(t.understanding);
 
