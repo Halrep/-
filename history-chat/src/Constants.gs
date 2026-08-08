@@ -59,7 +59,7 @@ var C = {
     USERS:    ['user_id', '氏名', '表示名', '出席番号', '役割', '端末アカウント'],
     SETTINGS: ['キー', '値', '説明'],
     CONV:     ['conversation_id', 'user_id', 'figure_id', '開始時刻', '最終更新', '往復数'],
-    MSG:      ['message_id', 'conversation_id', '話者', '本文', '出典', '推測', '時刻', '教師フラグ']
+    MSG:      ['message_id', 'conversation_id', '話者', '本文', '出典', '推測', '言いかえ', '時刻', '教師フラグ']
   },
 
   // ---- 設定シートの既定値 ----

@@ -84,9 +84,12 @@
       実機で試すまで分かりません。</b>授業で使う端末で、ここを一度押してください。</p>
     <div class="row">
       <button class="btn" id="voice-test">テストの声を出す</button>
+      <button class="btn ghost" id="mic-test">マイクを ためす</button>
       <span id="voice-state" style="font-size:12.5px"></span>
     </div>
     <dl class="health" id="voice-info"></dl>
+    <p><b>マイク（音声入力）も同じです。</b>書くのが壁になっている児童のために入れていますが、
+      iframe の中でマイクの許可が下りるかは実機でしか分かりません。ここで試せます。</p>
     <p>鳴らなかった場合の逃げ道は <b>docs/VOICE.md §4</b> にあります
       （Gemini TTS で音声ファイルを作って鳴らす。費用はかかるが iframe の制約は受けない）。</p>
   </section>
@@ -141,6 +144,40 @@ google.script.run.withSuccessHandler(function (h) {
     $('model').innerHTML = ''; $('model').appendChild(o);
   }
 }).apiHealth();
+
+/* ---- マイクの点検 ---- */
+(function () {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var btn = $('mic-test'), state = $('voice-state');
+  if (!SR) {
+    btn.disabled = true;
+    btn.textContent = 'マイク非対応';
+    return;
+  }
+  btn.addEventListener('click', function () {
+    var rec = new SR();
+    rec.lang = 'ja-JP'; rec.interimResults = true; rec.continuous = false;
+    var got = false, started = false;
+    state.innerHTML = 'マイクの許可を待っています…';
+    rec.onstart = function () { started = true; state.innerHTML = '<span class="ok">聞いています。何か話してください…</span>'; };
+    rec.onresult = function (e) {
+      got = true;
+      var t = '';
+      for (var i = e.resultIndex; i < e.results.length; i++) t += e.results[i][0].transcript;
+      state.innerHTML = '<span class="ok">聞こえました：「' + esc(t) + '」</span>';
+    };
+    rec.onerror = function (e) {
+      state.innerHTML = (e.error === 'not-allowed' || e.error === 'service-not-allowed')
+        ? '<span class="ng">マイクが許可されませんでした。iframe で止められている可能性があります</span>'
+        : '<span class="ng">うまくいきませんでした（' + esc(e.error || '原因不明') + '）</span>';
+    };
+    rec.onend = function () {
+      if (started && !got) state.innerHTML = '<span class="ng">声を拾えませんでした。端末のマイクを確かめてください</span>';
+    };
+    try { rec.start(); }
+    catch (e) { state.innerHTML = '<span class="ng">はじめられませんでした（' + esc(e.message || e) + '）</span>'; }
+  });
+})();
 
 /* ---- 設定の読み込み（児童画面と同じ入口を使う） ---- */
 google.script.run.withSuccessHandler(function (b) {

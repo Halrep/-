@@ -53,9 +53,11 @@
     <div class="compose">
       <span class="remain" id="remain-l"></span>
       <div class="compose-r">
+        <button class="mic hidden" id="mic" aria-pressed="false" title="話して 入れる">🎤</button>
         <textarea id="input" placeholder="ききたいことを 書いてね"></textarea>
         <button class="send" id="send">おくる</button>
       </div>
+      <span class="mic-state hidden" id="mic-state"></span>
     </div>
   </section>
 </div>
@@ -229,10 +231,15 @@ function openFigure(f) {
   $('talk').innerHTML = '';
   var sr = $('seeds-r');
   sr.innerHTML = '';
+  // たねは押しても消さない。何を聞いたかが残り、次に何を聞くか考える手がかりになる
   (f.seeds || []).forEach(function (s) {
     var b = document.createElement('button');
     b.className = 'seed'; b.textContent = s;
-    b.addEventListener('click', function () { $('input').value = s; send(); });
+    b.addEventListener('click', function () {
+      $('input').value = s;
+      b.classList.add('used');
+      send();
+    });
     sr.appendChild(b);
   });
 
@@ -240,7 +247,7 @@ function openFigure(f) {
   $('v-talk').classList.add('on');
 
   // 最初の一言は人物の側から出す。空の入力欄より、問いが出やすい
-  if (f.hello) say(f.hello, '', '', false);
+  if (f.hello) say(f.hello, '', '', false, null);   // 挨拶は言いかえ不要
 }
 
 $('about-t').addEventListener('click', function () {
@@ -277,7 +284,7 @@ function fill(host, text) {
   return out;
 }
 
-function say(text, cite, guess, autoRead) {
+function say(text, cite, guess, autoRead, messageId) {
   var bub = document.createElement('div');
   bub.className = 'bub them';
 
@@ -303,10 +310,13 @@ function say(text, cite, guess, autoRead) {
     spans = spans.concat(fill(p, guess));
   }
 
+  var act = document.createElement('div');
+  act.className = 'bub-act';
+  bub.appendChild(act);
+
+  var hear = null;
   if (Speaker.available()) {
-    var act = document.createElement('div');
-    act.className = 'bub-act';
-    var hear = document.createElement('button');
+    hear = document.createElement('button');
     hear.className = 'hear'; hear.textContent = '▶ きく';
     hear.addEventListener('click', function () {
       var playing = hear.classList.contains('on');
@@ -321,12 +331,46 @@ function say(text, cite, guess, autoRead) {
       });
     });
     act.appendChild(hear);
-    bub.appendChild(act);
-    if (autoRead && soundOn) hear.click();
+  }
+
+  // やさしく言いかえて ── 分からなかった子だけが押す。
+  // 先回りで全部を平らにせず、つまずいた所だけを助ける。
+  if (messageId) {
+    var easy = document.createElement('button');
+    easy.className = 'hear easy'; easy.textContent = '💡 やさしく';
+    easy.addEventListener('click', function () {
+      easy.disabled = true; easy.textContent = '言いかえています…';
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (!res.ok) { easy.disabled = false; easy.textContent = '💡 やさしく'; errBubble(res.error); return; }
+          easy.remove();
+          var box = document.createElement('div');
+          box.className = 'easy-box';
+          var tag = document.createElement('span');
+          tag.className = 'easy-tag'; tag.textContent = 'やさしく 言いかえると';
+          box.appendChild(tag);
+          var p = document.createElement('p');
+          box.appendChild(p);
+          bub.insertBefore(box, act);
+          var esp = fill(p, res.data.text);
+          if (hear) {                        // 言いかえた文も読み上げの対象にする
+            spans = spans.concat(esp);
+            hear.click();
+          }
+          $('talk').scrollTop = $('talk').scrollHeight;
+        })
+        .withFailureHandler(function () {
+          easy.disabled = false; easy.textContent = '💡 やさしく';
+          errBubble('つながりませんでした。もう一度 おしてみて。');
+        })
+        .apiSimplify(messageId);
+    });
+    act.appendChild(easy);
   }
 
   $('talk').appendChild(bub);
   $('talk').scrollTop = $('talk').scrollHeight;
+  if (autoRead && soundOn && hear) hear.click();
 }
 
 function errBubble(msg) {
@@ -367,7 +411,7 @@ function send() {
       if (!res.ok) { errBubble(res.error); return; }
       remain = res.data.remain;
       drawRemain();
-      say(res.data.say, res.data.cite, res.data.guess, true);
+      say(res.data.say, res.data.cite, res.data.guess, true, res.data.messageId);
     })
     .withFailureHandler(function (e) {
       wait.remove();
@@ -376,6 +420,61 @@ function send() {
     })
     .apiSend(current.id, t);
 }
+
+/* ---------- 音声入力 ----------
+   書くのが壁になっている子のための入り口。端末とブラウザが対応していて、
+   マイクが使えるときだけボタンを出す。使えなければ黙って隠す。 */
+(function () {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  var rec = null, listening = false;
+  var btn = $('mic'), state = $('mic-state');
+  btn.classList.remove('hidden');
+
+  function stop() {
+    listening = false;
+    btn.setAttribute('aria-pressed', 'false');
+    btn.textContent = '🎤';
+    state.classList.add('hidden');
+    if (rec) { try { rec.stop(); } catch (e) {} }
+  }
+
+  btn.addEventListener('click', function () {
+    if (listening) { stop(); return; }
+    Speaker.stop();                     // 読み上げと同時に聞かない
+    rec = new SR();
+    rec.lang = 'ja-JP';
+    rec.interimResults = true;
+    rec.continuous = false;
+    var base = $('input').value;
+
+    rec.onstart = function () {
+      listening = true;
+      btn.setAttribute('aria-pressed', 'true');
+      btn.textContent = '■';
+      state.textContent = '🎤 きいています…';
+      state.classList.remove('hidden');
+    };
+    rec.onresult = function (e) {
+      var txt = '';
+      for (var i = e.resultIndex; i < e.results.length; i++) txt += e.results[i][0].transcript;
+      var max = Number($('input').getAttribute('maxlength')) || 120;
+      $('input').value = (base + txt).slice(0, max);
+    };
+    rec.onerror = function (e) {
+      stop();
+      state.classList.remove('hidden');
+      state.textContent = (e.error === 'not-allowed' || e.error === 'service-not-allowed')
+        ? 'マイクが つかえません。先生に つたえてね。'
+        : 'うまく ききとれませんでした。もう一度 おしてね。';
+      setTimeout(function () { state.classList.add('hidden'); }, 4000);
+    };
+    rec.onend = stop;
+
+    try { rec.start(); }
+    catch (e) { stop(); }
+  });
+})();
 
 $('send').addEventListener('click', send);
 $('input').addEventListener('keydown', function (e) {

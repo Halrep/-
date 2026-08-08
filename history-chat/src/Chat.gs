@@ -243,16 +243,17 @@ var Chat = (function () {
 
     // --- 保存（1往復ぶんをまとめて1回のロックで） ---
     var t = Repo.now();
+    var figureMsgId = Repo.uuid();
     Repo.appendMany(C.SHEET.MSG, [
       {
         message_id: Repo.uuid(), conversation_id: conv.conversation_id,
-        '話者': C.SPEAKER.CHILD, '本文': text, '出典': '', '推測': '',
+        '話者': C.SPEAKER.CHILD, '本文': text, '出典': '', '推測': '', '言いかえ': '',
         '時刻': t, '教師フラグ': false
       },
       {
-        message_id: Repo.uuid(), conversation_id: conv.conversation_id,
+        message_id: figureMsgId, conversation_id: conv.conversation_id,
         '話者': C.SPEAKER.FIGURE, '本文': reply.say, '出典': reply.cite, '推測': reply.guess,
-        '時刻': t, '教師フラグ': false
+        '言いかえ': '', '時刻': t, '教師フラグ': false
       }
     ]);
     Repo.updateByKey(C.SHEET.CONV, 'conversation_id', conv.conversation_id, {
@@ -261,13 +262,69 @@ var Chat = (function () {
     });
 
     return {
+      messageId: figureMsgId,
       say: reply.say, cite: reply.cite, guess: reply.guess,
       remain: maxDay > 0 ? Math.max(0, maxDay - (used + 1)) : -1
     };
   }
 
+  /* ============================================================
+     やさしく言いかえる
+     ============================================================ */
+
+  /**
+   * すでに保存してある人物の発言を、もっとやさしい言葉で言い直す。
+   *
+   * 言い直す対象は message_id で指すので、画面から任意の文章を送らせない
+   * （子どもの端末を通じて好きな文章を Gemini に投げられないようにする）。
+   * 結果は「言いかえ」列に残す。どの返事でつまずいたかが、そのまま教師の手がかりになる。
+   */
+  function simplify(user, messageId) {
+    var st = Figures.settings();
+    var model = String(st['モデル'] || '').trim();
+    if (!hasKey()) throw new Error('NO_KEY');
+    if (!model) throw new Error('NO_MODEL');
+
+    var msg = Repo.firstWhere(C.SHEET.MSG, { message_id: String(messageId) });
+    if (!msg) throw new Error('その返事が見つかりません。');
+    if (msg['話者'] !== C.SPEAKER.FIGURE) throw new Error('言いかえられるのは人物の返事だけです。');
+
+    // 持ち主の確認は、保存済みを返す前に行う。
+    // 順番を逆にすると、一度言いかえた返事だけ他人でも読めてしまう。
+    var conv = Repo.firstWhere(C.SHEET.CONV, { conversation_id: String(msg.conversation_id) });
+    if (!conv) throw new Error('その返事が見つかりません。');
+    if (String(conv.user_id) !== String(user.id) && user.role !== C.ROLE.TEACHER) {
+      throw new Error('ほかの人の会話は言いかえられません。');
+    }
+
+    // すでに言いかえてあれば、呼び直さずそれを返す（費用も待ち時間も要らない）
+    if (String(msg['言いかえ'] || '') !== '') return { text: String(msg['言いかえ']) };
+
+    var body = String(msg['本文'] || '');
+    if (String(msg['推測'] || '') !== '') body += '\n' + msg['推測'];
+
+    var sys = [
+      'つぎの文を、小学5・6年生が読めるように やさしく言いかえてください。',
+      '',
+      '守ること',
+      '1. 意味を変えない。新しいことを足さない。書いていないことを付け加えない。',
+      '2. むずかしい言葉は、やさしい言葉に置きかえる。' +
+        '置きかえられない歴史の言葉（御家人、執権など）は残し、すぐ後ろに（　）で短く説明する。',
+      '3. 一文を短くする。長い文は2つに分ける。',
+      '4. もとの人物の話し方（一人称や語尾）はそのままにする。',
+      '5. 説明や前置きを書かない。言いかえた文だけを返す。'
+    ].join('\n');
+
+    var out = callGemini(model, sys, [{ role: 'user', parts: [{ text: body }] }]);
+    var text = String(out.say || '').trim();
+    if (!text) throw new Error('EMPTY');
+
+    Repo.updateByKey(C.SHEET.MSG, 'message_id', String(messageId), { '言いかえ': text });
+    return { text: text };
+  }
+
   return {
-    send: send, listModels: listModels, hasKey: hasKey,
+    send: send, simplify: simplify, listModels: listModels, hasKey: hasKey,
     buildSystem: buildSystem, todayTurns: todayTurns,
     openConversation: openConversation, recent: recent
   };

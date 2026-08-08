@@ -138,7 +138,6 @@ resetStore();
   check('確からしさが4値のどれか', figs.every(f => okCert.includes(f.portrait.cert)));
   check('事実メモが全員に入っている', figs.every(f => f.facts.trim() !== ''));
   check('事実メモに史料〔〕が付いている', figs.every(f => f.facts.includes('〔')));
-  check('質問のたねが全員に3つある', figs.every(f => f.seeds.length === 3));
   check('最初の一言が全員に入っている', figs.every(f => f.hello.trim() !== ''),
     figs.filter(f => !f.hello.trim()).map(f => f.name).join());
   check('肖像のひとことが入っている', figs.every(f => f.portrait.note.trim() !== ''));
@@ -262,6 +261,71 @@ resetStore(['F-09']);
   expectErr('クォータ超過を検知', () => Chat.send(TEACHER, 'F-09', 'やあ'), 'QUOTA');
   useRaw(404, 'not found');
   expectErr('モデル名の誤りを検知', () => Chat.send(TEACHER, 'F-09', 'やあ'), 'BAD_MODEL');
+}
+
+/* ============================================================
+   6.5 やさしく言いかえる
+   ============================================================ */
+section('やさしく言いかえる');
+resetStore(['F-09']);
+{
+  useReply({ say: '安土に城を築いた。', cite: '信長公記', guess: '眺めはよかったはずだ。' });
+  const sent = Chat.send(TEACHER, 'F-09', '安土城のこと');
+  check('返事の message_id が返る', !!sent.messageId);
+
+  let asked = null;
+  global.UrlFetchApp.fetch = (url, opt) => {
+    asked = JSON.parse(opt.payload);
+    return {
+      getResponseCode: () => 200,
+      getContentText: () => JSON.stringify({
+        candidates: [{ finishReason: 'STOP', content: { parts: [{
+          text: JSON.stringify({ say: '安土（あづち）に お城を たてた。', cite: '', guess: '' })
+        }] } }]
+      })
+    };
+  };
+  const e1 = Chat.simplify(TEACHER, sent.messageId);
+  check('やさしい文が返る', e1.text.indexOf('お城') >= 0, e1.text);
+  check('推測もまとめて言いかえに渡す',
+    asked.contents[0].parts[0].text.indexOf('眺めはよかった') >= 0);
+  check('小学生向けの指示が入る',
+    asked.systemInstruction.parts[0].text.indexOf('小学5・6年生') >= 0);
+  check('新しいことを足さない指示が入る',
+    asked.systemInstruction.parts[0].text.indexOf('新しいことを足さない') >= 0);
+
+  const saved = store[C.SHEET.MSG].find(m => m.message_id === sent.messageId);
+  check('言いかえを列に残す（どこでつまずいたかが先生に残る）',
+    String(saved['言いかえ']).indexOf('お城') >= 0);
+
+  // 2回目は Gemini を呼ばない
+  let called = false;
+  global.UrlFetchApp.fetch = () => { called = true; throw new Error('呼んではいけない'); };
+  const e2 = Chat.simplify(TEACHER, sent.messageId);
+  check('2回目は呼び直さず保存済みを返す', !called && e2.text === e1.text);
+
+  // 言いかえられるのは人物の発言だけ
+  const childMsg = store[C.SHEET.MSG].find(m => m['話者'] === C.SPEAKER.CHILD);
+  expectErr('子どもの発言は言いかえられない',
+    () => Chat.simplify(TEACHER, childMsg.message_id), '人物の返事だけ');
+  expectErr('存在しないIDははじく',
+    () => Chat.simplify(TEACHER, 'nope'), '見つかりません');
+
+  // 他人の会話は言いかえられない（画面から任意の文章を投げさせない設計の要）
+  expectErr('ほかの子の会話は言いかえられない',
+    () => Chat.simplify(CHILD, sent.messageId), 'ほかの人の会話');
+}
+
+/* ============================================================
+   6.6 質問のたね
+   ============================================================ */
+section('質問のたね');
+{
+  const figs = Figures.all();
+  check('全員に6つある', figs.every(f => f.seeds.length === 6),
+    figs.map(f => f.seeds.length).join(','));
+  check('たねに重複がない',
+    figs.every(f => new Set(f.seeds).size === f.seeds.length));
 }
 
 /* ============================================================

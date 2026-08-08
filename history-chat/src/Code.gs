@@ -78,6 +78,16 @@ function apiSend(figureId, text) {
   }
 }
 
+/** 人物の返事を、もっとやさしい言葉で言い直す */
+function apiSimplify(messageId) {
+  var user = Auth.requireUser();
+  try {
+    return { ok: true, data: Chat.simplify(user, messageId) };
+  } catch (err) {
+    return { ok: false, error: friendly_(String(err.message || err)) };
+  }
+}
+
 /** 例外を、子どもに読める言葉にする */
 function friendly_(msg) {
   var map = {
