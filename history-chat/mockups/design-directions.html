@@ -1,0 +1,426 @@
+<title>歴史人物チャット｜見た目の方向づけ</title>
+<style>
+/* ============================================================
+   ページ本体の配色（閲覧者のテーマに追従する）
+   ============================================================ */
+:root{
+  --pg-bg:#F2F1ED; --pg-surface:#FFFFFF; --pg-surface2:#E9E8E2;
+  --pg-ink:#1E252C; --pg-muted:#5F6A73; --pg-line:#DCDAD2;
+  --pg-accent:#274B6D; --pg-accent-soft:#E4EAF0;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --pg-bg:#16181C; --pg-surface:#1E2126; --pg-surface2:#262A30;
+    --pg-ink:#E6E4DC; --pg-muted:#9BA3AB; --pg-line:#31363D;
+    --pg-accent:#8FB0CE; --pg-accent-soft:#232F3B;
+  }
+}
+:root[data-theme="dark"]{
+  --pg-bg:#16181C; --pg-surface:#1E2126; --pg-surface2:#262A30;
+  --pg-ink:#E6E4DC; --pg-muted:#9BA3AB; --pg-line:#31363D;
+  --pg-accent:#8FB0CE; --pg-accent-soft:#232F3B;
+}
+
+:root{
+  --gothic:"BIZ UDPGothic","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI",Meiryo,sans-serif;
+  --mincho:"Hiragino Mincho ProN","Yu Mincho",YuMincho,"BIZ UDMincho","Noto Serif JP",serif;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--pg-bg); color:var(--pg-ink);
+  font-family:var(--gothic); font-size:15px; line-height:1.75;
+  -webkit-font-smoothing:antialiased;
+}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+:focus-visible{outline:3px solid var(--pg-accent); outline-offset:2px}
+
+.wrap{max-width:1000px; margin:0 auto; padding:40px 20px 100px; display:flex; flex-direction:column; gap:56px}
+
+/* ---- 見出し ---- */
+.masthead{display:flex; flex-direction:column; gap:14px; border-bottom:2px solid var(--pg-ink); padding-bottom:24px}
+.eyebrow{font-size:11.5px; font-weight:800; letter-spacing:.18em; color:var(--pg-muted)}
+.masthead h1{
+  font-family:var(--mincho); font-weight:600; font-size:clamp(28px,5vw,42px);
+  margin:0; line-height:1.35; text-wrap:balance; letter-spacing:.01em;
+}
+.lede{margin:0; max-width:62ch; color:var(--pg-muted); font-size:15px}
+.lede b{color:var(--pg-ink); font-weight:700}
+
+.facts{display:flex; flex-wrap:wrap; gap:8px; margin-top:4px}
+.fact{
+  font-size:11.5px; font-weight:700; letter-spacing:.03em;
+  border:1.5px solid var(--pg-line); border-radius:999px; padding:4px 13px; color:var(--pg-muted);
+}
+
+/* ---- 節 ---- */
+.sec{display:flex; flex-direction:column; gap:20px}
+.sec-h{display:flex; flex-direction:column; gap:7px}
+.sec-h h2{
+  font-family:var(--mincho); font-weight:600; font-size:23px; margin:0;
+  letter-spacing:.01em; text-wrap:balance;
+}
+.sec-h p{margin:0; color:var(--pg-muted); max-width:64ch}
+
+/* ---- 書体のテーゼ ---- */
+.thesis{
+  display:grid; grid-template-columns:1fr 1fr; gap:1px;
+  background:var(--pg-line); border:1px solid var(--pg-line); border-radius:3px; overflow:hidden;
+}
+@media (max-width:640px){.thesis{grid-template-columns:1fr}}
+.th-cell{background:var(--pg-surface); padding:24px 26px; display:flex; flex-direction:column; gap:12px}
+.th-tag{font-size:11px; font-weight:800; letter-spacing:.16em; color:var(--pg-muted)}
+.th-spec{font-size:26px; line-height:1.5; margin:0; text-wrap:balance}
+.th-cell.past .th-spec{font-family:var(--mincho); font-weight:500}
+.th-cell.now .th-spec{font-family:var(--gothic); font-weight:700; font-size:22px}
+.th-note{font-size:13px; color:var(--pg-muted); margin:0}
+
+/* ============================================================
+   方向づけパネル（見本は3案それぞれの色で固定表示する＝色見本）
+   ============================================================ */
+.dir{display:flex; flex-direction:column; gap:18px}
+.dir-head{display:flex; flex-direction:column; gap:8px}
+.dir-name{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
+.dir-name h3{
+  font-family:var(--mincho); font-weight:600; font-size:21px; margin:0; letter-spacing:.02em;
+}
+.dir-kana{font-size:12px; font-weight:700; letter-spacing:.14em; color:var(--pg-muted)}
+.dir-why{margin:0; color:var(--pg-muted); max-width:64ch; font-size:14.5px}
+
+.swatches{display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start}
+.sw{display:flex; flex-direction:column; gap:5px; width:78px}
+.sw i{display:block; height:34px; border-radius:2px; border:1px solid rgba(0,0,0,.14)}
+.sw span{font-size:10px; font-weight:700; letter-spacing:.05em; color:var(--pg-muted); font-variant-numeric:tabular-nums}
+.sw b{font-size:11px; font-weight:700; color:var(--pg-ink); letter-spacing:.02em}
+
+/* ---- 見本の枠 ---- */
+.specimen{
+  border:1px solid var(--pg-line); border-radius:4px; overflow:hidden;
+  display:grid; grid-template-columns:minmax(0,0.85fr) minmax(0,1.15fr);
+}
+@media (max-width:760px){.specimen{grid-template-columns:1fr}}
+.sp-pane{padding:22px 20px; display:flex; flex-direction:column; gap:14px; min-width:0}
+.sp-label{
+  font-size:10.5px; font-weight:800; letter-spacing:.16em; opacity:.62;
+  font-family:var(--gothic);
+}
+
+/* 人物えらび */
+.pick{display:flex; flex-direction:column; gap:10px}
+.fig{
+  display:flex; align-items:center; gap:13px; padding:12px 14px;
+  border-width:1.5px; border-style:solid; border-radius:var(--sp-r);
+  text-align:left; width:100%; font-family:var(--gothic);
+}
+.fig-face{
+  width:44px; height:44px; border-radius:var(--sp-r); display:grid; place-items:center;
+  font-size:23px; flex:none;
+}
+.fig-txt{display:flex; flex-direction:column; gap:2px; min-width:0}
+.fig-nm{font-size:15px; font-weight:800; letter-spacing:.02em}
+.fig-nm em{font-style:normal; font-size:10.5px; font-weight:600; opacity:.6; margin-left:6px; letter-spacing:.06em}
+.fig-sub{font-size:11.5px; opacity:.72; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+
+/* 対話 */
+.talk{display:flex; flex-direction:column; gap:11px}
+.watch{
+  font-size:11px; font-weight:700; letter-spacing:.04em; padding:6px 12px;
+  border-radius:999px; align-self:flex-start; font-family:var(--gothic);
+}
+.bub{max-width:88%; padding:12px 15px; border-radius:var(--sp-r); font-size:14px; line-height:1.8}
+.bub.them{align-self:flex-start; font-family:var(--mincho); font-size:15px; letter-spacing:.01em}
+.bub.me{align-self:flex-end; font-family:var(--gothic); font-weight:600; font-size:13.5px; line-height:1.7}
+
+/* 推測の印 ── このアプリの主張そのもの */
+.guess{margin-top:11px; padding-left:13px; display:flex; flex-direction:column; gap:5px}
+.guess-tag{
+  font-family:var(--gothic); font-size:10.5px; font-weight:800; letter-spacing:.1em;
+  align-self:flex-start;
+}
+.guess p{margin:0}
+
+.remain{font-family:var(--gothic); font-size:11px; font-weight:700; opacity:.66; letter-spacing:.03em}
+
+/* ── 案A：学びの道具（既存アプリ継承） ── */
+.dir-a .specimen{--sp-r:10px}
+.dir-a .sp-pane{background:#F5F6F2; color:#23303A}
+.dir-a .sp-pane+.sp-pane{background:#FFFFFF; border-left:1px solid #D9DFD9}
+.dir-a .sp-label{color:#5D6B76}
+.dir-a .fig{background:#FFFFFF; border-color:#D9DFD9; color:#23303A}
+.dir-a .fig-face{background:#E3ECF5}
+.dir-a .watch{background:#FBF0DA; color:#7A5A08}
+.dir-a .bub.them{background:#FFFFFF; border:1.5px solid #D9DFD9; color:#23303A}
+.dir-a .bub.me{background:#2E5E8C; color:#FFFFFF}
+.dir-a .guess{border-left:3px solid #DF9A1F}
+.dir-a .guess-tag{color:#8A6008}
+.dir-a .remain{color:#5D6B76}
+@media (max-width:760px){.dir-a .sp-pane+.sp-pane{border-left:0; border-top:1px solid #D9DFD9}}
+
+/* ── 案B：藍と生成り ── */
+.dir-b .specimen{--sp-r:4px}
+.dir-b .sp-pane{background:#E7E3D8; color:#1A2733}
+.dir-b .sp-pane+.sp-pane{background:#F7F4EC; border-left:1px solid #D3CCBB}
+.dir-b .sp-label{color:#6B6355}
+.dir-b .fig{background:#F7F4EC; border-color:#D3CCBB; color:#1A2733}
+.dir-b .fig-face{background:#E2E6EC; border:1px solid #C9CFD8}
+.dir-b .watch{background:#E2E6EC; color:#274B6D; border:1px solid #C2CCD8}
+.dir-b .bub.them{background:#FDFBF5; border:1px solid #D3CCBB; color:#1A2733}
+.dir-b .bub.me{background:#274B6D; color:#F7F4EC}
+.dir-b .guess{border-left:2px solid #B33A2B}
+.dir-b .guess-tag{color:#B33A2B}
+.dir-b .remain{color:#6B6355}
+@media (max-width:760px){.dir-b .sp-pane+.sp-pane{border-left:0; border-top:1px solid #D3CCBB}}
+
+/* ── 案C：夜と灯り ── */
+.dir-c .specimen{--sp-r:6px}
+.dir-c .sp-pane{background:#14171B; color:#E8E3D7}
+.dir-c .sp-pane+.sp-pane{background:#1B1F25; border-left:1px solid #2C323A}
+.dir-c .sp-label{color:#8A8F98}
+.dir-c .fig{background:#1B1F25; border-color:#2C323A; color:#E8E3D7}
+.dir-c .fig-face{background:#242A32; border:1px solid #343B45}
+.dir-c .watch{background:#2A2519; color:#C9A227; border:1px solid #4A4128}
+.dir-c .bub.them{background:#1F242B; border:1px solid #2F353D; color:#E8E3D7}
+.dir-c .bub.me{background:#3F5D7D; color:#F0EEE6}
+.dir-c .guess{border-left:2px solid #C9A227}
+.dir-c .guess-tag{color:#C9A227}
+.dir-c .remain{color:#8A8F98}
+@media (max-width:760px){.dir-c .sp-pane+.sp-pane{border-left:0; border-top:1px solid #2C323A}}
+
+/* ---- 向き・不向き ---- */
+.tradeoff{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--pg-line); border:1px solid var(--pg-line); border-radius:3px; overflow:hidden}
+@media (max-width:640px){.tradeoff{grid-template-columns:1fr}}
+.to-cell{background:var(--pg-surface); padding:15px 18px; display:flex; flex-direction:column; gap:6px}
+.to-cell dt{font-size:10.5px; font-weight:800; letter-spacing:.14em; color:var(--pg-muted); margin:0}
+.to-cell dd{margin:0; font-size:13.5px; line-height:1.7}
+
+/* ---- 決めどころ ---- */
+.decide{background:var(--pg-surface); border:1px solid var(--pg-line); border-left:3px solid var(--pg-accent); border-radius:3px; padding:24px 26px; display:flex; flex-direction:column; gap:16px}
+.decide h2{font-family:var(--mincho); font-weight:600; font-size:20px; margin:0}
+.decide ul{margin:0; padding-left:1.2em; display:flex; flex-direction:column; gap:9px}
+.decide li{padding-left:4px}
+.decide li b{color:var(--pg-accent)}
+.rec{background:var(--pg-accent-soft); border-radius:3px; padding:14px 17px; font-size:14px; line-height:1.8}
+.rec b{font-weight:800}
+
+.foot{color:var(--pg-muted); font-size:12.5px; border-top:1px solid var(--pg-line); padding-top:18px; margin:0; max-width:66ch}
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <span class="eyebrow">歴史人物チャット ／ 見た目の方向づけ</span>
+    <h1>過去は明朝で語り、いまの道具はゴシックで動く。</h1>
+    <p class="lede">
+      3案とも、その一点は共通です。<b>人物の声だけが明朝体</b>で、子どもが押すもの・読む案内はすべて
+      UDゴシック。書体が時代の境目になるので、子どもは「いま誰の言葉を読んでいるか」を意識せずに区別できます。
+      分かれるのは<b>色と手ざわり</b>だけ。以下は同じ2画面を3通りの色で組んだものです。
+    </p>
+    <div class="facts">
+      <span class="fact">小6 社会／日本の歴史</span>
+      <span class="fact">GIGA端末・教室は明るい</span>
+      <span class="fact">教師デモ → 児童開放</span>
+      <span class="fact">ログは教師が見る</span>
+    </div>
+  </header>
+
+  <section class="sec">
+    <div class="sec-h">
+      <h2>共通の土台 ── 書体で時代を分ける</h2>
+      <p>装飾ではなく機能です。人物の返事だけが明朝になるので、注意書き・ボタン・残り回数といった「アプリ側の声」と混ざりません。</p>
+    </div>
+    <div class="thesis">
+      <div class="th-cell past">
+        <span class="th-tag">人物の声 ／ 明朝体</span>
+        <p class="th-spec">なんじゃ、そちは。何が聞きたい</p>
+        <p class="th-note">縦画の細さと横画の抑揚が、読む速度をわずかに落とします。語りとして読ませたいので、これでいい。</p>
+      </div>
+      <div class="th-cell now">
+        <span class="th-tag">アプリの声 ／ UDゴシック</span>
+        <p class="th-spec">きょうは あと 12かい 話せます</p>
+        <p class="th-note">BIZ UDPGothic。読み書きに苦手のある子を想定した書体で、既存のSRLアプリと同じものです。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 案A ============ -->
+  <section class="sec dir dir-a">
+    <div class="dir-head">
+      <div class="dir-name">
+        <h3>案A｜学びの道具</h3>
+        <span class="dir-kana">既存アプリの配色をそのまま継承</span>
+      </div>
+      <p class="dir-why">
+        SRLアプリと同じ色・同じ角丸・同じ余白。子どもから見て「学校のアプリがもう一つ増えた」という顔になります。
+        歴史の雰囲気は書体だけが担い、色は中立に保つ案。
+      </p>
+    </div>
+
+    <div class="swatches">
+      <div class="sw"><i style="background:#F5F6F2"></i><b>地</b><span>#F5F6F2</span></div>
+      <div class="sw"><i style="background:#23303A"></i><b>文字</b><span>#23303A</span></div>
+      <div class="sw"><i style="background:#2E5E8C"></i><b>主色</b><span>#2E5E8C</span></div>
+      <div class="sw"><i style="background:#DF9A1F"></i><b>差し色</b><span>#DF9A1F</span></div>
+      <div class="sw"><i style="background:#D9DFD9"></i><b>罫</b><span>#D9DFD9</span></div>
+    </div>
+
+    <div class="specimen">
+      <div class="sp-pane">
+        <span class="sp-label">だれと話す？</span>
+        <div class="pick">
+          <div class="fig"><span class="fig-face">🔥</span><span class="fig-txt"><span class="fig-nm">織田信長<em>おだ のぶなが</em></span><span class="fig-sub">戦国／天下統一をめざした大名</span></span></div>
+          <div class="fig"><span class="fig-face">🔮</span><span class="fig-txt"><span class="fig-nm">卑弥呼<em>ひみこ</em></span><span class="fig-sub">弥生／邪馬台国をおさめた女王</span></span></div>
+          <div class="fig"><span class="fig-face">📜</span><span class="fig-txt"><span class="fig-nm">紫式部<em>むらさきしきぶ</em></span><span class="fig-sub">平安／源氏物語を書いた</span></span></div>
+        </div>
+      </div>
+      <div class="sp-pane">
+        <span class="watch">👀 このやりとりは 先生が 見ています</span>
+        <div class="talk">
+          <div class="bub them">なんじゃ、そちは。何が聞きたい。</div>
+          <div class="bub me">どうして 安土城を つくったの？</div>
+          <div class="bub them">
+            琵琶湖のほとりよ。あそこは京へも北国へも道が通じておる。城を置けば、人も荷も、わしの目の前を通るというわけだ。
+            <div class="guess">
+              <span class="guess-tag">記録にはない話</span>
+              <p>天守から湖がよう見えたはずだ ── だがこれはわしの言い分でな、書き残しはない。たしかめたくば安土の絵図を見てみよ。</p>
+            </div>
+          </div>
+        </div>
+        <span class="remain">きょうは あと 12かい 話せます</span>
+      </div>
+    </div>
+
+    <dl class="tradeoff">
+      <div class="to-cell"><dt>買えるもの</dt><dd>作る手間が最小。既存の <code>css.html</code> をほぼ流用でき、ダークモードもUD配慮もそのまま効きます。教室の明るさにも強い。</dd></div>
+      <div class="to-cell"><dt>あきらめるもの</dt><dd>「別の場所に来た」感じは出ません。人物と話すことの特別さが、書体のわずかな差だけになります。</dd></div>
+    </dl>
+  </section>
+
+  <!-- ============ 案B ============ -->
+  <section class="sec dir dir-b">
+    <div class="dir-head">
+      <div class="dir-name">
+        <h3>案B｜藍と生成り</h3>
+        <span class="dir-kana">藍染の紺・和紙の地・朱の一点</span>
+      </div>
+      <p class="dir-why">
+        地を生成り、文字を墨、子どもの吹き出しを藍に。<b>朱は「記録にはない話」にしか使いません</b> ──
+        先生が朱を入れるのと同じ意味づけで、推測の印を朱筆にしています。時代がかった飾りは足さず、色だけで場所を変える案。
+      </p>
+    </div>
+
+    <div class="swatches">
+      <div class="sw"><i style="background:#E7E3D8"></i><b>生成り</b><span>#E7E3D8</span></div>
+      <div class="sw"><i style="background:#F7F4EC"></i><b>紙</b><span>#F7F4EC</span></div>
+      <div class="sw"><i style="background:#1A2733"></i><b>墨</b><span>#1A2733</span></div>
+      <div class="sw"><i style="background:#274B6D"></i><b>藍</b><span>#274B6D</span></div>
+      <div class="sw"><i style="background:#B33A2B"></i><b>朱</b><span>#B33A2B</span></div>
+    </div>
+
+    <div class="specimen">
+      <div class="sp-pane">
+        <span class="sp-label">だれと話す？</span>
+        <div class="pick">
+          <div class="fig"><span class="fig-face">🔥</span><span class="fig-txt"><span class="fig-nm">織田信長<em>おだ のぶなが</em></span><span class="fig-sub">戦国／天下統一をめざした大名</span></span></div>
+          <div class="fig"><span class="fig-face">🔮</span><span class="fig-txt"><span class="fig-nm">卑弥呼<em>ひみこ</em></span><span class="fig-sub">弥生／邪馬台国をおさめた女王</span></span></div>
+          <div class="fig"><span class="fig-face">📜</span><span class="fig-txt"><span class="fig-nm">紫式部<em>むらさきしきぶ</em></span><span class="fig-sub">平安／源氏物語を書いた</span></span></div>
+        </div>
+      </div>
+      <div class="sp-pane">
+        <span class="watch">👀 このやりとりは 先生が 見ています</span>
+        <div class="talk">
+          <div class="bub them">なんじゃ、そちは。何が聞きたい。</div>
+          <div class="bub me">どうして 安土城を つくったの？</div>
+          <div class="bub them">
+            琵琶湖のほとりよ。あそこは京へも北国へも道が通じておる。城を置けば、人も荷も、わしの目の前を通るというわけだ。
+            <div class="guess">
+              <span class="guess-tag">記録にはない話</span>
+              <p>天守から湖がよう見えたはずだ ── だがこれはわしの言い分でな、書き残しはない。たしかめたくば安土の絵図を見てみよ。</p>
+            </div>
+          </div>
+        </div>
+        <span class="remain">きょうは あと 12かい 話せます</span>
+      </div>
+    </div>
+
+    <dl class="tradeoff">
+      <div class="to-cell"><dt>買えるもの</dt><dd>明るい教室で読めるまま、場所が変わります。朱を推測にだけ使うので、印の意味が色として一貫します。</dd></div>
+      <div class="to-cell"><dt>あきらめるもの</dt><dd>配色を新規に組むぶん、コントラストとダークモードを自前で検証する手間が要ります。SRLアプリとは別物の顔になります。</dd></div>
+    </dl>
+  </section>
+
+  <!-- ============ 案C ============ -->
+  <section class="sec dir dir-c">
+    <div class="dir-head">
+      <div class="dir-name">
+        <h3>案C｜夜と灯り</h3>
+        <span class="dir-kana">墨の闇・和紙の文字・金の差し色</span>
+      </div>
+      <p class="dir-why">
+        暗い地に灯りをともした画面。3案でいちばん「過去へ入っていく」感じが強く出ます。
+        ただし教室のプロジェクタと明るい窓際では、暗い画面は最も不利です。
+      </p>
+    </div>
+
+    <div class="swatches">
+      <div class="sw"><i style="background:#14171B"></i><b>墨</b><span>#14171B</span></div>
+      <div class="sw"><i style="background:#1B1F25"></i><b>面</b><span>#1B1F25</span></div>
+      <div class="sw"><i style="background:#E8E3D7"></i><b>和紙</b><span>#E8E3D7</span></div>
+      <div class="sw"><i style="background:#3F5D7D"></i><b>藍</b><span>#3F5D7D</span></div>
+      <div class="sw"><i style="background:#C9A227"></i><b>金</b><span>#C9A227</span></div>
+    </div>
+
+    <div class="specimen">
+      <div class="sp-pane">
+        <span class="sp-label">だれと話す？</span>
+        <div class="pick">
+          <div class="fig"><span class="fig-face">🔥</span><span class="fig-txt"><span class="fig-nm">織田信長<em>おだ のぶなが</em></span><span class="fig-sub">戦国／天下統一をめざした大名</span></span></div>
+          <div class="fig"><span class="fig-face">🔮</span><span class="fig-txt"><span class="fig-nm">卑弥呼<em>ひみこ</em></span><span class="fig-sub">弥生／邪馬台国をおさめた女王</span></span></div>
+          <div class="fig"><span class="fig-face">📜</span><span class="fig-txt"><span class="fig-nm">紫式部<em>むらさきしきぶ</em></span><span class="fig-sub">平安／源氏物語を書いた</span></span></div>
+        </div>
+      </div>
+      <div class="sp-pane">
+        <span class="watch">👀 このやりとりは 先生が 見ています</span>
+        <div class="talk">
+          <div class="bub them">なんじゃ、そちは。何が聞きたい。</div>
+          <div class="bub me">どうして 安土城を つくったの？</div>
+          <div class="bub them">
+            琵琶湖のほとりよ。あそこは京へも北国へも道が通じておる。城を置けば、人も荷も、わしの目の前を通るというわけだ。
+            <div class="guess">
+              <span class="guess-tag">記録にはない話</span>
+              <p>天守から湖がよう見えたはずだ ── だがこれはわしの言い分でな、書き残しはない。たしかめたくば安土の絵図を見てみよ。</p>
+            </div>
+          </div>
+        </div>
+        <span class="remain">きょうは あと 12かい 話せます</span>
+      </div>
+    </div>
+
+    <dl class="tradeoff">
+      <div class="to-cell"><dt>買えるもの</dt><dd>没入感は最も強い。教師デモで大写しにしたときの「おお」が大きい案です。</dd></div>
+      <div class="to-cell"><dt>あきらめるもの</dt><dd>明るい教室での可読性。GIGA端末の画面品質はまちまちで、暗い地は反射に弱く、白飛び・黒つぶれが起きやすい。</dd></div>
+    </dl>
+  </section>
+
+  <!-- ============ 決めどころ ============ -->
+  <section class="decide">
+    <h2>決めどころは3つだけです</h2>
+    <ul>
+      <li><b>教室の明るさ</b> ── 暗い地（案C）は、窓際とプロジェクタで最初につまずきます。ここが実質、案Cを選べるかどうかの分かれ目。</li>
+      <li><b>SRLアプリと同じ顔にするか</b> ── 案Aは「もう一つの学校アプリ」、案B・Cは「別の場所」。独立アプリとして作ると決めた以上、揃える必要はありません。</li>
+      <li><b>朱を推測の印に使うか</b> ── 案Bだけ、色そのものが「たしかめられていない」を意味します。子どもが朱を見慣れているぶん、説明なしで伝わる可能性があります。</li>
+    </ul>
+    <p class="rec">
+      <b>案Bを推します。</b>明るい教室で読める明度を保ったまま、SRLアプリとは違う場所になり、
+      なにより<b>朱＝推測</b>という対応づけが、このアプリで一番伝えたいこと（史料にあることと、ないことの境目）を
+      色の側から支えます。案Aは第1段階を最短で立ち上げたいとき、案Cは教師デモに振り切るときの選択肢です。
+    </p>
+  </section>
+
+  <p class="foot">
+    書体について ── 日本語フォントは容量が大きく、アプリに同梱できません。端末にあるものを順に探す形になります
+    （明朝：ヒラギノ明朝→游明朝→BIZ UDMincho、ゴシック：BIZ UDPGothic→ヒラギノ角ゴ）。
+    この見本もお使いの端末のフォントで表示されているため、GIGA端末では見え方が変わります。
+    第1段階に入る前に、実機で一度確かめておきたいところです。
+  </p>
+
+</div>
