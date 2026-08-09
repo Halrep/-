@@ -1649,6 +1649,11 @@ document.addEventListener('click', function(e){
   var go = e.target.closest('[data-go]');
   if(go){
     var g = go.dataset.go.split(',');
+    // 「そのわけを考える →」：ズレの理由に〇〇が残っていたら、埋めてもらってから進む
+    if(go.dataset.go === '2,1' && $('#gap-reason-wrap').style.display !== 'none' && sayBlankLeft('gapreason')){
+      flashBlank_('gapreason');
+      return;
+    }
     gotoStep(g[0], Number(g[1]));   // 進むだけでは保存しない（空の計画を作らない）
     return;
   }
@@ -1822,6 +1827,8 @@ document.addEventListener('click', function(e){
   }
   if(e.target.closest('#refl-save')){
     var rb = e.target.closest('#refl-save');
+    var blankId = ['selfeval','nextplan','materialreq'].filter(sayBlankLeft)[0];
+    if(blankId){ flashBlank_(blankId); return; }
     saveReflection().then(function(){ celebrate(rb); toast('ふりかえりを記録しました'); openSheet('fp'); });
     return;
   }
@@ -1876,19 +1883,26 @@ function nextZoom(){
    白紙の欄だけ置いて「書こう」と言うのは、書ける子だけに開かれた設計になる。
 
    ・押すと文が入るボタンを添える（入れたあと直せる。消してもいい）
-   ・そのままでは「選ばされた言葉」で終わるので、書き足せる形にしておく
-   ・きょうの計画は、その子の道すじから作る。空欄を埋める作業にしない */
+   ・きょうの計画は、その子の道すじから作る。空欄を埋める作業にしない
+
+   振り返りの4種（ズレの理由・ひとことふりかえり・次はどうする・先生へのリクエスト）は、
+   完成文のまま挿すと「押すだけで提出できる」＝考えずに終われてしまう。
+   そこで〇〇を1か所ずつ残し、押した瞬間に〇〇が選択状態になるようにする
+   （次に打った文字がそこへ置き換わる）。〇〇が残ったままでは、
+   そのわけを考える／ふりかえりを記録する に進めない（flashBlank_）。
+   課題メモの3つはもとから書き出し（〇〇にあたる続きが無いと意味を持たない）なので、そのまま。 */
 var SAY = {
-  'gapreason': ['思ったより時間がかかった', 'やり方をまよった', 'とちゅうで分からなくなった',
-                '資料をさがすのに時間がかかった', '思ったより早く終わった', '集中がつづかなかった'],
-  'selfeval':  ['さいごまでやりきった', 'とちゅうでやり方を変えた', '友だちに聞いてわかった',
-                'まだとちゅうです', 'むずかしかったけど進んだ'],
-  'nextplan':  ['同じやり方でつづける', '先に計画を立ててから始める', '早めに先生に聞く',
-                '時間をはかってやる', '友だちと確かめながらやる'],
-  'materialreq': ['もっと大きい図がほしい', '言葉のいみを書いた紙がほしい',
-                  'やり方の見本がほしい', '動画で見たい'],
+  'gapreason': ['〇〇に、思ったより時間がかかった', '〇〇のやり方でまよった', '〇〇のところで分からなくなった',
+                '〇〇の資料をさがすのに時間がかかった', '〇〇が、思ったより早く終わった', '〇〇のとき、集中がつづかなかった'],
+  'selfeval':  ['〇〇を、さいごまでやりきった', '〇〇で、やり方を変えた', '〇〇について友だちに聞いてわかった',
+                '〇〇が、まだとちゅうです', '〇〇はむずかしかったけど進んだ'],
+  'nextplan':  ['〇〇でも同じやり方でつづける', '〇〇は先に計画を立ててから始める', '〇〇について早めに先生に聞く',
+                '〇〇の時間をはかってやる', '〇〇を友だちと確かめながらやる'],
+  'materialreq': ['〇〇の図がもっと大きいとうれしい', '「〇〇」の意味を書いた紙がほしい',
+                  '〇〇のやり方の見本がほしい', '〇〇を動画で見たい'],
   'task-memo': ['わかったこと：', 'むずかしかったこと：', 'つぎにやること：']
 };
+var SAY_REQUIRE_FILL = { gapreason: 1, selfeval: 1, nextplan: 1, materialreq: 1 };
 
 /** きょうの計画は、その子の道すじの続きから出す */
 function sayForDo(){
@@ -1986,16 +2000,46 @@ function sayHtml(targetId, list){
     }).join('') + micHtml(targetId) + '</div>';
 }
 
-/** えらんだ文を欄に入れる。入れたあとカーソルを末尾に置いて、続きを書けるようにする */
+/**
+ * えらんだ文を欄に入れる。
+ * 文に〇〇が入っていれば、そこを選択状態にする。
+ * 選択された文字は、次に打った1文字でそのまま置き換わる（コードの雛形と同じ動き）ので、
+ * 「押すだけで終わる」のではなく、自分のことばに置きかえる一歩が必ず要る。
+ * 〇〇が無い文（きょうの計画・課題メモ）は、これまでどおり末尾にカーソルを置く。
+ */
 function insertSay(targetId, text){
   var el = document.getElementById(targetId);
   if(!el) return;
   var cur = String(el.value || '').replace(/\s+$/, '');
   var sep = el.tagName === 'TEXTAREA' ? '\n' : '／';
+  var start = cur ? cur.length + sep.length : 0;
   el.value = cur ? (cur + sep + text) : text;
   el.dispatchEvent(new Event('input', { bubbles: true }));   // いつもの保存に乗せる
   el.focus();
-  try { el.setSelectionRange(el.value.length, el.value.length); } catch(e){}
+  var blank = text.indexOf('〇〇');
+  try {
+    if(blank >= 0) el.setSelectionRange(start + blank, start + blank + 2);
+    else el.setSelectionRange(el.value.length, el.value.length);
+  } catch(e){}
+}
+
+/** 〇〇が残ったままかどうか（このIDが空欄必須の欄のときだけ意味を持つ） */
+function sayBlankLeft(targetId){
+  if(!SAY_REQUIRE_FILL[targetId]) return false;
+  var el = document.getElementById(targetId);
+  return !!el && String(el.value || '').indexOf('〇〇') >= 0;
+}
+
+/** 〇〇が残っている欄を選択状態にして知らせ、先に進ませない */
+function flashBlank_(targetId, msg){
+  var el = document.getElementById(targetId);
+  if(!el) return;
+  el.focus();
+  var i = el.value.indexOf('〇〇');
+  try { if(i >= 0) el.setSelectionRange(i, i + 2); } catch(e){}
+  el.classList.add('say-warn');
+  setTimeout(function(){ el.classList.remove('say-warn'); }, 1300);
+  toast(msg || '〇〇のところを、自分のことばに変えてね');
 }
 
 /* ================= ふりがな =================
