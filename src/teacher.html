@@ -804,6 +804,7 @@ function setHeader(meta){
 }
 
 loadSheetLinks();
+document.documentElement.lang = 'ja';
 callServer('teacher_bootstrap').then(function(res){
   $('#h-class').textContent = '先生';
   if(res.unitMeta) setHeader(res.unitMeta); else $('#h-title').textContent = '公開中の単元はありません';

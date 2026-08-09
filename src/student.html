@@ -5,7 +5,7 @@
 <div class="app" id="app">
   <div class="lesson-head" id="head">
     <span class="subj" id="h-subj">読み込み中…</span>
-    <span class="t" id="h-title"></span>
+    <h1 class="t" id="h-title"></h1>
     <span class="n" id="h-name"></span>
     <button class="fp-btn" id="fp-open" aria-label="学びの足跡">👣<span class="lb">足あと</span></button>
     <? if (bootstrap.canSwitch) { ?>
@@ -1807,6 +1807,9 @@ document.addEventListener('change', function(e){
 });
 
 /* 起動 */
+// 日本語として読み上げてもらう（GASのラッパーには lang が付かない）
+document.documentElement.lang = 'ja';
+
 callServer('student_getState').then(function(res){ S = res; render(); })
   .catch(function(e){ $('#h-subj').textContent='エラー'; toast('読み込みに失敗しました: '+(e&&e.message||e)); });
 </script>

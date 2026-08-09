@@ -11,14 +11,19 @@ function callServer(fn){
 var $  = function(s, el){ return (el||document).querySelector(s); };
 var $$ = function(s, el){ return Array.prototype.slice.call((el||document).querySelectorAll(s)); };
 
-/** 画面下のトースト */
+/** 画面下のトースト。
+    読み上げの領域は、知らせが入る前に置いておかないと読まれないので先に作る。 */
 var _toastEl, _toastT;
+function ensureToast(){
+  if(_toastEl) return _toastEl;
+  _toastEl = document.createElement('div');
+  _toastEl.className = 'toast';
+  _toastEl.setAttribute('role','status'); _toastEl.setAttribute('aria-live','polite');
+  document.body.appendChild(_toastEl);
+  return _toastEl;
+}
 function toast(msg){
-  if(!_toastEl){
-    _toastEl = document.createElement('div');
-    _toastEl.className = 'toast'; _toastEl.setAttribute('role','status');
-    document.body.appendChild(_toastEl);
-  }
+  ensureToast();
   _toastEl.textContent = msg; _toastEl.classList.add('on');
   clearTimeout(_toastT); _toastT = setTimeout(function(){ _toastEl.classList.remove('on'); }, 2200);
 }
@@ -26,11 +31,19 @@ function toast(msg){
 /** 右下の保存インジケータ（「保存中…」→「保存しました」） */
 var _saveEl, _saveT;
 function saveBar(state){
-  if(!_saveEl){ _saveEl = document.createElement('div'); _saveEl.className='savebar'; document.body.appendChild(_saveEl); }
+  if(!_saveEl){
+    _saveEl = document.createElement('div'); _saveEl.className='savebar';
+    _saveEl.setAttribute('role','status'); _saveEl.setAttribute('aria-live','polite');
+    document.body.appendChild(_saveEl);
+  }
   if(state === 'saving'){ _saveEl.innerHTML = '<span class="spinner"></span> 保存中…'; _saveEl.classList.add('on'); clearTimeout(_saveT); }
   else if(state === 'saved'){ _saveEl.textContent = '✔ 保存しました'; _saveEl.classList.add('on'); clearTimeout(_saveT); _saveT = setTimeout(function(){ _saveEl.classList.remove('on'); }, 1400); }
   else { _saveEl.classList.remove('on'); }
 }
+
+// 読み上げ領域は先に用意しておく
+if(document.body) ensureToast();
+else document.addEventListener('DOMContentLoaded', ensureToast);
 
 /** 保存系の共通ラッパ：インジケータを出しつつサーバー呼び出し */
 function save(fn){
