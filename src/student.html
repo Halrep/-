@@ -7,6 +7,7 @@
     <span class="subj" id="h-subj">読み込み中…</span>
     <h1 class="t" id="h-title"></h1>
     <span class="n" id="h-name"></span>
+    <button class="fp-btn" id="zoom-btn">🔍 文字の大きさ<span class="zb-v" id="zoom-v">標準</span></button>
     <button class="fp-btn" id="ruby-btn" aria-pressed="false">ふりがな</button>
     <button class="fp-btn" id="fp-open" aria-label="学びの足跡">👣<span class="lb">足あと</span></button>
     <? if (bootstrap.canSwitch) { ?>
@@ -89,7 +90,8 @@
             <div class="card-h"><span class="h-badge">🎯</span><h2>きょうの計画を立てよう</h2></div>
             <div class="card-b stack">
               <div><h3>① どんな姿でやる？　<span class="sub-h">タップでえらぶ</span></h3><div class="chips" id="be-chips"></div></div>
-              <div><h3>② きょうは どこまでやる？</h3><input type="text" id="do-input" placeholder="例：はじめの2つを終える"></div>
+              <div><h3>② きょうは どこまでやる？</h3><input type="text" id="do-input" placeholder="例：はじめの2つを終える">
+                <div class="say" id="say-do"></div></div>
               <div><h3>③ どんな工夫を使う？　<span class="sub-h"><span class="star-rec">★</span>は先生のおすすめ</span></h3><div class="strat-grid" id="reg-grid"></div></div>
               <div><h3>④ この計画なら「できそう」？</h3>
                 <div class="efficacy">
@@ -199,6 +201,7 @@
               <div id="gap-reason-wrap" style="display:none">
                 <h3>そのズレは、何が理由だと思う？</h3>
                 <input type="text" id="gapreason" placeholder="例：資料を読むのに思ったより時間がかかった">
+                <div class="say" id="say-gap"></div>
               </div>
               <div>
                 <h3>どこまで進んだ？</h3>
@@ -239,12 +242,15 @@
           <div class="card">
             <div class="card-h"><span class="h-badge">💬</span><h2>次にいかすこと</h2></div>
             <div class="card-b stack">
-              <div><h3>ひとことふりかえり</h3><textarea rows="2" id="selfeval" placeholder="できたこと・むずかしかったことを書こう"></textarea></div>
-              <div><h3>次はどうする？（次の時間・ほかの教科で）</h3><textarea rows="2" id="nextplan" placeholder="使えた工夫、次にためすことを書こう"></textarea></div>
+              <div><h3>ひとことふりかえり</h3><textarea rows="2" id="selfeval" placeholder="できたこと・むずかしかったことを書こう"></textarea>
+                <div class="say" id="say-self"></div></div>
+              <div><h3>次はどうする？（次の時間・ほかの教科で）</h3><textarea rows="2" id="nextplan" placeholder="使えた工夫、次にためすことを書こう"></textarea>
+                <div class="say" id="say-next"></div></div>
               <div class="req-box">
                 <h3>💡 先生へ：こんな資料や道具があれば、もっと分かりそう</h3>
                 <div class="sub-h" style="margin-bottom:6px">きみの「分かりにくかった」は、次の授業をよくするための大事な情報です。反省ではありません。</div>
                 <input type="text" id="materialreq" placeholder="例：年表がもう少し大きいと読みやすい／白地図に県名があると助かる">
+                <div class="say" id="say-req"></div>
               </div>
             </div>
           </div>
@@ -504,6 +510,7 @@ function render(){
   renderMeter();
   renderRoute();
   renderPlanInputs();
+  renderSay();
   renderTasks();
   renderCommonRes();
   setHelp(S.my.help, true);
@@ -581,21 +588,29 @@ var savePlanDebounced = debounce(function(){ save('student_savePlan', route.slic
  * opts.stuck           … そのノードを「動かせない」ように小さくゆらす
  */
 function routeHtml(mode, opts){
+  // 読み上げ用：この地図が何で、ゴールがどこで、あといくつかを先に言う
+  var _p = splitRoute();
+  var _stones = _p.main.length + _p.goal.length + _p.beyond.length;
+  var _left = _p.main.concat(_p.goal).filter(function(t){ return t.status !== 2; }).length;
+  var _lab = 'ゴールまでの道すじ。ゴールは「' + (S.unit.outcome || S.unit.unitGoal || 'ゴール') + '」。' +
+    (_left ? 'あと ' + _left + 'こ。' : 'ゴールにとどきました。');
   // つながりは、その先にあるタイルと1組にして折り返す。
   // 別々に折り返すと、行の終わりに行き先のない線が残る。
-  var p = splitRoute();
+  var p = _p;
   var upto = p.main.concat(p.goal);          // ゴールに着くまでに通る飛び石
   var nextTid = nextStone(upto);             // つぎに立つ飛び石
-  var html = '<div class="goal-node start"><span class="gn-f">🚩</span><span class="gn-l">スタート</span></div>';
+  var at = 0;                                // 読み上げでの「◯番目」
+  var html = '<div class="goal-node start" aria-hidden="true"><span class="gn-f">🚩</span><span class="gn-l">スタート</span></div>';
 
   upto.forEach(function(t, i){
     // ゴール課題の手前は「ゴールまで」の末尾。ゴール課題そのものの手前には差し込めない
     var atGoalNode = i >= p.main.length;
-    html += '<span class="seg">' +
+    at++;
+    html += '<span class="seg" role="listitem" aria-posinset="'+at+'" aria-setsize="'+_stones+'">' +
       (atGoalNode ? lnkHtml(null, null, upto[i-1], opts) : lnkHtml('main', i, i ? upto[i-1] : null, opts)) +
       nodeHtml(t, 'main', i, p.main.length, mode, nextTid) + '</span>';
   });
-  html += '<span class="seg">' +
+  html += '<span class="seg" aria-hidden="true">' +
     (p.goal.length
       ? lnkHtml(null, null, upto[upto.length-1], opts)
       : lnkHtml('main', p.main.length, p.main.length ? p.main[p.main.length-1] : null, opts)) +
@@ -605,17 +620,18 @@ function routeHtml(mode, opts){
   if(mode === 'plan' || p.beyond.length){
     html += '<span class="beyond' + (p.beyond.length ? '' : ' empty') + '">';
     p.beyond.forEach(function(t, i){
-      html += '<span class="seg">' +
+      at++;
+      html += '<span class="seg" role="listitem" aria-posinset="'+at+'" aria-setsize="'+_stones+'">' +
         lnkHtml('beyond', i, i ? p.beyond[i-1] : null, opts) +
         nodeHtml(t, 'beyond', i, p.beyond.length, mode, nextTid) + '</span>';
     });
     if(mode === 'plan'){
-      html += '<span class="seg">' + lnkHtml('beyond', p.beyond.length, null, opts) +
+      html += '<span class="seg" aria-hidden="true">' + lnkHtml('beyond', p.beyond.length, null, opts) +
         '<span class="beyond-tail">やりきったら挑戦<br><b>ゴールのむこう</b></span></span>';
     }
     html += '</span>';
   }
-  return html;
+  return { html: html, label: _lab };
 }
 
 /** つぎに立つ飛び石＝まだ終わっていない先頭。いま取り組み中があればそれ */
@@ -633,7 +649,10 @@ function renderRoute(opts){
   opts = opts || {};
   var box = $('#route');
   if(!box) return;
-  box.innerHTML = routeHtml('plan', opts);
+  var built = routeHtml('plan', opts);
+  box.innerHTML = built.html;
+  box.setAttribute('role', 'list');
+  box.setAttribute('aria-label', built.label);
 
   renderTray();
   renderRouteSum();
@@ -645,7 +664,7 @@ function renderRoute(opts){
 function lnkHtml(zone, gap, prev, opts){
   var cls = 'lnk' + (prev && prev.status === 2 ? ' done' : '');
   if(opts && opts.joinZone === zone && opts.joinAt === gap) cls += ' joining';
-  return '<i class="'+cls+'"'+(zone ? ' data-zone="'+zone+'" data-gap="'+gap+'"' : '')+'></i>';
+  return '<i class="'+cls+'" aria-hidden="true"'+(zone ? ' data-zone="'+zone+'" data-gap="'+gap+'"' : '')+'></i>';
 }
 
 function nodeHtml(t, zone, i, count, mode, nextTid){
@@ -658,7 +677,8 @@ function nodeHtml(t, zone, i, count, mode, nextTid){
 
   return '<'+(work ? 'button' : 'div')+' class="node k'+esc(t.kind)+' s'+t.status+
       (here?' here':'')+(pinned?' pinned':'')+(work?' tap':'')+
-      '" data-tid="'+esc(t.taskId)+'"'+(work ? ' data-open="'+ix+'"' : '')+'>'+
+      '" data-tid="'+esc(t.taskId)+'"'+(here ? ' aria-current="step"' : '')+
+      (work ? ' data-open="'+ix+'"' : '')+'>'+
     '<span class="nd-k k'+esc(t.kind)+'">'+esc(KIND_MARK[t.kind]||t.kind)+'</span>'+
     '<span class="nd-s s'+t.status+'">'+ST_LABEL[t.status]+'</span>'+
     '<span class="nd-t">'+esc(t.title)+'</span>'+
@@ -782,6 +802,7 @@ function removeFromRoute(tid){
 function commitPlan(opts){
   renderRoute(opts);
   renderTasks();
+  renderSay();          // きょうの計画の候補は、道すじが変われば変わる
   savePlanDebounced();
 }
 
@@ -1006,9 +1027,16 @@ function renderTasks(){
   }
   if(curTask >= S.tasks.length) curTask = 0;
 
-  $('#work-route').innerHTML = route.length
-    ? routeHtml('work', {})
-    : '<div class="empty">道すじがまだ空です。「みとおす」でつくろう。</div>';
+  var wr = $('#work-route');
+  if(route.length){
+    var w = routeHtml('work', {});
+    wr.innerHTML = w.html;
+    wr.setAttribute('role', 'list');
+    wr.setAttribute('aria-label', w.label);
+  } else {
+    wr.innerHTML = '<div class="empty">道すじがまだ空です。「みとおす」でつくろう。</div>';
+    wr.removeAttribute('role');
+  }
 
   var off = offRouteTasks();
   $('#off-route-h').style.display = off.length ? '' : 'none';
@@ -1110,7 +1138,8 @@ function renderBands(){
     '<div class="card"><div class="card-h"><span class="h-badge">🌱</span><h2>いまの分かりぐあい　<span class="sub-h">点数ではありません。あとで見直すための目印です</span></h2></div>'+
       '<div class="card-b"><div class="und-row">'+undHtml+'</div></div></div>'+
     '<div class="card"><div class="card-h"><span class="h-badge">📝</span><h2>この課題のメモ　<span class="sub-h">気づいたこと・大切だと思ったこと・分からなかったこと</span></h2></div>'+
-      '<div class="card-b"><textarea rows="3" id="task-memo" placeholder="例：年表は下から読むと流れが分かった／「摂関政治」がまだあいまい">'+esc(t.memo||'')+'</textarea></div></div>'+
+      '<div class="card-b"><textarea rows="3" id="task-memo" placeholder="例：年表は下から読むと流れが分かった／「摂関政治」がまだあいまい">'+esc(t.memo||'')+'</textarea>'+
+        sayHtml('task-memo', SAY['task-memo'])+'</div></div>'+
     '<div class="card"><div class="card-h"><span class="h-badge">📷</span><h2>学びログ　<span class="sub-h">ノートや作品を撮って、あとから見返そう</span></h2></div>'+
       '<div class="card-b"><div class="log-grid mine">'+myLogHtml+
         '<button class="log-add" data-cam="'+esc(t.taskId)+'"><span class="ic">📷</span><span class="lb">写真をのこす</span></button>'+
@@ -1640,6 +1669,12 @@ document.addEventListener('click', function(e){
   if(shelf){ openSheet(shelf.dataset.sheet); return; }
   if(e.target.closest('#fp-open')){ openSheet('fp'); return; }
   if(e.target.closest('#ruby-btn')){ setRuby(!rubyOn); return; }
+  if(e.target.closest('#zoom-btn')){ nextZoom(); return; }
+
+  var sayBtn = e.target.closest('[data-say]');
+  if(sayBtn){ insertSay(sayBtn.dataset.say, sayBtn.dataset.t); return; }
+  var micBtn = e.target.closest('[data-mic]');
+  if(micBtn){ startMic(micBtn.dataset.mic, micBtn); return; }
   if(e.target.closest('#sheet-close') || e.target.id==='sheet'){ closeSheet(); return; }
 
   var stBtn = e.target.closest('[data-status]');
@@ -1808,6 +1843,161 @@ document.addEventListener('change', function(e){
   if(e.target.id==='eff'){ $('#eff-v').textContent = e.target.value; $('#eff-face').textContent = effFace(Number(e.target.value)); saveGoalDebounced(); }
 });
 
+/* ================= 文字の大きさ =================
+   見えづらい子は、拡大鏡を借りるのではなく自分で大きくできたほうがいい。
+   この画面は寸法をpxで持っているので、根を1つ変えれば全部が付いてくるやり方（zoom）にする。
+   ドラッグの座標も同じ空間で拡大されるので、計算はそのままでよい。 */
+var ZOOMS = [
+  { v: 1,    label: '標準' },
+  { v: 1.15, label: '大' },
+  { v: 1.3,  label: '特大' }
+];
+var zoomAt = 0;
+try { zoomAt = Math.min(ZOOMS.length - 1, Math.max(0, Number(localStorage.getItem('SRL_ZOOM')) || 0)); } catch(e){}
+
+function applyZoom(){
+  var z = ZOOMS[zoomAt];
+  document.body.style.zoom = z.v === 1 ? '' : z.v;
+  var v = $('#zoom-v');
+  if(v) v.textContent = z.label;
+  var b = $('#zoom-btn');
+  if(b) b.setAttribute('aria-label', '文字の大きさ：' + z.label + '。押すと次の大きさになります');
+  try { localStorage.setItem('SRL_ZOOM', String(zoomAt)); } catch(e){}
+}
+
+function nextZoom(){
+  zoomAt = (zoomAt + 1) % ZOOMS.length;
+  applyZoom();
+  toast('文字の大きさ：' + ZOOMS[zoomAt].label);
+}
+
+/* ================= 書くのを助ける =================
+   自由記述は、書字に困る子にとって画面でいちばん高い壁になる。
+   白紙の欄だけ置いて「書こう」と言うのは、書ける子だけに開かれた設計になる。
+
+   ・押すと文が入るボタンを添える（入れたあと直せる。消してもいい）
+   ・そのままでは「選ばされた言葉」で終わるので、書き足せる形にしておく
+   ・きょうの計画は、その子の道すじから作る。空欄を埋める作業にしない */
+var SAY = {
+  'gapreason': ['思ったより時間がかかった', 'やり方をまよった', 'とちゅうで分からなくなった',
+                '資料をさがすのに時間がかかった', '思ったより早く終わった', '集中がつづかなかった'],
+  'selfeval':  ['さいごまでやりきった', 'とちゅうでやり方を変えた', '友だちに聞いてわかった',
+                'まだとちゅうです', 'むずかしかったけど進んだ'],
+  'nextplan':  ['同じやり方でつづける', '先に計画を立ててから始める', '早めに先生に聞く',
+                '時間をはかってやる', '友だちと確かめながらやる'],
+  'materialreq': ['もっと大きい図がほしい', '言葉のいみを書いた紙がほしい',
+                  'やり方の見本がほしい', '動画で見たい'],
+  'task-memo': ['わかったこと：', 'むずかしかったこと：', 'つぎにやること：']
+};
+
+/** きょうの計画は、その子の道すじの続きから出す */
+function sayForDo(){
+  var p = splitRoute(), left = p.main.concat(p.goal).filter(function(t){ return t.status !== 2; });
+  var out = left.slice(0, 3).map(function(t){ return '「' + t.title + '」を終える'; });
+  if(left.length > 1) out.push('きょうは ' + Math.min(2, left.length) + 'つ終える');
+  return out;
+}
+
+function renderSay(){
+  var fill = function(boxId, targetId, list){
+    var box = $('#' + boxId);
+    if(!box) return;
+    box.innerHTML = list.length
+      ? '<span class="say-l">ことばをえらぶ　<span class="sub-h">押すと入ります。あとから直せます</span></span>' +
+        list.map(function(t){
+          return '<button class="say-b" data-say="' + esc(targetId) + '" data-t="' + esc(t) + '">' + esc(t) + '</button>';
+        }).join('') + micHtml(targetId)
+      : '';
+  };
+  fill('say-do', 'do-input', sayForDo());
+  fill('say-gap', 'gapreason', SAY.gapreason);
+  fill('say-self', 'selfeval', SAY.selfeval);
+  fill('say-next', 'nextplan', SAY.nextplan);
+  fill('say-req', 'materialreq', SAY.materialreq);
+}
+
+/* ---- 声で入れる ----
+   書字に困る子には、声のほうが早いことがある。
+   ただし Apps Script のウェブアプリはサンドボックス iframe で動くので、
+   マイクを開けない環境がある（カメラと同じ事情）。
+   一度でも断られたら、そのあとはボタンを出さない。
+   押しても使えないボタンが並んでいるほうが、無いより困る。 */
+var SPEECH = window.SpeechRecognition || window.webkitSpeechRecognition;
+var micOff = false;
+try { micOff = localStorage.getItem('SRL_MIC_NG') === '1'; } catch(e){}
+function micUsable(){ return !!SPEECH && !micOff; }
+
+function micHtml(targetId){
+  return micUsable()
+    ? '<button class="say-b mic" data-mic="' + esc(targetId) + '" aria-label="声で入れる">🎤 声で入れる</button>'
+    : '';
+}
+
+function micGiveUp(msg){
+  micOff = true;
+  try { localStorage.setItem('SRL_MIC_NG', '1'); } catch(e){}
+  $$('.say-b.mic').forEach(function(b){ b.remove(); });
+  toast(msg);
+}
+
+var micRec = null;
+function startMic(targetId, btn){
+  if(!micUsable()) return;
+  var el = document.getElementById(targetId);
+  if(!el) return;
+  if(micRec){ try { micRec.stop(); } catch(e){} micRec = null; return; }
+
+  var rec;
+  try { rec = new SPEECH(); } catch(e){ micGiveUp('この画面では声で入力できません。キーボードのマイクを使ってね'); return; }
+  rec.lang = 'ja-JP';
+  rec.interimResults = false;
+  micRec = rec;
+  btn.classList.add('on');
+  btn.textContent = '🎤 きいています…';
+
+  var done = function(){
+    micRec = null;
+    btn.classList.remove('on');
+    btn.textContent = '🎤 声で入れる';
+  };
+  rec.onresult = function(ev){
+    var said = '';
+    for(var i=0;i<ev.results.length;i++) said += ev.results[i][0].transcript;
+    if(said) insertSay(targetId, said);
+  };
+  rec.onerror = function(ev){
+    done();
+    var code = ev && ev.error;
+    if(code === 'not-allowed' || code === 'service-not-allowed' || code === 'audio-capture'){
+      micGiveUp('この画面では声で入力できません。キーボードのマイクを使ってね');
+    } else if(code !== 'aborted' && code !== 'no-speech'){
+      toast('うまく聞き取れませんでした');
+    }
+  };
+  rec.onend = done;
+  try { rec.start(); } catch(e){ done(); micGiveUp('この画面では声で入力できません。キーボードのマイクを使ってね'); }
+}
+
+function sayHtml(targetId, list){
+  return '<div class="say">' +
+    '<span class="say-l">ことばをえらぶ　<span class="sub-h">押すと入ります。あとから直せます</span></span>' +
+    list.map(function(t){
+      return '<button class="say-b" data-say="' + esc(targetId) + '" data-t="' + esc(t) + '">' + esc(t) + '</button>';
+    }).join('') + micHtml(targetId) + '</div>';
+}
+
+/** えらんだ文を欄に入れる。入れたあとカーソルを末尾に置いて、続きを書けるようにする */
+function insertSay(targetId, text){
+  var el = document.getElementById(targetId);
+  if(!el) return;
+  var cur = String(el.value || '').replace(/\s+$/, '');
+  var sep = el.tagName === 'TEXTAREA' ? '\n' : '／';
+  el.value = cur ? (cur + sep + text) : text;
+  el.dispatchEvent(new Event('input', { bubbles: true }));   // いつもの保存に乗せる
+  el.focus();
+  try { el.setSelectionRange(el.value.length, el.value.length); } catch(e){}
+}
+
 /* ================= ふりがな =================
    自動でふりがなを振る仕組みは、読みを取りちがえる（例：「行った」）。
    まちがったふりがなは、無いより悪い。
@@ -1904,6 +2094,7 @@ try { rubyOn = localStorage.getItem('SRL_RUBY') === '1'; } catch(e){}
 // 日本語として読み上げてもらう（GASのラッパーには lang が付かない）
 document.documentElement.lang = 'ja';
 
+applyZoom();
 callServer('student_getState').then(function(res){ S = res; render(); setRuby(rubyOn); })
   .catch(function(e){ $('#h-subj').textContent='エラー'; toast('読み込みに失敗しました: '+(e&&e.message||e)); });
 </script>

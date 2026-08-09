@@ -510,6 +510,16 @@ textarea, input[type=text]{width:100%; min-height:44px; border:1.5px solid var(-
 .outcome .ol{font-weight:800; font-size:14.5px; line-height:1.6}
 .outcome .og{font-size:12.5px; color:var(--muted); margin-top:2px}
 
+/* 書くのを助けるボタン。白紙の欄だけでは、書ける子にしか開かれていない */
+.say{display:flex; flex-wrap:wrap; align-items:center; gap:7px; margin-top:9px}
+.say-l{flex-basis:100%; font-size:12.5px; font-weight:800; color:var(--muted)}
+.say-b{display:inline-flex; align-items:center; min-height:44px; border:1.5px dashed var(--primary-line);
+  background:var(--primary-soft); color:var(--primary); border-radius:999px; padding:6px 16px;
+  font-size:13px; font-weight:700; text-align:left; transition:background .15s, border-color .15s}
+.say-b:hover{background:var(--surface); border-style:solid}
+.say-b.mic{border-color:var(--accent); background:var(--accent-soft); color:var(--accent-ink)}
+.say-b.mic.on{background:var(--accent); color:#1b1300; border-style:solid}
+
 /* ふりがな。行が詰まって重ならないよう、ふりがなを出すときだけ行間を空ける */
 /* ふりがなは本文より小さいのが決まりだが、比率で縮めると 7px 程度になって読めない。
    絶対値で下限を決める（本文が大きくなればこちらも大きくなる max を使う）。 */
@@ -518,6 +528,7 @@ ruby{ruby-align:center}
 body.ruby-on{line-height:2.2}
 body.ruby-on .node .nd-t, body.ruby-on h2, body.ruby-on h3{line-height:2}
 .fp-btn[aria-pressed="true"]{background:var(--accent); color:#1b1300; border-color:var(--accent)}
+.zb-v{background:rgba(255,255,255,.25); border-radius:999px; padding:1px 9px; font-size:12.5px; font-weight:800}
 
 /* ---- ① ゴールまでの道すじ（ノードをつないで単元の計画をつくる） ----
    課題は「飛び石」、あいだの線は「つながり」。
