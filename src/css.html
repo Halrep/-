@@ -510,6 +510,15 @@ textarea, input[type=text]{width:100%; min-height:44px; border:1.5px solid var(-
 .outcome .ol{font-weight:800; font-size:14.5px; line-height:1.6}
 .outcome .og{font-size:12.5px; color:var(--muted); margin-top:2px}
 
+/* ふりがな。行が詰まって重ならないよう、ふりがなを出すときだけ行間を空ける */
+/* ふりがなは本文より小さいのが決まりだが、比率で縮めると 7px 程度になって読めない。
+   絶対値で下限を決める（本文が大きくなればこちらも大きくなる max を使う）。 */
+ruby rt{font-size:max(10.5px, .5em); font-weight:600; color:var(--muted); letter-spacing:0}
+ruby{ruby-align:center}
+body.ruby-on{line-height:2.2}
+body.ruby-on .node .nd-t, body.ruby-on h2, body.ruby-on h3{line-height:2}
+.fp-btn[aria-pressed="true"]{background:var(--accent); color:#1b1300; border-color:var(--accent)}
+
 /* ---- ① ゴールまでの道すじ（ノードをつないで単元の計画をつくる） ----
    課題は「飛び石」、あいだの線は「つながり」。
    ひとつ持ち上げると両どなりの線がはずれ、残ったどうしが結び直る。

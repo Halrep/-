@@ -7,6 +7,7 @@
     <span class="subj" id="h-subj">読み込み中…</span>
     <h1 class="t" id="h-title"></h1>
     <span class="n" id="h-name"></span>
+    <button class="fp-btn" id="ruby-btn" aria-pressed="false">ふりがな</button>
     <button class="fp-btn" id="fp-open" aria-label="学びの足跡">👣<span class="lb">足あと</span></button>
     <? if (bootstrap.canSwitch) { ?>
       <a class="role-sw" target="_top"
@@ -28,7 +29,7 @@
   <? } ?>
 
   <div id="nounit" class="card hidden"><div class="card-b center empty">
-    いま公開されている単元はありません。先生が単元を公開すると、ここに表示されます。
+    いま学習はまだはじまっていません。先生が用意すると、ここに出ます。
   </div></div>
 
   <div id="content" class="hidden">
@@ -49,11 +50,11 @@
       <div class="stepbar" data-flow="0"></div>
 
       <div class="stage" data-flow="0">
-        <!-- 1/2 この単元でやること -->
+        <!-- 1/2 この学習でやること -->
         <section class="step on" data-step="0">
           <div class="outcome" id="s-outcome" style="display:none">
             <span class="flag">🏁</span>
-            <div><span class="lb">この単元でできるようになること</span>
+            <div><span class="lb">この学習でできるようになること</span>
               <div class="ol" id="s-outcome-l"></div><div class="og" id="s-outcome-g"></div></div>
           </div>
 
@@ -63,15 +64,15 @@
               <div class="route" id="route"></div>
 
               <div class="tray-h">
-                <h3>そえる課題　<span class="sub-h">ゴールまでの道すじか、ゴールのむこうに置くと、単元の計画になります</span></h3>
+                <h3>そえる課題　<span class="sub-h">ゴールまでの道すじか、ゴールのむこうに置くと、学習の計画になります</span></h3>
               </div>
               <div class="tray" id="route-tray"></div>
 
               <div class="route-note">
                 タイルをつまんで動かすと、つながりがいったんはずれ、置いたところで結び直ります。<br>
-                ★必須の課題は外せませんが、順番は自由です。
+                ★かならずやる課題は外せませんが、順番は自由です。
                 🏁 の課題はゴールの成果物をつくる課題なので、いつもゴールの直前にすわります。
-                ⚡発展は「やりきったら挑戦」なので、<b>ゴールのむこう</b>に置きます。
+                ⚡もっと の課題は「やりきったら挑戦」なので、<b>ゴールのむこう</b>に置きます。
               </div>
             </div>
           </div>
@@ -87,10 +88,10 @@
           <div class="card">
             <div class="card-h"><span class="h-badge">🎯</span><h2>きょうの計画を立てよう</h2></div>
             <div class="card-b stack">
-              <div><h3>Be ─ どんな姿で取り組む？（タップでえらぶ）</h3><div class="chips" id="be-chips"></div></div>
-              <div><h3>Do ─ きょうはどこまでやる？</h3><input type="text" id="do-input" placeholder="例：必須①と②を終える"></div>
-              <div><h3>Regulate ─ どんな工夫（方略）を使う？　<span class="star-rec">★</span>は先生のおすすめ</h3><div class="strat-grid" id="reg-grid"></div></div>
-              <div><h3>この計画なら「できそう」？（自己効力感）</h3>
+              <div><h3>① どんな姿でやる？　<span class="sub-h">タップでえらぶ</span></h3><div class="chips" id="be-chips"></div></div>
+              <div><h3>② きょうは どこまでやる？</h3><input type="text" id="do-input" placeholder="例：はじめの2つを終える"></div>
+              <div><h3>③ どんな工夫を使う？　<span class="sub-h"><span class="star-rec">★</span>は先生のおすすめ</span></h3><div class="strat-grid" id="reg-grid"></div></div>
+              <div><h3>④ この計画なら「できそう」？</h3>
                 <div class="efficacy">
                   <span class="face" id="eff-face">🙂</span>
                   <input type="range" min="0" max="100" value="60" id="eff" aria-label="できそう度">
@@ -117,7 +118,7 @@
       <section class="layer on" id="lay-list">
         <div class="card task-hero">
           <div class="card-b">
-            <span class="eyebrow">単元の問い</span>
+            <span class="eyebrow">この学習の問い</span>
             <p class="tq" id="s-unitgoal"></p>
             <div class="hgoal"><b>ゴール</b><span id="s-outcome2"></span></div>
           </div>
@@ -202,7 +203,7 @@
               <div>
                 <h3>どこまで進んだ？</h3>
                 <div class="slider-wrap">
-                  <input type="range" min="0" max="100" value="70" id="ach" aria-label="達成度">
+                  <input type="range" min="0" max="100" value="70" id="ach" aria-label="どこまで進んだか">
                   <div class="slider-val"><span id="ach-v" class="num">70</span><small> /100</small></div>
                 </div>
               </div>
@@ -217,7 +218,7 @@
         <!-- 2/3 そのわけ -->
         <section class="step" data-step="1">
           <div class="card">
-            <div class="card-h"><span class="h-badge">🔍</span><h2>そのわけを考えよう（原因のふりかえり）</h2></div>
+            <div class="card-h"><span class="h-badge">🔍</span><h2>そのわけを考えよう</h2></div>
             <div class="card-b attr-cols">
               <div class="attr-box good"><h4>◎ うまくいったのは、なぜ？</h4><div class="chips" id="attr-good"></div></div>
               <div class="attr-box hard"><h4>△ むずかしかったのは、なぜ？</h4><div class="chips" id="attr-hard"></div></div>
@@ -330,14 +331,14 @@ var MOODS = [
   {em:'😵', label:'わからなくて<br>こまった'}
 ];
 var ST_LABEL = ['未着手','取組中','できた'];
-var KIND_MARK = {'必須':'★ 必須','選択':'えらべる','発展':'⚡ 発展','ゴール':'🏁 ゴール'};
+var KIND_MARK = {'必須':'★ かならず','選択':'えらべる','発展':'⚡ もっと','ゴール':'🏁 ゴール'};
 var GOAL_KIND = 'ゴール';
 var ADV_KIND  = '発展';   // 「やりきったら挑戦」。ゴールに着いたその先に置く
 // 道すじから外せない種別（サーバーの C.REQUIRED_KINDS と合わせる）
 var LOCKED_KINDS = ['必須', GOAL_KIND];
 function isLockedKind(k){ return LOCKED_KINDS.indexOf(k) >= 0; }
 var LOCK_MSG = {
-  '必須': '★必須の課題は道すじから外せません（順番は変えられます）',
+  '必須': '★かならずやる課題は、道すじから外せません（順番は変えられます）',
   'ゴール': '🏁 この課題でゴールの成果物をつくります。道すじのいちばん最後にすわります'
 };
 
@@ -351,7 +352,7 @@ var curBand = 0;       // 課題の中の帯（0はじめる/1すすめる/2お�
    1画面1まとまり。いまどこにいて、あと何があるかを見せる。
    自由進度なので「進む」だけでなく、いつでも戻れるようにする。 */
 var FLOWS = {
-  '0': [{ n:'この単元でやること', i:'🏁' }, { n:'きょうの計画', i:'🎯' }],
+  '0': [{ n:'この学習でやること', i:'🏁' }, { n:'きょうの計画', i:'🎯' }],
   '2': [{ n:'計画とのズレ', i:'📏' }, { n:'そのわけ', i:'🔍' }, { n:'次にいかす', i:'💬' }]
 };
 var flowAt = { '0': 0, '2': 0 };
@@ -477,7 +478,7 @@ var saveReflDebounced = debounce(saveReflection, 700);
 /* ---- 描画 ---- */
 function render(){
   if(!S.hasUnit){
-    $('#h-subj').textContent = '単元まち';
+    $('#h-subj').textContent = '学習まち';
     $('#h-name').textContent = S.me ? S.me.displayName + ' さん' : '';
     $('#nounit').classList.remove('hidden');
     return;
@@ -492,7 +493,7 @@ function render(){
   if(U.outcome || U.unitGoal){
     $('#s-outcome').style.display = 'flex';
     $('#s-outcome-l').textContent = U.outcome || U.unitGoal;
-    $('#s-outcome-g').textContent = U.outcome && U.unitGoal ? ('単元の目標：' + U.unitGoal) : '';
+    $('#s-outcome-g').textContent = U.outcome && U.unitGoal ? ('学習の目標：' + U.unitGoal) : '';
   }
   $('#s-unitgoal').textContent = U.unitGoal || '';
   $('#s-outcome2').textContent = U.outcome || '';
@@ -711,7 +712,7 @@ function renderRouteSum(){
   $('#route-sum').textContent = upto
     ? 'ゴールまで '+upto+'こ（すんだ '+done+'こ）・めやす合計 '+mins+'分'+
       (p.beyond.length ? '　＋ むこう '+p.beyond.length+'こ' : '')+
-      '　＊単元の総時数は'+S.unit.totalHours+'時間'
+      '　＊ぜんぶで'+S.unit.totalHours+'時間'
     : '道すじがまだ空です。下の課題を入れてみよう。';
 }
 
@@ -1053,7 +1054,7 @@ function renderBands(){
   }).join('');
 
   var resHtml = t.resources.length ? t.resources.map(resRow).join('')
-    : '<div class="empty">この課題に紐づいた資料はありません（右の「いつでも使える資料」を使おう）</div>';
+    : '<div class="empty">この課題についている資料はありません（右の「いつでも使える資料」を使おう）</div>';
 
   var stratHtml = t.strategies.length ? t.strategies.map(function(s){
     return '<button class="strat exec" data-sid="'+esc(s.strategyId)+'" aria-pressed="'+(!!t.strategyUse[s.strategyId])+'">'+
@@ -1084,7 +1085,7 @@ function renderBands(){
   $('#band0').innerHTML =
     '<div class="card"><div class="card-b stack">'+
       (t.desc ? '<div class="tdesc">'+esc(t.desc)+'</div>' : '<div class="sub-h">説明はありません</div>')+
-      '<div><h3>この課題の取り組み方をえらぶ</h3>'+(choiceHtml||'<div class="sub-h">先生が選択肢を開放していません</div>')+'</div>'+
+      '<div><h3>この課題の取り組み方をえらぶ</h3>'+(choiceHtml||'<div class="sub-h">この課題では、やり方は先生が決めています</div>')+'</div>'+
     '</div></div>'+
     '<div class="step-nav">'+
       '<span class="now s'+t.status+'">いま：'+ST_LABEL[t.status]+'</span>'+
@@ -1221,7 +1222,7 @@ function loadPortfolio(){
       });
       $('#fp-tasks').innerHTML = byUnit.map(function(g){
         return '<div class="fp-unit">'+
-          '<div class="fp-uh">'+esc(g.label)+(g.isCurrent?'<span class="fp-now">いまの単元</span>':'')+'</div>'+
+          '<div class="fp-uh">'+esc(g.label)+(g.isCurrent?'<span class="fp-now">いまの学習</span>':'')+'</div>'+
           g.rows.map(function(t){
             var u = undBy[t.understanding];
             return '<div class="fp-row">'+
@@ -1256,7 +1257,7 @@ function loadPortfolio(){
       var plan = (it.goalBe||it.goalDo) ? '<div class="m plan">📝 その日の計画：'+esc([it.goalBe, it.goalDo].filter(Boolean).join('／'))+'</div>' : '';
       return '<div class="tl-item"><span class="tl-dot">'+esc(String(it.day).slice(5))+'</span><div class="tl-body">'+
         (it.isCurrent?'':'<span class="fp-past">'+esc(it.unitLabel)+'</span>')+
-        '<span class="d">達成度 <span class="num">'+esc(it.achievement)+'</span> ・ '+esc(it.mood||'')+
+        '<span class="d">どこまで <span class="num">'+esc(it.achievement)+'</span> ・ '+esc(it.mood||'')+
         (it.planGap?' ・ 計画: '+esc(it.planGap):'')+'</span>'+
         plan+
         (it.planGapReason?'<div class="m">ズレの理由：'+esc(it.planGapReason)+'</div>':'')+
@@ -1565,7 +1566,7 @@ function pollPeers(){
     $('#peer-grid').innerHTML = res.cards.map(function(c){
       return '<div class="peer'+(c.isMe?' me':'')+'">'+
         '<div class="pn"><span class="no num">'+esc(c.number)+'</span>'+esc(c.name)+'</div>'+
-        '<span class="stage '+(stageCls[c.stage]||'s0')+'">'+esc(c.stage)+' 必須'+c.doneMust+'/'+c.mustTotal+'</span>'+
+        '<span class="stage '+(stageCls[c.stage]||'s0')+'">'+esc(c.stage)+' かならず'+c.doneMust+'/'+c.mustTotal+'</span>'+
         '<div class="pmeta">'+esc(c.form||'—')+'</div>'+
         '<div class="picons">'+(c.usedIcons.join('')||'<span class="sub-h">工夫はまだ</span>')+'</div>'+
         '<div class="pgoal">'+(c.doingTitle? 'いま：'+esc(c.doingTitle) : '<span class="sub-h">まだ選んでいません</span>')+'</div>'+
@@ -1638,6 +1639,7 @@ document.addEventListener('click', function(e){
   var shelf = e.target.closest('[data-sheet]');
   if(shelf){ openSheet(shelf.dataset.sheet); return; }
   if(e.target.closest('#fp-open')){ openSheet('fp'); return; }
+  if(e.target.closest('#ruby-btn')){ setRuby(!rubyOn); return; }
   if(e.target.closest('#sheet-close') || e.target.id==='sheet'){ closeSheet(); return; }
 
   var stBtn = e.target.closest('[data-status]');
@@ -1806,10 +1808,102 @@ document.addEventListener('change', function(e){
   if(e.target.id==='eff'){ $('#eff-v').textContent = e.target.value; $('#eff-face').textContent = effFace(Number(e.target.value)); saveGoalDebounced(); }
 });
 
+/* ================= ふりがな =================
+   自動でふりがなを振る仕組みは、読みを取りちがえる（例：「行った」）。
+   まちがったふりがなは、無いより悪い。
+   そこで、読みが一つに定まる語だけを辞書に持ち、その語にだけ振る。
+   辞書に無い語には何も振らない ── 足りなくても、まちがえない。
+
+   先生が書いた課題名にも同じ辞書があたる。
+   ここに入れているのは文脈で読みが変わらない語だけなので、それで正しい。 */
+var RUBY = {
+  '学習':'がくしゅう', '課題':'かだい', '計画':'けいかく', '目標':'もくひょう',
+  '資料':'しりょう', '記録':'きろく', '工夫':'くふう', '調整':'ちょうせい',
+  '確認':'かくにん', '順調':'じゅんちょう', '発展':'はってん', '説明':'せつめい',
+  '整理':'せいり', '成果物':'せいかぶつ', '理由':'りゆう', '教科':'きょうか',
+  '道具':'どうぐ', '写真':'しゃしん', '作品':'さくひん', '挑戦':'ちょうせん',
+  '情報':'じょうほう', '反省':'はんせい', '授業':'じゅぎょう', '様子':'ようす',
+  '更新':'こうしん', '表示':'ひょうじ', '用意':'ようい', '必要':'ひつよう',
+  '大事':'だいじ', '問い':'とい', '時間':'じかん', '合計':'ごうけい',
+  '順番':'じゅんばん', '自由':'じゆう', '直前':'ちょくぜん'
+};
+
+// 長い語から先に当てないと「学習」が「学」で切られる
+var RUBY_RE = new RegExp(Object.keys(RUBY).sort(function(a,b){ return b.length-a.length; }).join('|'), 'g');
+var RUBY_SKIP = { SCRIPT:1, STYLE:1, RUBY:1, TEXTAREA:1, INPUT:1, SELECT:1 };
+var rubyOn = false, rubyObs = null, rubyTimer = null;
+
+function rubyWalk(root, add){
+  var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode: function(n){
+      for(var p = n.parentNode; p && p !== root.parentNode; p = p.parentNode){
+        if(p.nodeType === 1 && RUBY_SKIP[p.tagName]) return NodeFilter.FILTER_REJECT;
+      }
+      return RUBY_RE.test(n.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+    }
+  });
+  var hits = [], n;
+  while((n = w.nextNode())) hits.push(n);
+  hits.forEach(function(t){
+    var frag = document.createDocumentFragment(), last = 0, m;
+    RUBY_RE.lastIndex = 0;
+    while((m = RUBY_RE.exec(t.nodeValue))){
+      if(m.index > last) frag.appendChild(document.createTextNode(t.nodeValue.slice(last, m.index)));
+      var r = document.createElement('ruby');
+      r.appendChild(document.createTextNode(m[0]));
+      var rt = document.createElement('rt');
+      rt.textContent = RUBY[m[0]];
+      r.appendChild(rt);
+      frag.appendChild(r);
+      last = m.index + m[0].length;
+    }
+    if(last < t.nodeValue.length) frag.appendChild(document.createTextNode(t.nodeValue.slice(last)));
+    t.parentNode.replaceChild(frag, t);
+  });
+}
+
+function rubyClear(root){
+  $$('ruby', root).forEach(function(r){
+    var rt = r.querySelector('rt');
+    if(rt) rt.remove();
+    r.parentNode.replaceChild(document.createTextNode(r.textContent), r);
+  });
+  root.normalize();
+}
+
+/** 描き直すたびに消えるので、変わったところに振り直す（自分の書き換えは見ない） */
+function rubyApply(){
+  var app = $('#app');
+  if(!app) return;
+  if(rubyObs) rubyObs.disconnect();
+  if(rubyOn) rubyWalk(app, true); else rubyClear(app);
+  if(rubyObs) rubyObs.observe(app, { childList:true, subtree:true });
+}
+
+function rubySchedule(){
+  clearTimeout(rubyTimer);
+  rubyTimer = setTimeout(rubyApply, 120);
+}
+
+function setRuby(on){
+  rubyOn = !!on;
+  document.body.classList.toggle('ruby-on', rubyOn);
+  var b = $('#ruby-btn');
+  if(b) b.setAttribute('aria-pressed', String(rubyOn));
+  try { localStorage.setItem('SRL_RUBY', rubyOn ? '1' : '0'); } catch(e){}
+  if(rubyOn && !rubyObs && window.MutationObserver){
+    rubyObs = new MutationObserver(rubySchedule);
+  }
+  rubyApply();
+  if(!rubyOn && rubyObs){ rubyObs.disconnect(); }
+}
+
+try { rubyOn = localStorage.getItem('SRL_RUBY') === '1'; } catch(e){}
+
 /* 起動 */
 // 日本語として読み上げてもらう（GASのラッパーには lang が付かない）
 document.documentElement.lang = 'ja';
 
-callServer('student_getState').then(function(res){ S = res; render(); })
+callServer('student_getState').then(function(res){ S = res; render(); setRuby(rubyOn); })
   .catch(function(e){ $('#h-subj').textContent='エラー'; toast('読み込みに失敗しました: '+(e&&e.message||e)); });
 </script>
