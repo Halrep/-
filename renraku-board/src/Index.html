@@ -89,6 +89,25 @@
   .fold-toggle:hover{border-color:var(--accent);color:var(--accent)}
   .fold-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
+  /* 月ごとの開閉セクション */
+  .month-section{margin-bottom:22px}
+  .month-toggle{appearance:none;cursor:pointer;font:inherit;width:100%;text-align:left;
+    display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);
+    border-radius:10px;padding:12px 16px}
+  .month-toggle:hover{border-color:var(--accent)}
+  .month-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .month-arrow{color:var(--accent);font-size:.75rem;flex-shrink:0}
+  .month-title{font-size:1rem;font-weight:700;flex-shrink:0}
+  .month-current{font-size:.72rem;font-weight:700;color:var(--accent);background:var(--accent-soft);
+    border-radius:999px;padding:2px 9px;flex-shrink:0}
+  .month-count{margin-left:auto;font-size:.78rem;color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .month-body{padding:12px 2px 0}
+
+  /* 連絡の月番号バッジ（打合せで「n番」と言うための目印） */
+  .no-badge{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:24px;
+    padding:0 7px;border-radius:999px;background:var(--accent);color:#fff;font-weight:800;
+    font-size:.78rem;font-variant-numeric:tabular-nums;flex-shrink:0}
+
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);
     padding:14px 20px;margin-bottom:12px;transition:opacity .25s}
   .card.done{opacity:.62}
@@ -594,16 +613,25 @@ function renderSection(container, items, emptyText, foldKey){
   }
 }
 
-var foldState={action:false, read:false}; // 折りたたみの開閉を記憶
+var foldState={}; // 「自分が済ませた連絡」折りたたみの開閉を記憶（キー: ym+'|action'/'|read'）
+var monthOpenState={}; // 月セクションの開閉を記憶（キー: ym）
+
+function currentActualYM(){
+  var d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+}
+function ymLabel(ym){
+  if(!ym) return '日付不明';
+  var p=ym.split('-');
+  return p[0]+'年'+Number(p[1])+'月';
+}
 
 function renderToday(){
   var v=document.getElementById('view-today');
   populateMonthFilter();
   // 全員完了は「完了した連絡」タブへ回す。ここには未完了だけを出す
   var board=DATA.items.filter(function(it){ return !fullyDone(it) && matchesFilter(it); });
-  var actionItems=board.filter(function(it){ return it.action; });
-  var readItems=board.filter(function(it){ return !it.action; });
-  var dueToday=actionItems.filter(function(it){ return it.dueClass==='today' && !it.myDone; }).length;
+  var dueToday=board.filter(function(it){ return it.action && it.dueClass==='today' && !it.myDone; }).length;
   var mine=myOpenItems().length;
   updateBadge(mine);
 
@@ -612,12 +640,47 @@ function renderToday(){
     +'<div class="stat alert"><span class="n">'+dueToday+'</span><span class="l">期限が今日／超過</span></div>'
     +'<div class="stat warn"><span class="n" id="stat-mine">'+mine+'</span><span class="l">あなたの未対応</span></div>'
     +'</div>';
-  html+='<h2 class="section-label">要対応 — 未対応が上／自分の済みは折りたたみ</h2><div id="action-list"></div>';
-  html+='<h2 class="section-label">閲覧のみ — 未読が上／自分の済みは折りたたみ</h2><div id="read-list"></div>';
-  v.innerHTML=html;
 
-  renderSection(v.querySelector('#action-list'), actionItems, filtering()?'条件に合う要対応の連絡はありません。':'要対応の連絡はありません。', 'action');
-  renderSection(v.querySelector('#read-list'), readItems, filtering()?'条件に合う閲覧のみの連絡はありません。':'閲覧のみの連絡はありません。', 'read');
+  if(!board.length){
+    html+='<div class="empty">'+(filtering()?'条件に合う連絡はありません。':'掲載中の連絡はありません。')+'</div>';
+    v.innerHTML=html;
+    return;
+  }
+  v.innerHTML=html+'<div id="month-sections"></div>';
+  var root=v.querySelector('#month-sections');
+
+  var byYm={};
+  board.forEach(function(it){ var k=it.ym||''; (byYm[k]=byYm[k]||[]).push(it); });
+  var yms=Object.keys(byYm).sort().reverse(); // 'yyyy-MM' 降順（日付不明の ''  は最後）
+  var curYM=currentActualYM();
+
+  yms.forEach(function(ym){
+    var items=byYm[ym];
+    var actionItems=items.filter(function(it){ return it.action; });
+    var readItems=items.filter(function(it){ return !it.action; });
+    var openCount=items.filter(function(it){ return !it.myDone; }).length;
+    // 特定の月を選んで絞り込み中、またはキーワード検索中は必ず開く。それ以外は今月だけ既定で開く
+    var isOpen = filterYM ? true : (filterKW ? true : ((ym in monthOpenState) ? monthOpenState[ym] : (ym===curYM)));
+
+    var sec=el('<section class="month-section">'
+      +'<button type="button" class="month-toggle">'
+        +'<span class="month-arrow">'+(isOpen?'▼':'▶')+'</span>'
+        +'<span class="month-title">'+esc(ymLabel(ym))+'</span>'
+        +(ym===curYM?'<span class="month-current">今月</span>':'')
+        +'<span class="month-count">全'+items.length+'件・未対応'+openCount+'件</span>'
+      +'</button>'
+      +'<div class="month-body" style="display:'+(isOpen?'':'none')+'">'
+        +'<h2 class="section-label">要対応 — 未対応が上／自分の済みは折りたたみ</h2><div class="action-list"></div>'
+        +'<h2 class="section-label">閲覧のみ — 未読が上／自分の済みは折りたたみ</h2><div class="read-list"></div>'
+      +'</div>'
+    +'</section>');
+    sec.querySelector('.month-toggle').addEventListener('click', function(){
+      monthOpenState[ym]=!isOpen; renderToday();
+    });
+    renderSection(sec.querySelector('.action-list'), actionItems, filtering()?'条件に合う要対応の連絡はありません。':'要対応の連絡はありません。', ym+'|action');
+    renderSection(sec.querySelector('.read-list'), readItems, filtering()?'条件に合う閲覧のみの連絡はありません。':'閲覧のみの連絡はありません。', ym+'|read');
+    root.appendChild(sec);
+  });
 }
 
 function filtering(){ return !!(filterYM||filterKW); }
@@ -678,7 +741,8 @@ function attachThumbFallback(root){
 function commentLabel(n){ return n>0 ? '💬 コメント（'+n+'）' : '💬 コメントする'; }
 
 function cardEl(it){
-  var chips=it.meetingLabel ? '<span class="chip kind">'+esc(it.meetingLabel)+'</span>' : '<span class="chip kind">連絡</span>';
+  var chips=it.monthNo ? '<span class="no-badge" title="打合せで「'+esc(it.monthNo)+'番」と言えば伝わります">No.'+esc(it.monthNo)+'</span>' : '';
+  chips+=it.meetingLabel ? '<span class="chip kind">'+esc(it.meetingLabel)+'</span>' : '<span class="chip kind">連絡</span>';
   chips+= it.action ? '<span class="chip action">要対応</span>' : '<span class="chip readonly">閲覧のみ</span>';
   if(it.dueLabel) chips+='<span class="chip due '+it.dueClass+'">期限 '+esc(it.dueLabel)+'</span>';
   chips+='<span class="chip target">対象: '+esc(it.targetType)+'</span>';
@@ -886,6 +950,7 @@ function renderMine(){
   v.innerHTML=html;
   mine.forEach(function(it){
     var c=el('<div class="card"><div class="card-top">'
+      +(it.monthNo?'<span class="no-badge">No.'+esc(it.monthNo)+'</span>':'')
       +(it.dueLabel?'<span class="chip due '+it.dueClass+'">期限 '+esc(it.dueLabel)+'</span>':'')
       +'<span class="chip kind">'+esc(it.meetingLabel||'連絡')+'</span>'
       +'<span class="chip speaker">発信: '+esc(it.speaker)+'</span>'
@@ -929,6 +994,7 @@ function renderAdmin(){
     var chips=(it.uncheckedNames||[]).map(function(n){ return '<span class="s">'+esc(n)+'</span>'; }).join('');
     if(!chips) chips='<span class="s ok">全員対応済み 🎉</span>';
     var c=el('<div class="card"><div class="card-top">'
+      +(it.monthNo?'<span class="no-badge">No.'+esc(it.monthNo)+'</span>':'')
       +(it.dueLabel?'<span class="chip due '+it.dueClass+'">期限 '+esc(it.dueLabel)+'</span>':'')
       +'<span class="chip target">対象: '+esc(it.targetType)+'</span></div>'
       +'<h3>'+esc(it.title)+'</h3>'

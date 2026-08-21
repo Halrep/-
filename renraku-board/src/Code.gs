@@ -269,6 +269,32 @@ function toDate_(v) {
   return isNaN(d.getTime()) ? null : d;
 }
 
+/** 連絡の「月」（yyyy-MM）。会議に紐づくならその会議日、なければ作成日を使う */
+function computeYm_(it, meetingDates) {
+  var dateSrc = (it.meetingId && meetingDates && meetingDates[it.meetingId]) || it.created;
+  var d = toDate_(dateSrc);
+  return d ? Utilities.formatDate(d, TZ, 'yyyy-MM') : '';
+}
+
+/**
+ * 掲載中の連絡事項（kind='連絡'）に、月ごとにリセットされる通し番号を振る。
+ * シート内の行順＝追加順として扱う（appendRowは常に末尾追加のため）。
+ * @return {Object} { 連絡ID: 番号 }
+ */
+function buildMonthNoMap_(meetingDates) {
+  var t = readTable_(SHEET_ITEMS);
+  var counters = {}, map = {};
+  t.rows.forEach(function (r) {
+    var it = toItem_(r, t.col);
+    if (!it.posted || it.kind !== '連絡') return;
+    var ym = computeYm_(it, meetingDates);
+    if (!ym) return;
+    counters[ym] = (counters[ym] || 0) + 1;
+    map[it.id] = counters[ym];
+  });
+  return map;
+}
+
 function formatDate_(v) {
   if (!v) return '';
   if (Object.prototype.toString.call(v) === '[object Date]') {
@@ -321,12 +347,13 @@ function getInitialData() {
     meetingDates[m.id] = m.sortKey ? new Date(m.sortKey) : null; // 絞り込みの日付に使う
   });
   var commentCounts = commentCountMap_();
+  var monthNoMap = buildMonthNoMap_(meetingDates);
 
   var t = readTable_(SHEET_ITEMS);
   var items = t.rows
     .map(function (r) { return toItem_(r, t.col); })
     .filter(function (it) { return it.posted; }) // ボードは掲載中のみ
-    .map(function (it) { return decorateItem_(it, staff, logs, me, meetingName, commentCounts, meetingDates); });
+    .map(function (it) { return decorateItem_(it, staff, logs, me, meetingName, commentCounts, meetingDates, monthNoMap); });
 
   // 期限が近い順（期限なしは後ろ）→ 未対応を上に
   items.sort(function (a, b) {
@@ -378,8 +405,8 @@ function enrolledFrom_(t) {
   return list;
 }
 
-/** 1件の連絡に集計（確認・対応の進捗、自分のチェック、未対応者名、編集可否）を付与 */
-function decorateItem_(it, staff, logs, me, meetingName, commentCounts, meetingDates) {
+/** 1件の連絡に集計（確認・対応の進捗、自分のチェック、未対応者名、編集可否、月番号）を付与 */
+function decorateItem_(it, staff, logs, me, meetingName, commentCounts, meetingDates, monthNoMap) {
   var targets = targetsFor_(it, staff);
   var itemLog = logs[it.id] || {};
 
@@ -432,7 +459,8 @@ function decorateItem_(it, staff, logs, me, meetingName, commentCounts, meetingD
     myTarget: targets.some(function (s) { return s.email === me.email.toLowerCase(); }),
     uncheckedNames: unchecked,
     canEdit: meta.canEdit,
-    commentCount: (commentCounts || {})[it.id] || 0
+    commentCount: (commentCounts || {})[it.id] || 0,
+    monthNo: (monthNoMap || {})[it.id] || null
   };
 }
 
@@ -588,7 +616,11 @@ function submitItem(p) {
         action: action, targetType: p.targetType || '全員', targetEmails: p.targetEmails || '',
         posted: posted, created: nowStr_(), creatorEmail: String(me.email || '').toLowerCase()
       };
-      decorated = decorateItem_(it, staff, {}, me, meetingId ? mapOf_(meetingId, meetingLabel) : {});
+      // 月番号の算出には全会議の日付が要る（この連絡の会議だけでは他月の判定を誤る）
+      var allMeetingDates = {};
+      readMeetings_().forEach(function (m) { allMeetingDates[m.id] = m.sortKey ? new Date(m.sortKey) : null; });
+      var monthNoMap = buildMonthNoMap_(allMeetingDates);
+      decorated = decorateItem_(it, staff, {}, me, meetingId ? mapOf_(meetingId, meetingLabel) : {}, {}, allMeetingDates, monthNoMap);
     }
     return { item: decorated, meeting: newMeetingInfo };
   } finally {
@@ -661,7 +693,8 @@ function editItem(itemId, p) {
       var meetingName = {}, meetingDates = {};
       meetings.forEach(function (m) { meetingName[m.id] = m.label; meetingDates[m.id] = m.sortKey ? new Date(m.sortKey) : null; });
       var commentCounts = commentCountMap_();
-      decorated = decorateItem_(updated, staff, logs, me, meetingName, commentCounts, meetingDates);
+      var monthNoMap = buildMonthNoMap_(meetingDates);
+      decorated = decorateItem_(updated, staff, logs, me, meetingName, commentCounts, meetingDates, monthNoMap);
     }
     return { item: decorated };
   } finally {
@@ -678,6 +711,9 @@ function getMeetingAgenda(meetingId) {
   var st = readTable_(SHEET_STAFF);
   var me = staffFromTable_(st, currentEmail_());
   var commentCounts = commentCountMap_();
+  var meetingDates = {};
+  readMeetings_().forEach(function (m) { meetingDates[m.id] = m.sortKey ? new Date(m.sortKey) : null; });
+  var monthNoMap = buildMonthNoMap_(meetingDates); // 連絡事項はボードと同じ「月ごとの番号」を表示
   var t = readTable_(SHEET_ITEMS);
   var giron = [], renraku = [], total = 0;
   t.rows.forEach(function (r) {
@@ -686,9 +722,11 @@ function getMeetingAgenda(meetingId) {
     var m = Number(it.minutes) || 0;
     total += m;
     var meta = editMeta_(it, me);
+    // 協議事項は会議内の通し番号のまま。連絡事項はボードの月番号に統一（打合せで番号を言いやすく）
+    var displayNo = (it.kind === '連絡' && monthNoMap[it.id]) ? monthNoMap[it.id] : it.no;
     var plain = {
       id: it.id,
-      no: String(it.no || ''),
+      no: String(displayNo || ''),
       title: String(it.title || ''),
       body: String(it.body || ''),
       speaker: String(it.speaker || ''),
