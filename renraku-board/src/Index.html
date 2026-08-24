@@ -560,11 +560,16 @@ function matchesFilter(it){
   }
   return true;
 }
-/** DATA.items から年月の選択肢を作る（新しい月が上） */
-function populateMonthFilter(){
+/**
+ * 年月の選択肢を作る（新しい月が上）。
+ * pool を渡すと、その配列だけを数える（今のタブに実際に表示されうる件数に合わせるため。
+ * 例えば「今日のボード」では完了済みの連絡が含まれないよう、完了前だけを渡す）。
+ * pool を省略すると DATA.items 全体を数える。
+ */
+function populateMonthFilter(pool){
   var sel=document.getElementById('filter-ym');
   var set={};
-  DATA.items.forEach(function(it){ if(it.ym) set[it.ym]=true; });
+  (pool||DATA.items).forEach(function(it){ if(it.ym) set[it.ym]=true; });
   var yms=Object.keys(set).sort().reverse();
   var cur=sel.value;
   sel.innerHTML='<option value="">すべての月</option>'+yms.map(function(ym){
@@ -573,11 +578,11 @@ function populateMonthFilter(){
   }).join('');
   if(cur && yms.indexOf(cur)>=0) sel.value=cur; // 選択中の月は保持
 }
-/** DATA.items から発信者の選択肢を作る（件数付き・五十音順） */
-function populateSpeakerFilter(){
+/** 発信者の選択肢を作る（件数付き・五十音順）。pool の意味は populateMonthFilter と同じ */
+function populateSpeakerFilter(pool){
   var sel=document.getElementById('filter-speaker');
   var counts={};
-  DATA.items.forEach(function(it){
+  (pool||DATA.items).forEach(function(it){
     var s=it.speaker||''; if(!s) return;
     counts[s]=(counts[s]||0)+1;
   });
@@ -936,10 +941,14 @@ function jumpToItem(itemId){
 
 function renderToday(){
   var v=document.getElementById('view-today');
-  populateMonthFilter();
-  populateSpeakerFilter();
-  // 全員完了は「完了した連絡」タブへ回す。ここには未完了だけを出す
-  var board=DATA.items.filter(function(it){ return !fullyDone(it) && matchesFilter(it); });
+  // 全員完了は「完了した連絡」タブへ回す。ここには未完了だけを出す。
+  // プルダウンの件数もこの未完了プールだけで数え、実際に表示されうる件数と一致させる
+  // （そうしないと「発信者（n）」の n が完了済み分も含んでしまい、選んでも0件で
+  // 検索が効いていないように見えてしまう）
+  var undone=DATA.items.filter(function(it){ return !fullyDone(it); });
+  populateMonthFilter(undone);
+  populateSpeakerFilter(undone);
+  var board=undone.filter(matchesFilter);
   var dueToday=board.filter(function(it){ return it.action && it.dueClass==='today' && !it.myDone; }).length;
   var mine=myOpenItems().length;
   updateBadge(mine);
@@ -998,9 +1007,10 @@ function filtering(){ return !!(filterYM||filterKW||filterSpeaker); }
 /** 「完了した連絡」タブ：対象者全員が済ませた連絡を新しい順に一覧（絞り込み対応） */
 function renderDone(){
   var v=document.getElementById('view-done');
-  populateMonthFilter();
-  populateSpeakerFilter();
-  var items=DATA.items.filter(function(it){ return fullyDone(it) && matchesFilter(it); });
+  var done=DATA.items.filter(fullyDone);
+  populateMonthFilter(done);
+  populateSpeakerFilter(done);
+  var items=done.filter(matchesFilter);
   items.sort(function(a,b){ return (b.dateISO||'').localeCompare(a.dateISO||''); }); // 新しい順
   var html='<h2 class="section-label">対象者全員が対応・確認を終えた連絡（'+items.length+'件）</h2>'
     +'<p style="font-size:.85rem;color:var(--ink-soft);margin:0 4px 12px">'
