@@ -31,15 +31,20 @@
   *{box-sizing:border-box}
   body{margin:0;background:var(--paper);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased;
     font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI","Yu Gothic","Noto Sans JP",sans-serif}
-  /* 全体シェル: メイン（可変幅）＋右サイドバー（固定幅） */
+  /* 全体シェル: 1行目はヘッダー（左カラムのみ）、2行目が本文＋右サイドバー。
+     これでサイドバーの上端が絞り込みバーの上端と自動的に揃う（高さを数値で固定しない）。 */
   .app-shell{max-width:1500px;margin:0 auto;padding:0 28px 72px;
-    display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:28px;align-items:start}
-  .app{min-width:0}
-  .sidebar{position:sticky;top:20px;display:flex;flex-direction:column;gap:20px;min-width:0;
+    display:grid;grid-template-columns:minmax(0,1fr) 300px;column-gap:28px;align-items:start}
+  .appbar{grid-column:1;grid-row:1}
+  .app{grid-column:1;grid-row:2;min-width:0}
+  /* margin-top は絞り込みバーの margin と同じ値。これで両者の上端がぴったり揃う */
+  .sidebar{grid-column:2;grid-row:2;margin-top:12px;position:sticky;top:20px;
+    display:flex;flex-direction:column;gap:20px;min-width:0;
     max-height:calc(100vh - 40px);overflow-y:auto}
   @media (max-width:1100px){
     .app-shell{grid-template-columns:1fr;padding:0 16px 72px}
-    .sidebar{position:static;max-height:none;overflow-y:visible}
+    .appbar,.app,.sidebar{grid-column:1}
+    .sidebar{grid-row:auto;position:static;max-height:none;overflow-y:visible;margin-top:20px}
   }
   a{color:var(--accent)}
 
@@ -320,7 +325,6 @@
 </head>
 <body>
 <div class="app-shell">
-<div class="app">
   <header class="appbar">
     <div class="appbar-row">
       <h1 class="app-title">職員連絡ボード<small>令和8年度</small></h1>
@@ -342,12 +346,16 @@
       <button class="tab" role="tab" aria-selected="false" data-view="mine">自分の未対応 <span class="badge" id="mine-badge"></span></button>
       <button class="tab" role="tab" aria-selected="false" data-view="admin">確認状況（発信者用）</button>
     </nav>
-    <div class="filterbar" id="filterbar" style="display:none">
-      <input type="search" id="filter-kw" placeholder="🔍 キーワードで絞り込み（議題・内容・発信者）">
-      <select id="filter-ym" aria-label="月で絞り込み"><option value="">すべての月</option></select>
-      <button type="button" class="btn" id="filter-clear">クリア</button>
-    </div>
   </header>
+
+<div class="app">
+  <!-- 絞り込みバーは本文側に置く。タブによって使わない場合も、サイドバーの上端が
+       ずれないよう visibility で隠して高さは確保する（display:none にしない） -->
+  <div class="filterbar" id="filterbar">
+    <input type="search" id="filter-kw" placeholder="🔍 キーワードで絞り込み（議題・内容・発信者）">
+    <select id="filter-ym" aria-label="月で絞り込み"><option value="">すべての月</option></select>
+    <button type="button" class="btn" id="filter-clear">クリア</button>
+  </div>
 
   <section class="view active" id="view-today"><div class="loading">読み込み中…</div></section>
   <section class="view" id="view-done"></section>
@@ -514,8 +522,9 @@ function switchView(name){
   currentView=name;
   tabs.forEach(function(t){ t.setAttribute('aria-selected', String(t.dataset.view===name)); });
   views.forEach(function(v){ v.classList.toggle('active', v.id==='view-'+name); });
-  // 絞り込みバーは「今日のボード」「完了した連絡」でのみ表示
-  document.getElementById('filterbar').style.display=(name==='today'||name==='done')?'':'none';
+  // 絞り込みバーは「今日のボード」「完了した連絡」でのみ使う。
+  // 使わないタブでも高さは保ち（visibility）、右サイドバーの上端がずれないようにする
+  document.getElementById('filterbar').style.visibility=(name==='today'||name==='done')?'':'hidden';
   if(name==='today') renderToday();
   if(name==='done') renderDone();
   if(name==='meeting') renderMeeting();
