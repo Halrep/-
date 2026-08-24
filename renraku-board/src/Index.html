@@ -95,7 +95,8 @@
   .filterbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0 0}
   .filterbar input[type=search]{flex:1;min-width:220px;font:inherit;background:var(--card);color:var(--ink);
     border:1px solid var(--line);border-radius:8px;padding:8px 12px}
-  .filterbar select{font:inherit;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+  .filterbar select{font:inherit;background:var(--card);color:var(--ink);border:1px solid var(--line);
+    border-radius:8px;padding:8px 10px;max-width:180px}
   .filterbar .btn{padding:8px 14px;font-size:.82rem}
 
   /* 自分の済みを折りたたむトグル */
@@ -352,8 +353,9 @@
   <!-- 絞り込みバーは本文側に置く。タブによって使わない場合も、サイドバーの上端が
        ずれないよう visibility で隠して高さは確保する（display:none にしない） -->
   <div class="filterbar" id="filterbar">
-    <input type="search" id="filter-kw" placeholder="🔍 キーワードで絞り込み（議題・内容・発信者）">
+    <input type="search" id="filter-kw" placeholder="🔍 キーワードで絞り込み（議題・内容）">
     <select id="filter-ym" aria-label="月で絞り込み"><option value="">すべての月</option></select>
+    <select id="filter-speaker" aria-label="発信者で絞り込み"><option value="">すべての発信者</option></select>
     <button type="button" class="btn" id="filter-clear">クリア</button>
   </div>
 
@@ -533,11 +535,12 @@ function switchView(name){
 }
 tabs.forEach(function(t){ t.addEventListener('click', function(){ switchView(t.dataset.view); }); });
 
-/* ====== 絞り込み（月・キーワード） ====== */
-var filterYM='', filterKW='';
+/* ====== 絞り込み（月・発信者・キーワード） ====== */
+var filterYM='', filterKW='', filterSpeaker='';
 function fullyDone(it){ return it.targetCount>0 && it.doneCount>=it.targetCount; } // 対象全員が済み
 function matchesFilter(it){
   if(filterYM && it.ym!==filterYM) return false;
+  if(filterSpeaker && (it.speaker||'')!==filterSpeaker) return false;
   if(filterKW){
     var hay=((it.title||'')+' '+(it.body||'')+' '+(it.speaker||'')).toLowerCase();
     if(hay.indexOf(filterKW)<0) return false;
@@ -557,20 +560,45 @@ function populateMonthFilter(){
   }).join('');
   if(cur && yms.indexOf(cur)>=0) sel.value=cur; // 選択中の月は保持
 }
+/** DATA.items から発信者の選択肢を作る（件数付き・五十音順） */
+function populateSpeakerFilter(){
+  var sel=document.getElementById('filter-speaker');
+  var counts={};
+  DATA.items.forEach(function(it){
+    var s=it.speaker||''; if(!s) return;
+    counts[s]=(counts[s]||0)+1;
+  });
+  var names=Object.keys(counts).sort(function(a,b){ return a.localeCompare(b,'ja'); });
+  var cur=sel.value;
+  sel.innerHTML='<option value="">すべての発信者</option>'+names.map(function(n){
+    return '<option value="'+esc(n)+'">'+esc(n)+'（'+counts[n]+'）</option>';
+  }).join('');
+  // 選択中の発信者が今も存在すれば保持。消えていれば絞り込みも解除する
+  if(cur && names.indexOf(cur)>=0) sel.value=cur;
+  else if(cur) filterSpeaker='';
+}
 function onFilterChange(){
   filterYM=document.getElementById('filter-ym').value;
+  filterSpeaker=document.getElementById('filter-speaker').value;
   filterKW=document.getElementById('filter-kw').value.trim().toLowerCase();
   if(currentView==='today') renderToday();
   else if(currentView==='done') renderDone();
 }
 document.getElementById('filter-ym').addEventListener('change', onFilterChange);
+document.getElementById('filter-speaker').addEventListener('change', onFilterChange);
 var kwTimer;
 document.getElementById('filter-kw').addEventListener('input', function(){
   clearTimeout(kwTimer); kwTimer=setTimeout(onFilterChange, 200); // 入力が落ち着いてから絞り込む
 });
+/** 絞り込みをすべて解除する（クリアボタン／カレンダー等からのジャンプ時に使う） */
+function clearFilters(){
+  document.getElementById('filter-kw').value='';
+  document.getElementById('filter-ym').value='';
+  document.getElementById('filter-speaker').value='';
+  filterYM=''; filterKW=''; filterSpeaker='';
+}
 document.getElementById('filter-clear').addEventListener('click', function(){
-  document.getElementById('filter-kw').value=''; document.getElementById('filter-ym').value='';
-  filterYM=''; filterKW='';
+  clearFilters();
   if(currentView==='today') renderToday(); else if(currentView==='done') renderDone();
 });
 
@@ -819,9 +847,7 @@ function jumpToDate(dateISO, which){
   });
   if(!matches.length){ showToast('この日の連絡は見つかりませんでした'); return; }
 
-  filterYM=''; filterKW='';
-  document.getElementById('filter-kw').value='';
-  document.getElementById('filter-ym').value='';
+  clearFilters();
 
   var openMatches=matches.filter(function(it){ return !fullyDone(it); });
   var target;
@@ -874,9 +900,7 @@ function renderSideTodo(){
 function jumpToItem(itemId){
   var it=DATA.items.find(function(x){ return x.id===itemId; });
   if(!it){ showToast('連絡が見つかりませんでした'); return; }
-  filterYM=''; filterKW='';
-  document.getElementById('filter-kw').value='';
-  document.getElementById('filter-ym').value='';
+  clearFilters();
   if(!fullyDone(it)){
     monthOpenState[it.ym]=true;
     if(it.myDone) foldState[it.ym+'|'+(it.action?'action':'read')]=true;
@@ -896,6 +920,7 @@ function jumpToItem(itemId){
 function renderToday(){
   var v=document.getElementById('view-today');
   populateMonthFilter();
+  populateSpeakerFilter();
   // 全員完了は「完了した連絡」タブへ回す。ここには未完了だけを出す
   var board=DATA.items.filter(function(it){ return !fullyDone(it) && matchesFilter(it); });
   var dueToday=board.filter(function(it){ return it.action && it.dueClass==='today' && !it.myDone; }).length;
@@ -927,7 +952,8 @@ function renderToday(){
     var readItems=items.filter(function(it){ return !it.action; });
     var openCount=items.filter(function(it){ return !it.myDone; }).length;
     // 特定の月を選んで絞り込み中、またはキーワード検索中は必ず開く。それ以外は今月だけ既定で開く
-    var isOpen = filterYM ? true : (filterKW ? true : ((ym in monthOpenState) ? monthOpenState[ym] : (ym===curYM)));
+    // 絞り込み中は結果が隠れないよう必ず開く。そうでなければ記憶した状態（初期値は今月のみ開く）
+    var isOpen = filtering() ? true : ((ym in monthOpenState) ? monthOpenState[ym] : (ym===curYM));
 
     var sec=el('<section class="month-section">'
       +'<button type="button" class="month-toggle">'
@@ -950,12 +976,13 @@ function renderToday(){
   });
 }
 
-function filtering(){ return !!(filterYM||filterKW); }
+function filtering(){ return !!(filterYM||filterKW||filterSpeaker); }
 
 /** 「完了した連絡」タブ：対象者全員が済ませた連絡を新しい順に一覧（絞り込み対応） */
 function renderDone(){
   var v=document.getElementById('view-done');
   populateMonthFilter();
+  populateSpeakerFilter();
   var items=DATA.items.filter(function(it){ return fullyDone(it) && matchesFilter(it); });
   items.sort(function(a,b){ return (b.dateISO||'').localeCompare(a.dateISO||''); }); // 新しい順
   var html='<h2 class="section-label">対象者全員が対応・確認を終えた連絡（'+items.length+'件）</h2>'
