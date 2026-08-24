@@ -354,11 +354,9 @@
     </div>
     <div class="me" id="me"></div>
     <nav class="tabs" role="tablist">
-      <button class="tab" role="tab" aria-selected="true" data-view="today">今日のボード</button>
-      <button class="tab" role="tab" aria-selected="false" data-view="done">完了した連絡</button>
+      <button class="tab" role="tab" aria-selected="true" data-view="board">連絡ボード <span class="badge" id="mine-badge"></span></button>
       <button class="tab" role="tab" aria-selected="false" data-view="meeting">会議</button>
-      <button class="tab" role="tab" aria-selected="false" data-view="mine">自分の未対応 <span class="badge" id="mine-badge"></span></button>
-      <button class="tab" role="tab" aria-selected="false" data-view="admin">確認状況（発信者用）</button>
+      <button class="tab" role="tab" aria-selected="false" data-view="admin">確認状況</button>
     </nav>
   </header>
 
@@ -367,15 +365,18 @@
        ずれないよう visibility で隠して高さは確保する（display:none にしない） -->
   <div class="filterbar" id="filterbar">
     <input type="search" id="filter-kw" placeholder="🔍 キーワードで絞り込み（議題・内容）">
+    <select id="filter-status" aria-label="対応状況で絞り込み">
+      <option value="undone">未完了のみ</option>
+      <option value="all">すべて</option>
+      <option value="done">完了のみ</option>
+    </select>
     <select id="filter-ym" aria-label="月で絞り込み"><option value="">すべての月</option></select>
     <select id="filter-speaker" aria-label="発信者で絞り込み"><option value="">すべての発信者</option></select>
     <button type="button" class="btn" id="filter-clear">クリア</button>
   </div>
 
-  <section class="view active" id="view-today"><div class="loading">読み込み中…</div></section>
-  <section class="view" id="view-done"></section>
+  <section class="view active" id="view-board"><div class="loading">読み込み中…</div></section>
   <section class="view" id="view-meeting"></section>
-  <section class="view" id="view-mine"></section>
   <section class="view" id="view-admin"></section>
 </div>
 
@@ -427,7 +428,7 @@
     <div class="field" id="f-meeting-field">
       <label>会議（任意）</label>
       <select id="f-meeting"></select>
-      <p class="form-hint" id="f-meeting-hint">会議を選ばないと、この連絡は「今日のボード」にすぐ表示されます。</p>
+      <p class="form-hint" id="f-meeting-hint">会議を選ばないと、この連絡は「連絡ボード」にすぐ表示されます。</p>
     </div>
     <div class="field" id="f-newmeeting" style="display:none">
       <div class="row">
@@ -532,25 +533,30 @@ function showToast(m){ toast.textContent=m; toast.classList.add('show');
 
 /* ====== タブ ====== */
 var tabs=document.querySelectorAll('.tab'), views=document.querySelectorAll('.view');
-var currentView='today';
+var currentView='board';
 function switchView(name){
   currentView=name;
   tabs.forEach(function(t){ t.setAttribute('aria-selected', String(t.dataset.view===name)); });
   views.forEach(function(v){ v.classList.toggle('active', v.id==='view-'+name); });
-  // 絞り込みバーは「今日のボード」「完了した連絡」でのみ使う。
+  // 絞り込みバーは「連絡ボード」でのみ使う。
   // 使わないタブでも高さは保ち（visibility）、右サイドバーの上端がずれないようにする
-  document.getElementById('filterbar').style.visibility=(name==='today'||name==='done')?'':'hidden';
-  if(name==='today') renderToday();
-  if(name==='done') renderDone();
+  document.getElementById('filterbar').style.visibility=(name==='board')?'':'hidden';
+  if(name==='board') renderBoard();
   if(name==='meeting') renderMeeting();
-  if(name==='mine') renderMine();
   if(name==='admin') renderAdmin();
 }
 tabs.forEach(function(t){ t.addEventListener('click', function(){ switchView(t.dataset.view); }); });
 
-/* ====== 絞り込み（月・発信者・キーワード） ====== */
+/* ====== 絞り込み（対応状況・月・発信者・キーワード） ====== */
 var filterYM='', filterKW='', filterSpeaker='';
+var filterStatus='undone'; // undone=未完了のみ（既定） / all=すべて / done=完了のみ
 function fullyDone(it){ return it.targetCount>0 && it.doneCount>=it.targetCount; } // 対象全員が済み
+/** 対応状況の絞り込み。ここだけ他の条件と分けているのは、選択肢の件数を数える母集団になるため */
+function matchesStatus(it){
+  if(filterStatus==='undone') return !fullyDone(it);
+  if(filterStatus==='done') return fullyDone(it);
+  return true; // all
+}
 function matchesFilter(it){
   if(filterYM && it.ym!==filterYM) return false;
   if(filterSpeaker && (it.speaker||'')!==filterSpeaker) return false;
@@ -562,8 +568,8 @@ function matchesFilter(it){
 }
 /**
  * 年月の選択肢を作る（新しい月が上）。
- * pool を渡すと、その配列だけを数える（今のタブに実際に表示されうる件数に合わせるため。
- * 例えば「今日のボード」では完了済みの連絡が含まれないよう、完了前だけを渡す）。
+ * pool を渡すと、その配列だけを数える（いま実際に表示されうる件数に合わせるため。
+ * 例えば「未完了のみ」表示中は、完了済みを除いた配列を渡す）。
  * pool を省略すると DATA.items 全体を数える。
  */
 function populateMonthFilter(pool){
@@ -596,28 +602,35 @@ function populateSpeakerFilter(pool){
   else if(cur) filterSpeaker='';
 }
 function onFilterChange(){
+  filterStatus=document.getElementById('filter-status').value;
   filterYM=document.getElementById('filter-ym').value;
   filterSpeaker=document.getElementById('filter-speaker').value;
   filterKW=document.getElementById('filter-kw').value.trim().toLowerCase();
-  if(currentView==='today') renderToday();
-  else if(currentView==='done') renderDone();
+  if(currentView==='board') renderBoard();
 }
+document.getElementById('filter-status').addEventListener('change', onFilterChange);
 document.getElementById('filter-ym').addEventListener('change', onFilterChange);
 document.getElementById('filter-speaker').addEventListener('change', onFilterChange);
 var kwTimer;
 document.getElementById('filter-kw').addEventListener('input', function(){
   clearTimeout(kwTimer); kwTimer=setTimeout(onFilterChange, 200); // 入力が落ち着いてから絞り込む
 });
-/** 絞り込みをすべて解除する（クリアボタン／カレンダー等からのジャンプ時に使う） */
-function clearFilters(){
+/**
+ * 絞り込みを解除する（クリアボタン／カレンダー等からのジャンプ時に使う）。
+ * @param {string} [status] 解除後の対応状況。省略時は既定の「未完了のみ」に戻す。
+ *   ジャンプ先が完了済みの連絡のときは 'all' を渡して見えるようにする。
+ */
+function clearFilters(status){
   document.getElementById('filter-kw').value='';
   document.getElementById('filter-ym').value='';
   document.getElementById('filter-speaker').value='';
   filterYM=''; filterKW=''; filterSpeaker='';
+  filterStatus=status||'undone';
+  document.getElementById('filter-status').value=filterStatus;
 }
 document.getElementById('filter-clear').addEventListener('click', function(){
   clearFilters();
-  if(currentView==='today') renderToday(); else if(currentView==='done') renderDone();
+  if(currentView==='board') renderBoard();
 });
 
 // サーバー側の並び順（要対応が先、期限が近い順・期限なしは最後）と同じロジック
@@ -636,19 +649,19 @@ function load(){
     DATA=d;
     document.getElementById('today').textContent=d.today;
     if(!d.me.email){
-      document.getElementById('view-today').innerHTML='<div class="empty">'
+      document.getElementById('view-board').innerHTML='<div class="empty">'
         +'ログイン情報を取得できませんでした。学校のGoogleアカウントでアクセスしてください。</div>';
       return;
     }
     if(!d.me.registered){ showRegistration(d.me); return; } // 初回は名前登録
     document.getElementById('me').textContent='ログイン: '+d.me.name;
     populateMeetingSelect();
-    switchView('today'); // ここで renderToday() も実行される
+    switchView('board'); // ここで renderBoard() も実行される
     loadCalendarMonth();
     renderSideTodo();
     startPolling();
   }).withFailureHandler(function(err){
-    document.getElementById('view-today').innerHTML='<div class="empty">読み込みに失敗しました：'+esc(err.message)+'</div>';
+    document.getElementById('view-board').innerHTML='<div class="empty">読み込みに失敗しました：'+esc(err.message)+'</div>';
   }).getInitialData();
 }
 
@@ -708,9 +721,7 @@ function mergeFreshData(d){
   DATA.today=d.today;
   document.getElementById('today').textContent=d.today;
 
-  if(currentView==='today') renderToday();
-  else if(currentView==='done') renderDone();
-  else if(currentView==='mine') renderMine();
+  if(currentView==='board') renderBoard();
   else if(currentView==='admin') renderAdmin();
   else if(currentView==='meeting') renderMeeting(keepMeeting);
   refreshMineCounters(); // renderSideTodo() もここで実行される
@@ -736,7 +747,7 @@ regForm.addEventListener('submit', function(e){
     .registerMe(name, homeroom);
 });
 
-/* ====== 今日のボード ====== */
+/* ====== 連絡ボード ====== */
 function myOpenItems(){
   return DATA.items.filter(function(it){ return it.action && it.myTarget && !it.myDone; });
 }
@@ -746,6 +757,12 @@ function myOpenItems(){
  */
 function renderSection(container, items, emptyText, foldKey){
   if(!items.length){ container.innerHTML='<div class="empty">'+emptyText+'</div>'; return; }
+  // 折りたたみは「未完了のみ」表示のときだけ。完了を含む表示では、自分の済みを畳むと
+  // ほぼ全件が隠れて空に見えてしまうため、そのまま並べる
+  if(filterStatus!=='undone'){
+    items.forEach(function(it){ container.appendChild(cardEl(it)); });
+    return;
+  }
   var open=items.filter(function(it){ return !it.myDone; });
   var mineDone=items.filter(function(it){ return it.myDone; });
   open.forEach(function(it){ container.appendChild(cardEl(it)); });
@@ -754,7 +771,7 @@ function renderSection(container, items, emptyText, foldKey){
     var toggle=el('<button type="button" class="fold-toggle">'
       +(expanded?'▼ 自分が済ませた連絡（'+mineDone.length+'件）を隠す':'▶ 自分が済ませた連絡（'+mineDone.length+'件）を表示')
       +'</button>');
-    toggle.addEventListener('click', function(){ foldState[foldKey]=!expanded; renderToday(); });
+    toggle.addEventListener('click', function(){ foldState[foldKey]=!expanded; renderBoard(); });
     container.appendChild(toggle);
     if(expanded) mineDone.forEach(function(it){ container.appendChild(cardEl(it)); });
   }
@@ -859,7 +876,7 @@ document.getElementById('cal-next').addEventListener('click', function(){ calVie
 /**
  * カレンダーの日付／ドットから、該当する連絡までジャンプする。
  * 絞り込みは解除し、必要なら月セクション・自分の済みの折りたたみを開いてスクロール＋一瞬ハイライト。
- * 対象がすべて完了済みなら「完了した連絡」タブへ切り替える。
+ * 対象がすべて完了済みなら、対応状況フィルタを「すべて」に切り替えて見えるようにする。
  * @param {string} dateISO
  * @param {string} which 'created'（その日に追加）または 'due'（その日が期限）
  */
@@ -869,21 +886,16 @@ function jumpToDate(dateISO, which){
   });
   if(!matches.length){ showToast('この日の連絡は見つかりませんでした'); return; }
 
-  clearFilters();
-
+  // 未完了があればそれを優先。すべて完了済みなら状態フィルタを「すべて」にして見せる
   var openMatches=matches.filter(function(it){ return !fullyDone(it); });
-  var target;
-  if(openMatches.length){
-    target=openMatches[0];
-    openMatches.forEach(function(it){
-      monthOpenState[it.ym]=true;
-      if(it.myDone) foldState[it.ym+'|'+(it.action?'action':'read')]=true;
-    });
-    switchView('today');
-  }else{
-    target=matches[0];
-    switchView('done');
-  }
+  var target=openMatches.length?openMatches[0]:matches[0];
+  clearFilters(openMatches.length?'undone':'all');
+
+  (openMatches.length?openMatches:[target]).forEach(function(it){
+    monthOpenState[it.ym]=true;
+    if(it.myDone) foldState[it.ym+'|'+(it.action?'action':'read')]=true;
+  });
+  switchView('board');
   setTimeout(function(){
     var card=document.querySelector('[data-item-id="'+target.id+'"]');
     if(!card) return;
@@ -922,14 +934,11 @@ function renderSideTodo(){
 function jumpToItem(itemId){
   var it=DATA.items.find(function(x){ return x.id===itemId; });
   if(!it){ showToast('連絡が見つかりませんでした'); return; }
-  clearFilters();
-  if(!fullyDone(it)){
-    monthOpenState[it.ym]=true;
-    if(it.myDone) foldState[it.ym+'|'+(it.action?'action':'read')]=true;
-    switchView('today');
-  }else{
-    switchView('done');
-  }
+  // 完了済みの連絡は「未完了のみ」表示では見えないので、状態フィルタを「すべて」にする
+  clearFilters(fullyDone(it)?'all':'undone');
+  monthOpenState[it.ym]=true;
+  if(it.myDone) foldState[it.ym+'|'+(it.action?'action':'read')]=true;
+  switchView('board');
   setTimeout(function(){
     var card=document.querySelector('[data-item-id="'+itemId+'"]');
     if(!card) return;
@@ -939,16 +948,18 @@ function jumpToItem(itemId){
   }, 60);
 }
 
-function renderToday(){
-  var v=document.getElementById('view-today');
-  // 全員完了は「完了した連絡」タブへ回す。ここには未完了だけを出す。
-  // プルダウンの件数もこの未完了プールだけで数え、実際に表示されうる件数と一致させる
-  // （そうしないと「発信者（n）」の n が完了済み分も含んでしまい、選んでも0件で
-  // 検索が効いていないように見えてしまう）
-  var undone=DATA.items.filter(function(it){ return !fullyDone(it); });
-  populateMonthFilter(undone);
-  populateSpeakerFilter(undone);
-  var board=undone.filter(matchesFilter);
+/**
+ * 「連絡ボード」タブ：連絡を月ごとに区切って表示する。
+ * 対応状況（未完了のみ／すべて／完了のみ）はプルダウンで切り替える。既定は未完了のみ。
+ * 月・発信者のプルダウンの件数は、いま表示されうる母集団だけで数える
+ * （そうしないと「発信者（n）」のnが表示対象外まで含み、選んでも0件になってしまう）。
+ */
+function renderBoard(){
+  var v=document.getElementById('view-board');
+  var pool=DATA.items.filter(matchesStatus);
+  populateMonthFilter(pool);
+  populateSpeakerFilter(pool);
+  var board=pool.filter(matchesFilter);
   var dueToday=board.filter(function(it){ return it.action && it.dueClass==='today' && !it.myDone; }).length;
   var mine=myOpenItems().length;
   updateBadge(mine);
@@ -960,7 +971,7 @@ function renderToday(){
     +'</div>';
 
   if(!board.length){
-    html+='<div class="empty">'+(filtering()?'条件に合う連絡はありません。':'掲載中の連絡はありません。')+'</div>';
+    html+='<div class="empty">'+(filtering()?'条件に合う連絡はありません。':'表示できる連絡はありません。')+'</div>';
     v.innerHTML=html;
     return;
   }
@@ -971,13 +982,14 @@ function renderToday(){
   board.forEach(function(it){ var k=it.ym||''; (byYm[k]=byYm[k]||[]).push(it); });
   var yms=Object.keys(byYm).sort().reverse(); // 'yyyy-MM' 降順（日付不明の ''  は最後）
   var curYM=currentActualYM();
+  // 折りたたみが働くのは「未完了のみ」表示のときだけ（renderSection と揃える）
+  var foldNote=(filterStatus==='undone')?' — 未対応が上／自分の済みは折りたたみ':'';
 
   yms.forEach(function(ym){
     var items=byYm[ym];
     var actionItems=items.filter(function(it){ return it.action; });
     var readItems=items.filter(function(it){ return !it.action; });
     var openCount=items.filter(function(it){ return !it.myDone; }).length;
-    // 特定の月を選んで絞り込み中、またはキーワード検索中は必ず開く。それ以外は今月だけ既定で開く
     // 絞り込み中は結果が隠れないよう必ず開く。そうでなければ記憶した状態（初期値は今月のみ開く）
     var isOpen = filtering() ? true : ((ym in monthOpenState) ? monthOpenState[ym] : (ym===curYM));
 
@@ -989,12 +1001,12 @@ function renderToday(){
         +'<span class="month-count">全'+items.length+'件・未対応'+openCount+'件</span>'
       +'</button>'
       +'<div class="month-body" style="display:'+(isOpen?'':'none')+'">'
-        +'<h2 class="section-label">要対応 — 未対応が上／自分の済みは折りたたみ</h2><div class="action-list"></div>'
-        +'<h2 class="section-label">閲覧のみ — 未読が上／自分の済みは折りたたみ</h2><div class="read-list"></div>'
+        +'<h2 class="section-label">要対応'+foldNote+'</h2><div class="action-list"></div>'
+        +'<h2 class="section-label">閲覧のみ'+foldNote+'</h2><div class="read-list"></div>'
       +'</div>'
     +'</section>');
     sec.querySelector('.month-toggle').addEventListener('click', function(){
-      monthOpenState[ym]=!isOpen; renderToday();
+      monthOpenState[ym]=!isOpen; renderBoard();
     });
     renderSection(sec.querySelector('.action-list'), actionItems, filtering()?'条件に合う要対応の連絡はありません。':'要対応の連絡はありません。', ym+'|action');
     renderSection(sec.querySelector('.read-list'), readItems, filtering()?'条件に合う閲覧のみの連絡はありません。':'閲覧のみの連絡はありません。', ym+'|read');
@@ -1002,25 +1014,8 @@ function renderToday(){
   });
 }
 
+/** 状態以外の絞り込み（キーワード・月・発信者）が効いているか */
 function filtering(){ return !!(filterYM||filterKW||filterSpeaker); }
-
-/** 「完了した連絡」タブ：対象者全員が済ませた連絡を新しい順に一覧（絞り込み対応） */
-function renderDone(){
-  var v=document.getElementById('view-done');
-  var done=DATA.items.filter(fullyDone);
-  populateMonthFilter(done);
-  populateSpeakerFilter(done);
-  var items=done.filter(matchesFilter);
-  items.sort(function(a,b){ return (b.dateISO||'').localeCompare(a.dateISO||''); }); // 新しい順
-  var html='<h2 class="section-label">対象者全員が対応・確認を終えた連絡（'+items.length+'件）</h2>'
-    +'<p style="font-size:.85rem;color:var(--ink-soft);margin:0 4px 12px">'
-    +'全員が済ませた連絡はこちらに移動します。上の絞り込みで月やキーワードから探せます。</p>'
-    +'<div id="done-list"></div>';
-  v.innerHTML=html;
-  var dl=v.querySelector('#done-list');
-  if(items.length) items.forEach(function(it){ dl.appendChild(cardEl(it)); });
-  else dl.innerHTML='<div class="empty">'+(filtering()?'条件に合う完了済みの連絡はありません。':'まだ完了した連絡はありません。')+'</div>';
-}
 
 /** DriveのURLからファイルIDを取り出す（Drive以外は null） */
 function driveFileId(u){
@@ -1200,7 +1195,7 @@ function showNames(it){
 
 /* ====== 会議ビュー ====== */
 function populateMeetingSelect(){
-  var opts='<option value="">会議に紐づけない（今日のボードに表示）</option>';
+  var opts='<option value="">会議に紐づけない（連絡ボードに表示）</option>';
   opts+=DATA.meetings.map(function(m){ return '<option value="'+esc(m.id)+'">'+esc(m.label)+'</option>'; }).join('');
   opts+='<option value="__new__">＋ 新しい会議を追加…</option>';
   var fsel=document.getElementById('f-meeting'); fsel.innerHTML=opts;
@@ -1261,57 +1256,26 @@ function wireAgendaRows(root, items){
   });
 }
 
-/* ====== 自分の未対応 ====== */
-function renderMine(){
-  var v=document.getElementById('view-mine');
-  var mine=myOpenItems();
-  var html='<h2 class="section-label">あなた宛てで、まだ対応していない連絡</h2>'
-    +'<p style="font-size:.85rem;color:var(--ink-soft);margin:0 4px 12px">'
-    +'「今日のボード」で対応済みにすると、ここから消えます。期限を過ぎたものは毎朝メールでもお知らせします。</p>';
-  if(!mine.length){ html+='<div class="empty">未対応の連絡はありません。お疲れさまです。</div>'; v.innerHTML=html; return; }
-  v.innerHTML=html;
-  mine.forEach(function(it){
-    var c=el('<div class="card"><div class="card-top">'
-      +(it.monthNo?'<span class="no-badge">No.'+esc(it.monthNo)+'</span>':'')
-      +(it.dueLabel?'<span class="chip due '+it.dueClass+'">期限 '+esc(it.dueLabel)+'</span>':'')
-      +'<span class="chip kind">'+esc(it.meetingLabel||'連絡')+'</span>'
-      +'<span class="chip speaker">発信: '+esc(it.speaker)+'</span>'
-      +(it.canEdit?'<button type="button" class="icon-btn" data-edit>✏️ 編集</button>':'')
-      +'</div>'
-      +'<h3>'+esc(it.title)+'</h3>'
-      +'<div class="card-foot"><div class="progress"></div>'
-      +'<button class="linklike muted" data-comment-btn="'+esc(it.id)+'">'+commentLabel(it.commentCount||0)+'</button>'
-      +'<button class="check">対応済みにする</button></div></div>');
-    c.querySelector('[data-comment-btn]').addEventListener('click', function(){ openComments(it.id, it.title); });
-    var mineEditBtn=c.querySelector('[data-edit]');
-    if(mineEditBtn) mineEditBtn.addEventListener('click', function(){ openEditForm(it); });
-    c.querySelector('button.check').addEventListener('click', function(){
-      // 即時反映してバックグラウンドで保存（失敗時のみ巻き戻し）
-      setCheckState(it, false, true);
-      renderMine(); renderToday(); renderDone(); refreshMineCounters();
-      showToast('記録しました');
-      pendingSaves++; // 保存が終わるまで自動ポーリングでの上書きを止める
-      google.script.run.withSuccessHandler(function(){
-        pendingSaves--;
-      }).withFailureHandler(function(e){
-        pendingSaves--;
-        setCheckState(it, false, false);
-        renderMine(); renderToday(); renderDone(); refreshMineCounters();
-        showToast('保存できませんでした。もう一度お試しください（'+e.message+'）');
-      }).recordCheck(it.id, true, '対応');
-    });
-    v.appendChild(c);
-  });
-}
-
-/* ====== 確認状況（発信者用） ====== */
+/* ====== 確認状況（自分が発信した連絡の回収状況） ====== */
 function renderAdmin(){
   var v=document.getElementById('view-admin');
-  var mineSent=DATA.items.filter(function(it){ return it.action; }); // 簡易: 要対応を全件表示
-  var html='<h2 class="section-label">要対応の連絡 — 確認状況</h2>';
-  if(!mineSent.length){ html+='<div class="empty">要対応の連絡はありません。</div>'; v.innerHTML=html; return; }
+  // 自分が発信した「要対応」の連絡だけを対象にする（期限が近い順、期限なしは末尾）
+  var sent=DATA.items.filter(function(it){ return it.action && it.isMine; }).sort(function(a,b){
+    if(a.dueSort===b.dueSort) return 0;
+    if(a.dueSort===null) return 1;
+    if(b.dueSort===null) return -1;
+    return a.dueSort-b.dueSort;
+  });
+  var html='<h2 class="section-label">あなたが発信した要対応の連絡（'+sent.length+'件）</h2>'
+    +'<p style="font-size:.85rem;color:var(--ink-soft);margin:0 4px 12px">'
+    +'自分が出した連絡を、誰がまだ対応していないかを確認できます。'
+    +'全体の連絡を見たいときは「連絡ボード」で対応状況を「すべて」に切り替えてください。</p>';
+  if(!sent.length){
+    html+='<div class="empty">あなたが発信した要対応の連絡はありません。</div>';
+    v.innerHTML=html; return;
+  }
   v.innerHTML=html;
-  mineSent.forEach(function(it){
+  sent.forEach(function(it){
     var pct=it.targetCount?Math.round(it.doneCount/it.targetCount*100):0;
     var chips=(it.uncheckedNames||[]).map(function(n){ return '<span class="s">'+esc(n)+'</span>'; }).join('');
     if(!chips) chips='<span class="s ok">全員対応済み 🎉</span>';
@@ -1508,9 +1472,7 @@ function refreshAfterEdit(res){
     if(idx>=0) DATA.items[idx]=res.item; else DATA.items.push(res.item);
     DATA.items.sort(itemSortComparator);
   }
-  if(currentView==='today') renderToday();
-  else if(currentView==='done') renderDone();
-  else if(currentView==='mine') renderMine();
+  if(currentView==='board') renderBoard();
   else if(currentView==='admin') renderAdmin();
   else if(currentView==='meeting'){
     var pick=document.getElementById('m-pick');
@@ -1535,9 +1497,7 @@ function refreshAfterSubmit(res){
     DATA.items.push(res.item);
     DATA.items.sort(itemSortComparator);
   }
-  if(currentView==='today') renderToday();
-  else if(currentView==='done') renderDone();
-  else if(currentView==='mine') renderMine();
+  if(currentView==='board') renderBoard();
   else if(currentView==='admin') renderAdmin();
   else if(currentView==='meeting'){
     if(res.meeting) renderMeeting(); // 会議一覧に新規会議を反映しつつ選び直す

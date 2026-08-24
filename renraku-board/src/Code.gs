@@ -464,6 +464,11 @@ function decorateItem_(it, staff, logs, me, meetingName, commentCounts, meetingD
     myAck: myState.ack,
     myTarget: targets.some(function (s) { return s.email === me.email.toLowerCase(); }),
     uncheckedNames: unchecked,
+    // 自分が発信した連絡か（「確認状況」タブの絞り込み用）。作成者メールが記録されて
+    // いない旧データは、発言者名が自分の氏名と一致するかで判定する
+    isMine: it.creatorEmail
+      ? (it.creatorEmail === String(me.email || '').toLowerCase())
+      : (!!me.name && String(it.speaker || '') === me.name),
     canEdit: meta.canEdit,
     commentCount: (commentCounts || {})[it.id] || 0,
     monthNo: (monthNoMap || {})[it.id] || null
