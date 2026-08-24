@@ -31,7 +31,16 @@
   *{box-sizing:border-box}
   body{margin:0;background:var(--paper);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased;
     font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI","Yu Gothic","Noto Sans JP",sans-serif}
-  .app{max-width:1180px;margin:0 auto;padding:0 28px 72px}
+  /* 全体シェル: メイン（可変幅）＋右サイドバー（固定幅） */
+  .app-shell{max-width:1500px;margin:0 auto;padding:0 28px 72px;
+    display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:28px;align-items:start}
+  .app{min-width:0}
+  .sidebar{position:sticky;top:20px;display:flex;flex-direction:column;gap:20px;min-width:0;
+    max-height:calc(100vh - 40px);overflow-y:auto}
+  @media (max-width:1100px){
+    .app-shell{grid-template-columns:1fr;padding:0 16px 72px}
+    .sidebar{position:static;max-height:none;overflow-y:visible}
+  }
   a{color:var(--accent)}
 
   header.appbar{padding:20px 4px 0}
@@ -51,6 +60,7 @@
   .refresh-btn.spinning .spin-icon{animation:spin .7s linear infinite}
   @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
   @media (prefers-reduced-motion: reduce){.refresh-btn.spinning .spin-icon{animation:none}}
+  @media (prefers-reduced-motion: reduce){.card.flash{animation:none;box-shadow:0 0 0 3px var(--accent)}}
   .theme-switch{display:inline-flex;gap:2px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:3px}
   .theme-switch button{appearance:none;border:none;background:none;cursor:pointer;font:inherit;font-size:.75rem;
     font-weight:600;color:var(--ink-soft);border-radius:999px;padding:3px 12px;white-space:nowrap}
@@ -107,6 +117,66 @@
   .no-badge{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:24px;
     padding:0 7px;border-radius:999px;background:var(--accent);color:#fff;font-weight:800;
     font-size:.78rem;font-variant-numeric:tabular-nums;flex-shrink:0}
+
+  /* ---- サイドバー共通 ---- */
+  .side-panel{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    box-shadow:var(--shadow);padding:14px 16px}
+  .side-panel h2{font-size:.8rem;font-weight:700;letter-spacing:.05em;color:var(--ink-faint);margin:0 0 10px;
+    display:flex;align-items:center;gap:6px}
+  .side-panel h2 span{font-weight:700;color:var(--warn)}
+  .side-empty{font-size:.82rem;color:var(--ink-faint)}
+
+  /* ---- ミニカレンダー ---- */
+  .cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .cal-nav{appearance:none;border:1px solid var(--line);background:var(--paper);cursor:pointer;
+    border-radius:8px;width:26px;height:26px;font-size:1rem;color:var(--ink-soft);line-height:1;padding:0}
+  .cal-nav:hover{border-color:var(--accent);color:var(--accent)}
+  .cal-nav:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .cal-title{font-size:.9rem;font-weight:700}
+  .cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;
+    font-size:.66rem;color:var(--ink-faint);margin-bottom:3px}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+  .cal-day{position:relative;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;border-radius:8px;font-size:.76rem;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .cal-day.pad{visibility:hidden}
+  .cal-day.clickable{cursor:pointer}
+  .cal-day.clickable:hover{background:var(--accent-soft)}
+  .cal-day.today{background:var(--accent);color:#fff;font-weight:700}
+  .cal-dots{display:flex;gap:3px;margin-top:2px;height:6px}
+  .cal-dot{width:6px;height:6px;border-radius:999px;cursor:pointer;flex-shrink:0}
+  .cal-dot.green{background:var(--good)}
+  .cal-dot.red{background:var(--danger)}
+  .cal-day.today .cal-dot.green{background:#fff}
+  .cal-day.today .cal-dot.red{background:#ffd9d4}
+  .cal-legend{display:flex;gap:14px;align-items:center;font-size:.7rem;color:var(--ink-soft);margin:10px 0 0}
+  .cal-legend .dot{display:inline-block;width:7px;height:7px;border-radius:999px;margin-right:4px}
+  .cal-legend .dot.green{background:var(--good)}
+  .cal-legend .dot.red{background:var(--danger);margin-left:2px}
+  /* ホバーで表示するその日の共有カレンダー予定（データが無い日は何も出ない） */
+  .cal-tooltip{position:absolute;z-index:20;left:50%;bottom:100%;transform:translateX(-50%) translateY(-6px);
+    background:var(--ink);color:var(--paper);border-radius:8px;padding:8px 10px;font-size:.72rem;
+    line-height:1.5;box-shadow:0 4px 14px rgba(0,0,0,.25);pointer-events:none;
+    opacity:0;transition:opacity .15s;width:200px;text-align:left}
+  .cal-day:hover .cal-tooltip{opacity:1}
+
+  /* ---- サイドバーの自分の未対応リスト ---- */
+  .side-todo-item{display:block;width:100%;appearance:none;background:none;border:none;cursor:pointer;
+    text-align:left;font:inherit;padding:8px 4px;border-bottom:1px solid var(--line)}
+  .side-todo-item:last-child{border-bottom:none}
+  .side-todo-item:hover .side-todo-title{color:var(--accent)}
+  .side-todo-item:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+  .side-todo-title{display:block;font-size:.85rem;font-weight:600;color:var(--ink);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .side-todo-meta{display:flex;align-items:center;gap:6px;margin-top:3px;font-size:.72rem}
+  .side-todo-due{font-weight:700;font-variant-numeric:tabular-nums}
+  .side-todo-due.today{color:var(--danger)}
+  .side-todo-due.near{color:var(--warn)}
+  .side-todo-due.far{color:var(--ink-soft)}
+  .side-todo-due.none{color:var(--ink-faint);font-weight:400}
+
+  /* カレンダー・サイドバーからジャンプした先の一時ハイライト */
+  @keyframes flash-highlight{0%{box-shadow:0 0 0 3px var(--accent)}100%{box-shadow:var(--shadow)}}
+  .card.flash{animation:flash-highlight 1.8s ease-out}
 
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);
     padding:14px 20px;margin-bottom:12px;transition:opacity .25s}
@@ -214,7 +284,7 @@
   .empty{color:var(--ink-faint);font-size:.9rem;padding:24px 4px}
   .loading{color:var(--ink-faint);font-size:.9rem;padding:40px 4px;text-align:center}
 
-  .fab{position:fixed;right:max(20px,calc(50% - 574px));bottom:24px;appearance:none;border:none;cursor:pointer;
+  .fab{position:fixed;right:24px;bottom:24px;appearance:none;border:none;cursor:pointer;
     background:var(--accent);color:#fff;font:inherit;font-weight:700;font-size:.9rem;border-radius:999px;
     padding:13px 22px;box-shadow:0 4px 14px rgba(35,43,51,.25)}
   .fab:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
@@ -249,6 +319,7 @@
 </style>
 </head>
 <body>
+<div class="app-shell">
 <div class="app">
   <header class="appbar">
     <div class="appbar-row">
@@ -283,6 +354,24 @@
   <section class="view" id="view-meeting"></section>
   <section class="view" id="view-mine"></section>
   <section class="view" id="view-admin"></section>
+</div>
+
+<aside class="sidebar">
+  <div class="side-panel cal-panel">
+    <div class="cal-head">
+      <button type="button" class="cal-nav" id="cal-prev" aria-label="前の月">‹</button>
+      <span class="cal-title" id="cal-title"></span>
+      <button type="button" class="cal-nav" id="cal-next" aria-label="次の月">›</button>
+    </div>
+    <div class="cal-weekdays"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
+    <div class="cal-grid" id="cal-grid"></div>
+    <p class="cal-legend"><span class="dot green"></span>追加日<span class="dot red"></span>期限日</p>
+  </div>
+  <div class="side-panel">
+    <h2>自分の未対応 <span id="side-todo-count"></span></h2>
+    <div id="side-todo-list"></div>
+  </div>
+</aside>
 </div>
 
 <button class="fab" id="fab">＋ 連絡を追加</button>
@@ -500,6 +589,8 @@ function load(){
     document.getElementById('me').textContent='ログイン: '+d.me.name;
     populateMeetingSelect();
     switchView('today'); // ここで renderToday() も実行される
+    loadCalendarMonth();
+    renderSideTodo();
     startPolling();
   }).withFailureHandler(function(err){
     document.getElementById('view-today').innerHTML='<div class="empty">読み込みに失敗しました：'+esc(err.message)+'</div>';
@@ -567,7 +658,8 @@ function mergeFreshData(d){
   else if(currentView==='mine') renderMine();
   else if(currentView==='admin') renderAdmin();
   else if(currentView==='meeting') renderMeeting(keepMeeting);
-  refreshMineCounters();
+  refreshMineCounters(); // renderSideTodo() もここで実行される
+  renderCalendar();
   return added;
 }
 
@@ -624,6 +716,172 @@ function ymLabel(ym){
   if(!ym) return '日付不明';
   var p=ym.split('-');
   return p[0]+'年'+Number(p[1])+'月';
+}
+function isoDate(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+/* ====== サイドバー: ミニカレンダー ====== */
+var calViewYM=currentActualYM();          // 現在表示中の月
+var calEventsCache={};                    // ym -> {dateISO:[{title,time,allDay}]}（共有カレンダーの取得結果）
+
+function calAddMonths(ym, delta){
+  var p=ym.split('-'); var y=Number(p[0]), m=Number(p[1])+delta;
+  while(m<1){ m+=12; y--; } while(m>12){ m-=12; y++; }
+  return y+'-'+String(m).padStart(2,'0');
+}
+
+/** カレンダーの再描画（ドットはDATA.itemsから即座に算出。予定ホバーはキャッシュがあれば併せて表示） */
+function renderCalendar(){
+  if(!DATA) return;
+  document.getElementById('cal-title').textContent=ymLabel(calViewYM);
+  var p=calViewYM.split('-'); var year=Number(p[0]), month=Number(p[1]);
+  var startDow=new Date(year, month-1, 1).getDay(); // 0=日曜
+  var daysInMonth=new Date(year, month, 0).getDate();
+  var todayISO=isoDate(new Date());
+
+  var addSet={}, dueSet={};
+  DATA.items.forEach(function(it){
+    if(it.dateISO && it.dateISO.slice(0,7)===calViewYM) addSet[it.dateISO]=true;
+    if(it.dueISO && it.dueISO.slice(0,7)===calViewYM) dueSet[it.dueISO]=true;
+  });
+  var evByDate=calEventsCache[calViewYM]||{};
+
+  var html='';
+  for(var i=0;i<startDow;i++) html+='<div class="cal-day pad"></div>';
+  for(var d=1; d<=daysInMonth; d++){
+    var dateISO=calViewYM+'-'+String(d).padStart(2,'0');
+    var hasAdd=!!addSet[dateISO], hasDue=!!dueSet[dateISO];
+    var events=evByDate[dateISO]||[];
+    var dots='';
+    if(hasAdd) dots+='<span class="cal-dot green" data-jump-created="'+dateISO+'" title="この日に追加された連絡へ"></span>';
+    if(hasDue) dots+='<span class="cal-dot red" data-jump-due="'+dateISO+'" title="この日が期限の連絡へ"></span>';
+    var tooltip='';
+    if(events.length){
+      tooltip='<div class="cal-tooltip">'+events.map(function(e){
+        return esc((e.allDay?'終日':e.time)+' '+e.title);
+      }).join('<br>')+'</div>';
+    }
+    html+='<div class="cal-day'+(dateISO===todayISO?' today':'')+((hasAdd||hasDue)?' clickable':'')+'" data-date="'+dateISO+'">'
+      +'<span class="cal-num">'+d+'</span>'
+      +(dots?'<span class="cal-dots">'+dots+'</span>':'')
+      +tooltip
+      +'</div>';
+  }
+  var grid=document.getElementById('cal-grid');
+  grid.innerHTML=html;
+
+  grid.querySelectorAll('[data-jump-created]').forEach(function(dot){
+    dot.addEventListener('click', function(e){ e.stopPropagation(); jumpToDate(dot.dataset.jumpCreated,'created'); });
+  });
+  grid.querySelectorAll('[data-jump-due]').forEach(function(dot){
+    dot.addEventListener('click', function(e){ e.stopPropagation(); jumpToDate(dot.dataset.jumpDue,'due'); });
+  });
+  grid.querySelectorAll('.cal-day.clickable').forEach(function(dayEl){
+    dayEl.addEventListener('click', function(){ jumpToDate(dayEl.dataset.date,'created'); });
+  });
+}
+
+/** 表示月を切り替え、必要なら共有カレンダーの予定を取得する（月ごとに1回だけ） */
+function loadCalendarMonth(){
+  renderCalendar(); // ドットは即座に出す
+  var requestedYM=calViewYM;
+  if(calEventsCache[requestedYM]) return; // 取得済み
+  google.script.run.withSuccessHandler(function(byDate){
+    calEventsCache[requestedYM]=byDate||{};
+    if(calViewYM===requestedYM) renderCalendar(); // 取得中に月を切り替えていなければ反映
+  }).withFailureHandler(function(){
+    calEventsCache[requestedYM]={}; // 失敗（未共有・IDミス等）はホバー予定が出ないだけにする
+  }).getCalendarEventsForMonth(requestedYM);
+}
+document.getElementById('cal-prev').addEventListener('click', function(){ calViewYM=calAddMonths(calViewYM,-1); loadCalendarMonth(); });
+document.getElementById('cal-next').addEventListener('click', function(){ calViewYM=calAddMonths(calViewYM,1); loadCalendarMonth(); });
+
+/**
+ * カレンダーの日付／ドットから、該当する連絡までジャンプする。
+ * 絞り込みは解除し、必要なら月セクション・自分の済みの折りたたみを開いてスクロール＋一瞬ハイライト。
+ * 対象がすべて完了済みなら「完了した連絡」タブへ切り替える。
+ * @param {string} dateISO
+ * @param {string} which 'created'（その日に追加）または 'due'（その日が期限）
+ */
+function jumpToDate(dateISO, which){
+  var matches=DATA.items.filter(function(it){
+    return which==='due' ? it.dueISO===dateISO : it.dateISO===dateISO;
+  });
+  if(!matches.length){ showToast('この日の連絡は見つかりませんでした'); return; }
+
+  filterYM=''; filterKW='';
+  document.getElementById('filter-kw').value='';
+  document.getElementById('filter-ym').value='';
+
+  var openMatches=matches.filter(function(it){ return !fullyDone(it); });
+  var target;
+  if(openMatches.length){
+    target=openMatches[0];
+    openMatches.forEach(function(it){
+      monthOpenState[it.ym]=true;
+      if(it.myDone) foldState[it.ym+'|'+(it.action?'action':'read')]=true;
+    });
+    switchView('today');
+  }else{
+    target=matches[0];
+    switchView('done');
+  }
+  setTimeout(function(){
+    var card=document.querySelector('[data-item-id="'+target.id+'"]');
+    if(!card) return;
+    card.scrollIntoView({behavior:'smooth', block:'center'});
+    card.classList.add('flash');
+    setTimeout(function(){ card.classList.remove('flash'); }, 1800);
+  }, 60);
+}
+
+/** サイドバー下部：自分が対象で未対応の連絡を、期限が近い順に表示 */
+function renderSideTodo(){
+  if(!DATA) return;
+  var list=myOpenItems().slice().sort(function(a,b){
+    if(a.dueSort===b.dueSort) return 0;
+    if(a.dueSort===null) return 1;
+    if(b.dueSort===null) return -1;
+    return a.dueSort-b.dueSort;
+  });
+  document.getElementById('side-todo-count').textContent=list.length?'('+list.length+')':'';
+  var box=document.getElementById('side-todo-list');
+  if(!list.length){ box.innerHTML='<p class="side-empty">未対応の連絡はありません。お疲れさまです。</p>'; return; }
+  box.innerHTML='';
+  list.forEach(function(it){
+    var dueText=it.dueLabel ? it.dueLabel : '期限なし';
+    var dueCls=it.dueLabel ? it.dueClass : 'none';
+    var btn=el('<button type="button" class="side-todo-item">'
+      +'<span class="side-todo-title">'+(it.monthNo?'No.'+esc(it.monthNo)+' ':'')+esc(it.title)+'</span>'
+      +'<span class="side-todo-meta"><span class="side-todo-due '+dueCls+'">'+esc(dueText)+'</span></span>'
+      +'</button>');
+    btn.addEventListener('click', function(){ jumpToItem(it.id); });
+    box.appendChild(btn);
+  });
+}
+
+/** 特定の連絡IDへジャンプ（サイドバーの自分の未対応リストから使用） */
+function jumpToItem(itemId){
+  var it=DATA.items.find(function(x){ return x.id===itemId; });
+  if(!it){ showToast('連絡が見つかりませんでした'); return; }
+  filterYM=''; filterKW='';
+  document.getElementById('filter-kw').value='';
+  document.getElementById('filter-ym').value='';
+  if(!fullyDone(it)){
+    monthOpenState[it.ym]=true;
+    if(it.myDone) foldState[it.ym+'|'+(it.action?'action':'read')]=true;
+    switchView('today');
+  }else{
+    switchView('done');
+  }
+  setTimeout(function(){
+    var card=document.querySelector('[data-item-id="'+itemId+'"]');
+    if(!card) return;
+    card.scrollIntoView({behavior:'smooth', block:'center'});
+    card.classList.add('flash');
+    setTimeout(function(){ card.classList.remove('flash'); }, 1800);
+  }, 60);
 }
 
 function renderToday(){
@@ -761,7 +1019,7 @@ function cardEl(it){
   var media=mediaHTML(it.links||[]);
 
   var card=el(
-    '<div class="card'+(it.myDone?' done':'')+'">'
+    '<div class="card'+(it.myDone?' done':'')+'" data-item-id="'+esc(it.id)+'">'
     +'<div class="card-top">'+chips+'</div>'
     +'<div class="card-mid">'
       +'<div class="card-text">'
@@ -836,6 +1094,7 @@ function refreshMineCounters(){
   var n=myOpenItems().length;
   updateBadge(n);
   var sm=document.getElementById('stat-mine'); if(sm) sm.textContent=n;
+  renderSideTodo();
 }
 
 /*
@@ -1195,6 +1454,7 @@ function refreshAfterEdit(res){
     if(pick) loadAgenda(pick.value);
   }
   refreshMineCounters();
+  renderCalendar();
 }
 
 /*
@@ -1221,6 +1481,7 @@ function refreshAfterSubmit(res){
     else{ var pick=document.getElementById('m-pick'); if(pick) loadAgenda(pick.value); }
   }
   refreshMineCounters();
+  renderCalendar();
 }
 
 /* ====== コメント ====== */

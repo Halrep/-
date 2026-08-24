@@ -40,6 +40,12 @@ var RESET_DAY = 1;
 // これ以上ログインが無い職員は集計の対象外にする（自動で名簿から実質除外）。
 var INACTIVE_DAYS = 30;
 
+// サイドバーのミニカレンダーで、日付にカーソルを乗せたときに表示する共有カレンダー。
+// カレンダーの「設定と共有」→「カレンダーの統合」に出るIDを貼る
+// （例: 'abcdef123456@group.calendar.google.com'。自分のカレンダーなら 'primary' でも可）。
+// 空のままなら、この機能は使われず他の動作にも影響しない。
+var SHARED_CALENDAR_ID = '';
+
 // ============================================================
 // ウェブアプリのエントリポイント
 // ============================================================
@@ -750,6 +756,45 @@ function getMeetingAgenda(meetingId) {
 /** 未対応者の氏名一覧（全職員が閲覧可） */
 function getUncheckedNames(itemId) {
   return recount_(itemId).uncheckedNames;
+}
+
+// ============================================================
+// 共有カレンダー連携（サイドバーのミニカレンダーのホバー表示用）
+// ============================================================
+/**
+ * 指定月（'yyyy-MM'）の共有カレンダー予定を日付ごとにまとめて返す。
+ * ホバーのたびにサーバーへ問い合わせると重いので、月を表示・切替した時に
+ * 1回だけまとめて取得しクライアント側でキャッシュする想定。
+ * SHARED_CALENDAR_ID が未設定、またはカレンダーを読めない場合は空を返す
+ * （権限エラー等で他の機能に影響させないため、ここで揉み消す）。
+ * @return {Object} { 'yyyy-MM-dd': [{title, allDay, time}, …] }
+ */
+function getCalendarEventsForMonth(ym) {
+  if (!SHARED_CALENDAR_ID) return {};
+  try {
+    var cal = CalendarApp.getCalendarById(SHARED_CALENDAR_ID);
+    if (!cal) return {};
+    var parts = ym.split('-');
+    var year = Number(parts[0]), month = Number(parts[1]);
+    if (!year || !month) return {};
+    var start = new Date(year, month - 1, 1);
+    var end = new Date(year, month, 1); // 翌月1日（終了は含まない）
+    var events = cal.getEvents(start, end);
+    var byDate = {};
+    events.forEach(function (ev) {
+      var key = Utilities.formatDate(ev.getStartTime(), TZ, 'yyyy-MM-dd');
+      if (!byDate[key]) byDate[key] = [];
+      if (byDate[key].length >= 6) return; // 1日6件まで（表示が長くなりすぎないように）
+      byDate[key].push({
+        title: ev.getTitle(),
+        allDay: ev.isAllDayEvent(),
+        time: ev.isAllDayEvent() ? '' : Utilities.formatDate(ev.getStartTime(), TZ, 'H:mm')
+      });
+    });
+    return byDate;
+  } catch (e) {
+    return {}; // カレンダー未共有・IDミス等はホバー機能が出ないだけにする
+  }
 }
 
 // ============================================================
