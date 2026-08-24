@@ -158,11 +158,17 @@
   .cal-legend .dot{display:inline-block;width:7px;height:7px;border-radius:999px;margin-right:4px}
   .cal-legend .dot.green{background:var(--good)}
   .cal-legend .dot.red{background:var(--danger);margin-left:2px}
-  /* ホバーで表示するその日の共有カレンダー予定（データが無い日は何も出ない） */
-  .cal-tooltip{position:absolute;z-index:20;left:50%;bottom:100%;transform:translateX(-50%) translateY(-6px);
+  /* ホバーで表示するその日の共有カレンダー予定（データが無い日は何も出ない）。
+     サイドバーは縦スクロール（overflow-y:auto）を持つため、CSSの仕様上 横方向も
+     自動的に「はみ出し禁止」になる。中央揃え固定だと右端・左端の日で見切れるので、
+     列の位置（.tip-left/.tip-center/.tip-right、cal-dayに付与）で寄せ方を変える。 */
+  .cal-tooltip{position:absolute;z-index:20;bottom:100%;margin-bottom:6px;
     background:var(--ink);color:var(--paper);border-radius:8px;padding:8px 10px;font-size:.72rem;
     line-height:1.5;box-shadow:0 4px 14px rgba(0,0,0,.25);pointer-events:none;
-    opacity:0;transition:opacity .15s;width:200px;text-align:left}
+    opacity:0;transition:opacity .15s;width:184px;text-align:left}
+  .cal-day.tip-center .cal-tooltip{left:50%;transform:translateX(-50%)}
+  .cal-day.tip-left .cal-tooltip{left:0}
+  .cal-day.tip-right .cal-tooltip{right:0}
   .cal-day:hover .cal-tooltip{opacity:1}
 
   /* ---- サイドバーの自分の未対応リスト ---- */
@@ -799,9 +805,13 @@ function renderCalendar(){
         return esc((e.allDay?'終日':e.time)+' '+e.title);
       }).join('<br>')+'</div>';
     }
-    html+='<div class="cal-day'+(dateISO===todayISO?' today':'')+((hasAdd||hasDue)?' clickable':'')+'" data-date="'+dateISO+'">'
+    // 列の位置でツールチップの寄せ方を変える（右端/左端の日でサイドバー外にはみ出て
+    // 切れないように）。日曜(0)・月曜(1)は左揃え、金曜(5)・土曜(6)は右揃え、それ以外は中央
+    var dow=(startDow+d-1)%7;
+    var tipCls=dow<=1 ? 'tip-left' : (dow>=5 ? 'tip-right' : 'tip-center');
+    html+='<div class="cal-day '+tipCls+(dateISO===todayISO?' today':'')+((hasAdd||hasDue)?' clickable':'')+'" data-date="'+dateISO+'">'
       +'<span class="cal-num">'+d+'</span>'
-      +(dots?'<span class="cal-dots">'+dots+'</span>':'')
+      +'<span class="cal-dots">'+dots+'</span>'
       +tooltip
       +'</div>';
   }
