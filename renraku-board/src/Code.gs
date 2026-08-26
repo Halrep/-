@@ -871,42 +871,50 @@ function ensureMeeting_(dateStr, kind) {
 }
 
 // ============================================================
-// 督促メール（毎朝の時間トリガー）
+// 督促メール（毎朝の時間トリガー／手動ボタンで共用）
 // ============================================================
 /**
- * 期限が過ぎている「要対応」の連絡について、未対応者へメールを送る。
- * 1人につき1通にまとめる。
+ * 期限当日〜超過で未対応の「要対応」連絡から、宛先ごとのリマインド内容を組み立てる。
+ * sendReminders（自動）と sendRemindersMine（手動・自分の連絡のみ）で共用する。
+ * @param {function(Object):boolean} [itemFilter] 対象の連絡を絞り込む判定関数（省略時は全件）
+ * @return {{perStaff:Object, staff:Array, itemCount:number}}
  */
-function sendReminders() {
+function buildReminderPlan_(itemFilter) {
   var staff = activeStaff_();
-  var staffByEmail = {};
-  staff.forEach(function (s) { staffByEmail[s.email] = s; });
   var logs = logMap_();
-  var meetings = readMeetings_();
-  var meetingName = {};
-  meetings.forEach(function (m) { meetingName[m.id] = m.label; });
-
   var today = new Date(); today.setHours(0, 0, 0, 0);
   var t = readTable_(SHEET_ITEMS);
   var perStaff = {}; // email -> [ {title, due} ]
+  var itemCount = 0;
 
   t.rows.forEach(function (r) {
     var it = toItem_(r, t.col);
     if (!it.posted || !it.action || !it.dueRaw) return;
+    if (itemFilter && !itemFilter(it)) return;
     var d = (Object.prototype.toString.call(it.dueRaw) === '[object Date]') ? it.dueRaw : new Date(it.dueRaw);
     if (isNaN(d.getTime()) || d.getTime() >= today.getTime() + 86400000) return; // 期限翌日以降は対象外＝期限当日〜超過のみ
     var targets = targetsFor_(it, staff);
     var itemLog = logs[it.id] || {};
+    var any = false;
     targets.forEach(function (s) {
       if (itemLog[s.email] === '済') return; // 済みは除外
       if (!perStaff[s.email]) perStaff[s.email] = [];
       perStaff[s.email].push({ title: it.title, due: formatDate_(it.dueRaw) });
+      any = true;
     });
+    if (any) itemCount++;
   });
+  return { perStaff: perStaff, staff: staff, itemCount: itemCount };
+}
 
+/** buildReminderPlan_ の結果を実際にメール送信する。戻り値は送信した人数 */
+function sendReminderMails_(plan, footerNote) {
+  var staffByEmail = {};
+  plan.staff.forEach(function (s) { staffByEmail[s.email] = s; });
   var appUrl = ScriptApp.getService().getUrl();
-  Object.keys(perStaff).forEach(function (email) {
-    var list = perStaff[email];
+  var staffCount = 0;
+  Object.keys(plan.perStaff).forEach(function (email) {
+    var list = plan.perStaff[email];
     if (!list.length) return;
     var name = (staffByEmail[email] || {}).name || '';
     var lines = list.map(function (x) { return '・' + x.title + '（期限 ' + x.due + '）'; }).join('\n');
@@ -914,9 +922,39 @@ function sendReminders() {
       + '対応期限を過ぎている連絡事項が ' + list.length + ' 件あります。\n\n'
       + lines + '\n\n'
       + '▼連絡ボードで確認・対応する\n' + appUrl + '\n\n'
-      + '※このメールは連絡ボードから自動送信されています。';
+      + footerNote;
     MailApp.sendEmail(email, '【連絡ボード】未対応の連絡が ' + list.length + ' 件あります', body);
+    staffCount++;
   });
+  return staffCount;
+}
+
+/**
+ * 期限が過ぎている「要対応」の連絡について、未対応者へメールを送る（毎朝のトリガー用）。
+ * 1人につき1通にまとめる。
+ */
+function sendReminders() {
+  var plan = buildReminderPlan_();
+  sendReminderMails_(plan, '※このメールは連絡ボードから自動送信されています。');
+}
+
+/**
+ * 手動督促（UIの「確認状況」タブの督促ボタンから呼ぶ）。
+ * 自動実行版と違い、自分が発信した連絡の未対応者にだけメールする
+ * （他の発信者の連絡まで一括で督促してしまうと押した本人が把握していない相手にも
+ * メールが飛んでしまうため、「確認状況」タブの対象＝自分の連絡と揃える）。
+ * @return {{itemCount:number, staffCount:number}} 対象になった連絡件数・送信した人数
+ */
+function sendRemindersMine() {
+  var me = currentStaff_();
+  var meEmail = String(me.email || '').toLowerCase();
+  var plan = buildReminderPlan_(function (it) {
+    return it.creatorEmail
+      ? (it.creatorEmail === meEmail)
+      : (!!me.name && String(it.speaker || '') === me.name);
+  });
+  var staffCount = sendReminderMails_(plan, '※このメールは連絡ボードの督促ボタンから送信されています。');
+  return { itemCount: plan.itemCount, staffCount: staffCount };
 }
 
 /**

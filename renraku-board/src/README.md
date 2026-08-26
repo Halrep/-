@@ -83,7 +83,8 @@ clasp push
 | `getCalendarEventsForMonth(ym)` | UI | 共有カレンダーの予定（ホバー表示用。未設定・失敗時は空） |
 | `getUncheckedNames(id)` | UI | 未対応者名の取得 |
 | `getComments(id)` / `addComment(id, text)` | UI | コメントの取得・投稿（全員可、編集・削除は無し） |
-| `sendReminders()` | トリガー | 期限超過の未対応者へメール |
+| `sendReminders()` | トリガー | 期限超過の未対応者へメール（全連絡が対象） |
+| `sendRemindersMine()` | UI | 「確認状況」タブの督促ボタンから手動送信。自分が発信した連絡のみが対象 |
 | `yearEndReset()` | トリガー | 4/1のみ5シート（職員マスタ・連絡事項・確認ログ・会議・コメント）をアーカイブ＆リセット |
 
 ### 議題・連絡の編集（発信者のみ）

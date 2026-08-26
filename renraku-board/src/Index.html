@@ -150,13 +150,15 @@
     font-size:.66rem;color:var(--ink-faint);margin-bottom:3px}
   .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
   .cal-day{position:relative;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;
-    justify-content:center;border-radius:8px;font-size:.76rem;font-variant-numeric:tabular-nums;color:var(--ink)}
+    justify-content:center;border-radius:8px;font-size:.76rem;font-variant-numeric:tabular-nums;color:var(--ink);
+    appearance:none;-webkit-appearance:none;border:none;background:none;font-family:inherit;margin:0;width:100%}
   .cal-day.pad{visibility:hidden}
   .cal-day.clickable{cursor:pointer}
   .cal-day.clickable:hover{background:var(--accent-soft)}
+  .cal-day:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
   .cal-day.today{background:var(--accent);color:#fff;font-weight:700}
   .cal-dots{display:flex;gap:3px;margin-top:2px;height:6px}
-  .cal-dot{width:6px;height:6px;border-radius:999px;cursor:pointer;flex-shrink:0}
+  .cal-dot{width:6px;height:6px;border-radius:999px;flex-shrink:0}
   .cal-dot.green{background:var(--good)}
   .cal-dot.red{background:var(--danger)}
   .cal-day.today .cal-dot.green{background:#fff}
@@ -176,7 +178,7 @@
   .cal-day.tip-center .cal-tooltip{left:50%;transform:translateX(-50%)}
   .cal-day.tip-left .cal-tooltip{left:0}
   .cal-day.tip-right .cal-tooltip{right:0}
-  .cal-day:hover .cal-tooltip{opacity:1}
+  .cal-day:hover .cal-tooltip,.cal-day:focus-visible .cal-tooltip{opacity:1}
 
   /* ---- サイドバーの自分の未対応リスト ---- */
   .side-todo-item{display:block;width:100%;appearance:none;background:none;border:none;cursor:pointer;
@@ -220,11 +222,13 @@
   .card-media a.thumb{display:block;width:100px;flex:0 0 100px;border:1px solid var(--line);
     border-radius:10px;overflow:hidden;background:var(--paper);text-decoration:none}
   .card-media a.thumb img{display:block;width:100%;height:76px;object-fit:cover}
+  .card-media a.thumb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .thumb-label{display:block;text-align:center;font-size:.7rem;font-weight:600;color:var(--ink-soft);
     padding:2px 4px;background:var(--paper);border-top:1px solid var(--line);
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .card-media a.doc{font-size:.82rem;color:var(--accent);text-decoration:none}
   .card-media a.doc:hover{text-decoration:underline}
+  .card-media a.doc:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   @media (max-width:700px){
     /* 狭い画面では資料を本文の下に回し、幅いっぱいに3等分（それでも折り返さない） */
     .card-mid{flex-direction:column}
@@ -236,6 +240,7 @@
   .linklike{appearance:none;border:none;background:none;font:inherit;color:var(--accent);cursor:pointer;
     padding:0;font-size:.78rem;text-decoration:underline;white-space:nowrap}
   .linklike.muted{color:var(--ink-soft)}
+  .linklike:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
 
   /* カード上部の小さな丸ボタン（編集） */
   .icon-btn{appearance:none;cursor:pointer;font:inherit;font-size:.78rem;color:var(--ink-soft);
@@ -252,6 +257,13 @@
   .comment-item .ctext{white-space:pre-line;overflow-wrap:anywhere}
   .comment-empty{color:var(--ink-faint);font-size:.85rem}
   #comment-text{min-height:64px}
+
+  /* 未対応者・未確認者一覧 */
+  .names-list{list-style:none;margin:0 0 12px;padding:0;max-height:40vh;overflow-y:auto;
+    border:1px solid var(--line);border-radius:10px}
+  .names-list li{padding:8px 12px;font-size:.86rem;border-bottom:1px solid var(--line)}
+  .names-list li:last-child{border-bottom:none}
+  .names-empty{color:var(--ink-faint);font-size:.85rem;margin:0 0 12px}
 
   /* アジェンダ表内の編集・コメントミニツールバー */
   .row-tools{display:flex;gap:10px;margin-top:4px}
@@ -299,8 +311,12 @@
   .staff-chips .s.ok{background:var(--good-soft);color:var(--good)}
   button.remind{appearance:none;font:inherit;cursor:pointer;border:1.5px solid var(--accent);background:none;
     color:var(--accent);border-radius:8px;padding:7px 16px;font-weight:700;font-size:.85rem}
+  button.remind:hover{background:var(--accent-soft)}
+  button.remind:disabled{opacity:.55;cursor:default}
+  button.remind:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
   .empty{color:var(--ink-faint);font-size:.9rem;padding:24px 4px}
+  .empty .linklike{margin-left:8px;font-size:.85rem}
   .loading{color:var(--ink-faint);font-size:.9rem;padding:40px 4px;text-align:center}
 
   .fab{position:fixed;right:24px;bottom:24px;appearance:none;border:none;cursor:pointer;
@@ -505,6 +521,19 @@
         <button type="submit" class="btn primary" id="comment-submit">投稿する</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- 未対応者・未確認者 -->
+<div class="overlay" id="names-overlay">
+  <div class="modal">
+    <h2 id="names-title"></h2>
+    <p id="names-empty" class="names-empty" hidden></p>
+    <ul id="names-list" class="names-list" hidden></ul>
+    <div class="modal-foot">
+      <button type="button" class="btn" id="names-copy">名前をコピー</button>
+      <button type="button" class="btn primary" id="names-close">閉じる</button>
+    </div>
   </div>
 </div>
 
@@ -825,36 +854,48 @@ function renderCalendar(){
     var dateISO=calViewYM+'-'+String(d).padStart(2,'0');
     var hasAdd=!!addSet[dateISO], hasDue=!!dueSet[dateISO];
     var events=evByDate[dateISO]||[];
+    // ドットは状態を示す印。操作対象はマス目そのもの（6pxのドットは狙いにくく、
+    // ボタンを入れ子にできないため。押すとその日に関わる連絡へまとめて移動する）
     var dots='';
-    if(hasAdd) dots+='<span class="cal-dot green" data-jump-created="'+dateISO+'" title="この日に追加された連絡へ"></span>';
-    if(hasDue) dots+='<span class="cal-dot red" data-jump-due="'+dateISO+'" title="この日が期限の連絡へ"></span>';
+    if(hasAdd) dots+='<span class="cal-dot green"></span>';
+    if(hasDue) dots+='<span class="cal-dot red"></span>';
     var tooltip='';
     if(events.length){
-      tooltip='<div class="cal-tooltip">'+events.map(function(e){
+      tooltip='<span class="cal-tooltip">'+events.map(function(e){
         return esc((e.allDay?'終日':e.time)+' '+e.title);
-      }).join('<br>')+'</div>';
+      }).join('<br>')+'</span>';
     }
     // 列の位置でツールチップの寄せ方を変える（右端/左端の日でサイドバー外にはみ出て
     // 切れないように）。日曜(0)・月曜(1)は左揃え、金曜(5)・土曜(6)は右揃え、それ以外は中央
     var dow=(startDow+d-1)%7;
     var tipCls=dow<=1 ? 'tip-left' : (dow>=5 ? 'tip-right' : 'tip-center');
-    html+='<div class="cal-day '+tipCls+(dateISO===todayISO?' today':'')+((hasAdd||hasDue)?' clickable':'')+'" data-date="'+dateISO+'">'
-      +'<span class="cal-num">'+d+'</span>'
+    var clickable=hasAdd||hasDue;
+    // 読み上げ・ホバー用の説明文
+    var label=Number(calViewYM.split('-')[1])+'月'+d+'日';
+    var parts=[];
+    if(hasAdd) parts.push('追加された連絡あり');
+    if(hasDue) parts.push('期限の連絡あり');
+    if(events.length) parts.push('予定'+events.length+'件');
+    var titleAttr=label+(parts.length?'：'+parts.join('・'):'');
+
+    // キーボードでも辿れるよう、日付は button にする（クリックできない日は div のまま）
+    if(clickable){
+      html+='<button type="button" class="cal-day '+tipCls+(dateISO===todayISO?' today':'')+' clickable"'
+        +' data-date="'+dateISO+'" title="'+esc(titleAttr)+'" aria-label="'+esc(titleAttr+' の連絡を見る')+'">';
+    }else{
+      html+='<div class="cal-day '+tipCls+(dateISO===todayISO?' today':'')+'"'
+        +(events.length?' tabindex="0"':'')+' title="'+esc(titleAttr)+'">';
+    }
+    html+='<span class="cal-num">'+d+'</span>'
       +'<span class="cal-dots">'+dots+'</span>'
       +tooltip
-      +'</div>';
+      +(clickable?'</button>':'</div>');
   }
   var grid=document.getElementById('cal-grid');
   grid.innerHTML=html;
 
-  grid.querySelectorAll('[data-jump-created]').forEach(function(dot){
-    dot.addEventListener('click', function(e){ e.stopPropagation(); jumpToDate(dot.dataset.jumpCreated,'created'); });
-  });
-  grid.querySelectorAll('[data-jump-due]').forEach(function(dot){
-    dot.addEventListener('click', function(e){ e.stopPropagation(); jumpToDate(dot.dataset.jumpDue,'due'); });
-  });
   grid.querySelectorAll('.cal-day.clickable').forEach(function(dayEl){
-    dayEl.addEventListener('click', function(){ jumpToDate(dayEl.dataset.date,'created'); });
+    dayEl.addEventListener('click', function(){ jumpToDate(dayEl.dataset.date); });
   });
 }
 
@@ -874,15 +915,16 @@ document.getElementById('cal-prev').addEventListener('click', function(){ calVie
 document.getElementById('cal-next').addEventListener('click', function(){ calViewYM=calAddMonths(calViewYM,1); loadCalendarMonth(); });
 
 /**
- * カレンダーの日付／ドットから、該当する連絡までジャンプする。
+ * カレンダーの日付マス（ボタン）から、該当する連絡までジャンプする。
+ * その日に「追加された」連絡と「期限」の連絡の両方をまとめて対象にする
+ * （マス目そのものが唯一の操作対象で、緑・赤ドットは状態を示す印にすぎないため）。
  * 絞り込みは解除し、必要なら月セクション・自分の済みの折りたたみを開いてスクロール＋一瞬ハイライト。
  * 対象がすべて完了済みなら、対応状況フィルタを「すべて」に切り替えて見えるようにする。
  * @param {string} dateISO
- * @param {string} which 'created'（その日に追加）または 'due'（その日が期限）
  */
-function jumpToDate(dateISO, which){
+function jumpToDate(dateISO){
   var matches=DATA.items.filter(function(it){
-    return which==='due' ? it.dueISO===dateISO : it.dateISO===dateISO;
+    return it.dateISO===dateISO || it.dueISO===dateISO;
   });
   if(!matches.length){ showToast('この日の連絡は見つかりませんでした'); return; }
 
@@ -960,9 +1002,13 @@ function renderBoard(){
   populateMonthFilter(pool);
   populateSpeakerFilter(pool);
   var board=pool.filter(matchesFilter);
-  var dueToday=board.filter(function(it){ return it.action && it.dueClass==='today' && !it.myDone; }).length;
   var mine=myOpenItems().length;
   updateBadge(mine);
+
+  // 上部の3つの数字は、キーワード・月・発信者・対応状況の絞り込みに影響されない
+  // 「盤面全体の概況」として固定で数える。検索するたびにここが動くと、
+  // 何を数えているのか分かりにくくなるため（以前は期限の件数だけ絞り込み後の値を使っていた）
+  var dueToday=DATA.items.filter(function(it){ return it.action && it.dueClass==='today' && !fullyDone(it); }).length;
 
   var html='<div class="summary">'
     +'<div class="stat"><span class="n">'+DATA.items.length+'</span><span class="l">掲載中の連絡</span></div>'
@@ -971,8 +1017,14 @@ function renderBoard(){
     +'</div>';
 
   if(!board.length){
-    html+='<div class="empty">'+(filtering()?'条件に合う連絡はありません。':'表示できる連絡はありません。')+'</div>';
+    // 絞り込み（検索・月・発信者・対応状況のいずれか）が働いているときだけ解除の導線を出す
+    var narrowed = filtering() || filterStatus!=='undone';
+    html+= narrowed
+      ? '<div class="empty">条件に合う連絡はありません。<button type="button" class="linklike" id="empty-clear">絞り込みを解除する</button></div>'
+      : '<div class="empty">表示できる連絡はありません。</div>';
     v.innerHTML=html;
+    var clearBtn=document.getElementById('empty-clear');
+    if(clearBtn) clearBtn.addEventListener('click', function(){ clearFilters(); renderBoard(); });
     return;
   }
   v.innerHTML=html+'<div id="month-sections"></div>';
@@ -1059,7 +1111,9 @@ function commentLabel(n){ return n>0 ? '💬 コメント（'+n+'）' : '💬 �
 function cardEl(it){
   var chips=it.monthNo ? '<span class="no-badge" title="打合せで「'+esc(it.monthNo)+'番」と言えば伝わります">No.'+esc(it.monthNo)+'</span>' : '';
   chips+=it.meetingLabel ? '<span class="chip kind">'+esc(it.meetingLabel)+'</span>' : '<span class="chip kind">連絡</span>';
-  chips+= it.action ? '<span class="chip action">要対応</span>' : '<span class="chip readonly">閲覧のみ</span>';
+  chips+= it.action
+    ? '<span class="chip action" title="対象者は「確認した」→「対応済み」の2段階でチェックします">要対応</span>'
+    : '<span class="chip readonly" title="対象者は内容を確認したらチェックするだけです">閲覧のみ</span>';
   if(it.dueLabel) chips+='<span class="chip due '+it.dueClass+'">期限 '+esc(it.dueLabel)+'</span>';
   chips+='<span class="chip target">対象: '+esc(it.targetType)+'</span>';
   chips+='<span class="chip speaker">発信: '+esc(it.speaker)+'</span>';
@@ -1184,14 +1238,42 @@ function updateBadge(n){
 }
 
 /* ====== 未対応者一覧（全員閲覧可） ====== */
+var namesOverlay=document.getElementById('names-overlay');
+var namesListEl=document.getElementById('names-list');
+var namesEmptyEl=document.getElementById('names-empty');
+var namesCopyBtn=document.getElementById('names-copy');
+var currentNames=[];
+
 function showNames(it){
   var names=it.uncheckedNames||[];
   var word=it.action?'未対応':'未確認';
-  var body= names.length
-    ? word+'（'+names.length+'名）：\n'+names.join('、')
-    : '対象者全員が'+(it.action?'対応':'確認')+'済みです。';
-  alert(it.title+'\n\n'+body);
+  currentNames=names;
+  document.getElementById('names-title').textContent=it.title+'（'+word+'）';
+  if(names.length){
+    namesListEl.innerHTML=names.map(function(n){ return '<li>'+esc(n)+'</li>'; }).join('');
+    namesListEl.hidden=false;
+    namesEmptyEl.hidden=true;
+    namesCopyBtn.hidden=false;
+  }else{
+    namesListEl.hidden=true;
+    namesEmptyEl.textContent='対象者全員が'+(it.action?'対応':'確認')+'済みです。';
+    namesEmptyEl.hidden=false;
+    namesCopyBtn.hidden=true;
+  }
+  namesOverlay.classList.add('show');
+  namesCopyBtn.focus();
 }
+namesCopyBtn.addEventListener('click', function(){
+  var text=currentNames.join('、');
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){ showToast('コピーしました'); })
+      .catch(function(){ showToast('コピーできませんでした'); });
+  }else{
+    showToast('コピーできませんでした');
+  }
+});
+document.getElementById('names-close').addEventListener('click', function(){ namesOverlay.classList.remove('show'); });
+namesOverlay.addEventListener('click', function(e){ if(e.target===namesOverlay) namesOverlay.classList.remove('show'); });
 
 /* ====== 会議ビュー ====== */
 function populateMeetingSelect(){
@@ -1274,7 +1356,25 @@ function renderAdmin(){
     html+='<div class="empty">あなたが発信した要対応の連絡はありません。</div>';
     v.innerHTML=html; return;
   }
+  html+='<div style="margin:0 4px 16px">'
+    +'<button type="button" class="remind" id="remind-btn">📧 未対応者へ督促メールを送る</button>'
+    +'<span style="margin-left:10px;font-size:.78rem;color:var(--ink-faint)">'
+    +'期限当日〜超過で未対応の相手にだけ届きます</span></div>';
   v.innerHTML=html;
+  var remindBtn=document.getElementById('remind-btn');
+  var remindLabel=remindBtn.textContent;
+  remindBtn.addEventListener('click', function(){
+    remindBtn.disabled=true; remindBtn.textContent='送信中…';
+    google.script.run.withSuccessHandler(function(res){
+      remindBtn.disabled=false; remindBtn.textContent=remindLabel;
+      showToast(res.staffCount
+        ? res.itemCount+'件の連絡について、'+res.staffCount+'名へ督促メールを送りました'
+        : '期限当日〜超過で未対応の相手はいませんでした');
+    }).withFailureHandler(function(err){
+      remindBtn.disabled=false; remindBtn.textContent=remindLabel;
+      showToast('送信に失敗しました：'+err.message);
+    }).sendRemindersMine();
+  });
   sent.forEach(function(it){
     var pct=it.targetCount?Math.round(it.doneCount/it.targetCount*100):0;
     var chips=(it.uncheckedNames||[]).map(function(n){ return '<span class="s">'+esc(n)+'</span>'; }).join('');
