@@ -12,6 +12,7 @@
     --good:#1f6640; --good-soft:#d8ebe0; --warn:#7d500a; --warn-soft:#f5e6cc;
     --danger:#9c2f25; --danger-soft:#f7dcd8; --important-soft:#fdf0ee;
     --on-danger:#fff; --shadow:0 1px 3px rgba(26,32,39,.12);
+    --ctrl-h:40px; /* 絞り込みバーの入力・プルダウン・ボタン・概況カードの共通の高さ（テーマ共通） */
   }
   @media (prefers-color-scheme: dark){ :root{
     --paper:#171b20; --card:#21262d; --ink:#e8ebee; --ink-soft:#a8b2bc; --ink-faint:#858f9a;
@@ -98,27 +99,38 @@
     padding:0 7px;line-height:1.5;font-variant-numeric:tabular-nums}
   .tab .badge:empty{display:none}
 
-  /* 概況は絞り込みバーの左端に置く小さなピル。独立した行にすると、
-     それだけで縦を1行分（約38px）使ってしまうため、絞り込みバーに相乗りさせている。
-     高さを入力欄と揃えたいので padding は .filterbar の入力と同じ縦幅にする */
-  .summary{display:flex;align-items:center;gap:6px;flex-shrink:0;white-space:nowrap}
-  .summary .s{display:inline-flex;align-items:baseline;gap:5px;background:var(--card);
-    border:1px solid var(--line);border-radius:8px;padding:7px 11px;font-size:.75rem}
-  .summary .s b{font-size:.92rem;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
-  .summary .s i{font-style:normal;color:var(--ink-soft)}
-  .summary .s.alert b{color:var(--danger)} .summary .s.warn b{color:var(--warn)}
+  /* 概況カード。1枚のカードの中を3分割し、各区画はボタンにして
+     クリックで絞り込める（押すとその条件だけに絞り込み、もう一度押すと解除）。
+     ホバーで下線が出ることで「押せる」と伝わるようにしている。 */
+  .summary{display:flex;align-items:stretch;height:var(--ctrl-h);background:var(--card);
+    border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-shrink:0}
+  .stat-seg{appearance:none;border:none;background:none;cursor:pointer;font:inherit;
+    display:flex;align-items:center;gap:5px;padding:0 13px;height:100%;
+    border-right:1px solid var(--line);color:var(--ink-soft);font-size:.75rem;white-space:nowrap}
+  .stat-seg:last-child{border-right:none}
+  .stat-seg:hover{background:var(--paper)}
+  .stat-seg:hover b{text-decoration:underline}
+  .stat-seg b{font-size:.92rem;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+  .stat-seg i{font-style:normal}
+  .stat-seg.alert b{color:var(--danger)} .stat-seg.warn b{color:var(--warn)}
+  .stat-seg[aria-pressed="true"]{background:var(--accent-soft)}
+  .stat-seg[aria-pressed="true"] b,.stat-seg[aria-pressed="true"] i{color:var(--accent)}
+  .stat-seg:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 
   section.view{display:none} section.view.active{display:block}
   h2.section-label{font-size:.78rem;font-weight:700;letter-spacing:.08em;color:var(--ink-faint);margin:24px 4px 10px}
 
-  /* 絞り込みバー。検索欄はキーワードが短い前提の固定幅に留め、余った横幅は
-     使わない（以前は flex:1 でバー全体を占領し、他の絞り込みが右端に追いやられていた） */
-  .filterbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0 0}
-  .filterbar input[type=search]{flex:0 1 220px;font:inherit;background:var(--card);color:var(--ink);
-    border:1px solid var(--line);border-radius:8px;padding:8px 12px}
-  .filterbar select{font:inherit;background:var(--card);color:var(--ink);border:1px solid var(--line);
-    border-radius:8px;padding:8px 10px;max-width:180px}
-  .filterbar .btn{padding:8px 14px;font-size:.82rem}
+  /* 絞り込みバー。1段目＝概況＋検索（見る）、2段目＝絞り込みの条件（選ぶ）で役割を分け、
+     全部を1行に詰め込んで窮屈にならないようにしている。
+     入力・プルダウン・ボタン・概況カードの高さを --ctrl-h に統一して段ごとに揃える。 */
+  .filterbar{display:flex;flex-direction:column;gap:10px;margin:12px 0 0}
+  .filterbar-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .filterbar input[type=search]{flex:0 1 220px;height:var(--ctrl-h);box-sizing:border-box;
+    font:inherit;background:var(--card);color:var(--ink);
+    border:1px solid var(--line);border-radius:8px;padding:0 12px}
+  .filterbar select{height:var(--ctrl-h);box-sizing:border-box;font:inherit;background:var(--card);
+    color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:0 10px;max-width:180px}
+  .filterbar .btn{height:var(--ctrl-h);box-sizing:border-box;padding:0 14px;font-size:.82rem}
 
   /* 自分の済みを折りたたむトグル */
   .fold-toggle{appearance:none;cursor:pointer;font:inherit;font-size:.82rem;font-weight:600;color:var(--ink-soft);
@@ -406,18 +418,22 @@
   <!-- 絞り込みバーは本文側に置く。タブによって使わない場合も、サイドバーの上端が
        ずれないよう visibility で隠して高さは確保する（display:none にしない） -->
   <div class="filterbar" id="filterbar">
-    <div class="summary" id="board-summary"></div>
-    <input type="search" id="filter-kw" placeholder="🔍 キーワードで絞り込み（議題・内容）">
-    <select id="filter-status" aria-label="対応状況で絞り込み">
-      <option value="undone">未完了のみ</option>
-      <option value="all">すべて</option>
-      <option value="done">完了のみ</option>
-    </select>
-    <select id="filter-ym" aria-label="月で絞り込み"><option value="">すべての月</option></select>
-    <select id="filter-speaker" aria-label="発信者で絞り込み"><option value="">すべての発信者</option></select>
-    <button type="button" class="btn pin-filter" id="filter-pin" aria-pressed="false"
-      title="自分がピン留めした連絡だけを表示">★ ピン留めのみ</button>
-    <button type="button" class="btn" id="filter-clear">クリア</button>
+    <div class="filterbar-row">
+      <div class="summary" id="board-summary"></div>
+      <input type="search" id="filter-kw" placeholder="🔍 キーワードで絞り込み（議題・内容）">
+    </div>
+    <div class="filterbar-row">
+      <select id="filter-status" aria-label="対応状況で絞り込み">
+        <option value="undone">未完了のみ</option>
+        <option value="all">すべて</option>
+        <option value="done">完了のみ</option>
+      </select>
+      <select id="filter-ym" aria-label="月で絞り込み"><option value="">すべての月</option></select>
+      <select id="filter-speaker" aria-label="発信者で絞り込み"><option value="">すべての発信者</option></select>
+      <button type="button" class="btn pin-filter" id="filter-pin" aria-pressed="false"
+        title="自分がピン留めした連絡だけを表示">★ ピン留めのみ</button>
+      <button type="button" class="btn" id="filter-clear">クリア</button>
+    </div>
   </div>
 
   <section class="view active" id="view-board"><div class="loading">読み込み中…</div></section>
@@ -614,9 +630,14 @@ function switchView(name){
 tabs.forEach(function(t){ t.addEventListener('click', function(){ switchView(t.dataset.view); }); });
 
 /* ====== 絞り込み（対応状況・月・発信者・キーワード） ====== */
-var filterYM='', filterKW='', filterSpeaker='';
+// 月は初期表示だけ「現在の月」を選んでおく（データが無ければ populateMonthFilter が
+// 自動的に「すべての月」へフォールバックする）。クリア操作は他の絞り込みと同様に
+// 常に「すべての月」へ戻す（現在の月が0件のとき、クリアが何も変えない事態を避けるため）
+var filterYM=currentActualYM(), filterKW='', filterSpeaker='';
 var filterStatus='undone'; // undone=未完了のみ（既定） / all=すべて / done=完了のみ
 var filterPinned=false;    // ★ピン留めのみ表示するか
+// 概況カードの「期限」「未対応」をクリックしたときの一発絞り込み（toggleQuickFilter 参照）
+var filterDueOnly=false, filterMineOnly=false;
 function fullyDone(it){ return it.targetCount>0 && it.doneCount>=it.targetCount; } // 対象全員が済み
 /** 対応状況の絞り込み。ここだけ他の条件と分けているのは、選択肢の件数を数える母集団になるため */
 function matchesStatus(it){
@@ -625,6 +646,11 @@ function matchesStatus(it){
   return true; // all
 }
 function matchesFilter(it){
+  // クイック絞り込み中は他の条件を無視し、その条件だけで決める
+  // （toggleQuickFilter が有効化と同時に他の絞り込みを解除しているため、通常は結果は同じだが
+  //   念のため明示しておく）
+  if(filterDueOnly) return it.action && it.dueClass==='today' && !fullyDone(it);
+  if(filterMineOnly) return it.action && it.myTarget && !it.myDone;
   if(filterPinned && !it.pinned) return false;
   if(filterYM && it.ym!==filterYM) return false;
   if(filterSpeaker && (it.speaker||'')!==filterSpeaker) return false;
@@ -645,12 +671,14 @@ function populateMonthFilter(pool){
   var set={};
   (pool||DATA.items).forEach(function(it){ if(it.ym) set[it.ym]=true; });
   var yms=Object.keys(set).sort().reverse();
-  var cur=sel.value;
   sel.innerHTML='<option value="">すべての月</option>'+yms.map(function(ym){
     var parts=ym.split('-');
     return '<option value="'+ym+'">'+parts[0]+'年'+Number(parts[1])+'月</option>';
   }).join('');
-  if(cur && yms.indexOf(cur)>=0) sel.value=cur; // 選択中の月は保持
+  // 状態変数 filterYM を正とする（DOMのvalueではなく）。初期表示で「現在の月」を
+  // 選ぶのはこの仕組み経由。現在の月にまだ何も無ければ「すべての月」のままにする
+  if(filterYM && yms.indexOf(filterYM)>=0) sel.value=filterYM;
+  else if(filterYM) filterYM=''; // 選択していた月が消えた（0件になった）ら解除
 }
 /** 発信者の選択肢を作る（件数付き・五十音順）。pool の意味は populateMonthFilter と同じ */
 function populateSpeakerFilter(pool){
@@ -693,6 +721,7 @@ function clearFilters(status){
   document.getElementById('filter-ym').value='';
   document.getElementById('filter-speaker').value='';
   filterYM=''; filterKW=''; filterSpeaker='';
+  filterDueOnly=false; filterMineOnly=false;
   setPinFilter(false);
   filterStatus=status||'undone';
   document.getElementById('filter-status').value=filterStatus;
@@ -701,6 +730,24 @@ document.getElementById('filter-clear').addEventListener('click', function(){
   clearFilters();
   if(currentView==='board') renderBoard();
 });
+
+/**
+ * 概況カードの「期限が今日／超過」「あなたの未対応」をクリックしたときの一発絞り込み。
+ * 他の絞り込み（検索・月・発信者・ピン留め）と組み合わせると0件になりがちなので、
+ * 押すとまず全部解除してから、対応状況を「すべて」に広げてこの条件だけを適用する
+ * （この条件自体が「未完了」を含意するので「すべて」にしても実質は未完了だけが残る）。
+ * もう一度押すと解除して「掲載中」と同じ全解除状態に戻る。
+ */
+function toggleQuickFilter(which){
+  var turningOn = which==='due' ? !filterDueOnly : !filterMineOnly;
+  clearFilters();
+  if(turningOn){
+    filterStatus='all';
+    document.getElementById('filter-status').value='all';
+    if(which==='due') filterDueOnly=true; else filterMineOnly=true;
+  }
+  renderBoard();
+}
 
 /** ★ピン留めのみ の ON/OFF（見た目と状態をまとめて切り替える） */
 function setPinFilter(on){
@@ -1104,11 +1151,21 @@ function renderBoard(){
   // 何を数えているのか分かりにくくなるため（以前は期限の件数だけ絞り込み後の値を使っていた）
   var dueToday=DATA.items.filter(function(it){ return it.action && it.dueClass==='today' && !fullyDone(it); }).length;
 
-  // 概況は絞り込みバーの左端に小さなピルで出す（独立した行にすると縦を1行分使うため）
-  document.getElementById('board-summary').innerHTML=
-      '<span class="s"><i>掲載中</i><b>'+DATA.items.length+'</b></span>'
-    +'<span class="s alert"><i>期限</i><b>'+dueToday+'</b></span>'
-    +'<span class="s warn"><i>未対応</i><b id="stat-mine">'+mine+'</b></span>';
+  // 概況は1枚のカードに統合し、各区画をクリックで絞り込めるようにする（toggleQuickFilter）。
+  // 「掲載中」は絞り込みの全解除、「期限」「未対応」はその条件だけへの一発絞り込み。
+  var boardSummary=document.getElementById('board-summary');
+  boardSummary.innerHTML=
+      '<button type="button" class="stat-seg" id="stat-all" title="絞り込みをすべて解除して見る">'
+        +'<b>'+DATA.items.length+'</b><i>掲載中</i></button>'
+    +'<button type="button" class="stat-seg alert" id="stat-due" aria-pressed="'+filterDueOnly+'"'
+        +' title="期限が今日または超過していて未対応の連絡だけを表示">'
+        +'<b>'+dueToday+'</b><i>期限が今日／超過</i></button>'
+    +'<button type="button" class="stat-seg warn" id="stat-mine-seg" aria-pressed="'+filterMineOnly+'"'
+        +' title="自分が対象で未対応の連絡だけを表示">'
+        +'<b id="stat-mine">'+mine+'</b><i>あなたの未対応</i></button>';
+  document.getElementById('stat-all').addEventListener('click', function(){ clearFilters(); renderBoard(); });
+  document.getElementById('stat-due').addEventListener('click', function(){ toggleQuickFilter('due'); });
+  document.getElementById('stat-mine-seg').addEventListener('click', function(){ toggleQuickFilter('mine'); });
 
   if(!board.length){
     // 絞り込み（検索・月・発信者・対応状況のいずれか）が働いているときだけ解除の導線を出す
@@ -1135,7 +1192,7 @@ function renderBoard(){
 }
 
 /** 状態以外の絞り込み（キーワード・月・発信者）が効いているか */
-function filtering(){ return !!(filterYM||filterKW||filterSpeaker||filterPinned); }
+function filtering(){ return !!(filterYM||filterKW||filterSpeaker||filterPinned||filterDueOnly||filterMineOnly); }
 
 /** DriveのURLからファイルIDを取り出す（Drive以外は null） */
 function driveFileId(u){
@@ -1223,7 +1280,7 @@ function cardEl(it){
     : '<span class="chip readonly" title="対象者は内容を確認したらチェックするだけです">閲覧のみ</span>';
   if(it.dueLabel) chips+='<span class="chip due '+it.dueClass+'">期限 '+esc(it.dueLabel)+'</span>';
   chips+='<span class="chip target">対象: '+esc(it.targetType)+'</span>';
-  chips+='<span class="chip speaker">発信: '+esc(it.speaker)+'</span>';
+  chips+='<span class="chip speaker">発信: '+esc(it.speaker)+(it.postedAt?'（'+esc(it.postedAt)+' 掲載）':'')+'</span>';
   if(it.canEdit) chips+='<button type="button" class="icon-btn" data-edit>✏️ 編集</button>';
 
   // ボタン: 要対応は「確認した」＋「対応済みにする」の2段階、閲覧のみは「確認」のみ

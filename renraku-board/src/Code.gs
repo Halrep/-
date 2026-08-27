@@ -465,6 +465,7 @@ function decorateItem_(it, staff, logs, me, meetingName, commentCounts, meetingD
     title: it.title, body: it.body, speaker: it.speaker, minutes: it.minutes, links: it.links,
     action: it.action, important: !!it.important, targetType: it.targetType, targetEmails: it.targetEmails,
     due: it.due, dueISO: meta.dueISO, dueLabel: it.dueLabel || '', dueClass: dueClass, dueSort: dueSort,
+    postedAt: formatDateTime_(it.created), // カード表示用の掲載日時（'M/d HH:mm'）
     dateISO: dObj ? Utilities.formatDate(dObj, TZ, 'yyyy-MM-dd') : '',
     ym: dObj ? Utilities.formatDate(dObj, TZ, 'yyyy-MM') : '',
     doneCount: doneCount, ackCount: ackCount, targetCount: targets.length,
@@ -619,8 +620,9 @@ function submitItem(p) {
     row[t.col['要対応']] = action;
     row[t.col['対象区分']] = p.targetType || '全員';
     row[t.col['対象メール']] = p.targetEmails || '';
+    var createdAt = new Date();
     row[t.col['掲載']] = posted;
-    row[t.col['作成日時']] = nowStr_();
+    row[t.col['作成日時']] = createdAt;
     if (t.col['作成者メール'] !== undefined) row[t.col['作成者メール']] = me.email;
     if (t.col['重要'] !== undefined) row[t.col['重要']] = important;
     t.sheet.appendRow(row);
@@ -630,13 +632,15 @@ function submitItem(p) {
       var staff = activeStaffFrom_(st);
       // p.due は 'yyyy-MM-dd' の文字列。シート保存後は日付型として読まれ formatDate_ が
       // 'M/d' に整形するので、その場挿入でも同じ見た目になるよう Date化してから整形する。
+      // 作成日時（createdAt）も同じ理由で Date のまま渡す（文字列だと formatDateTime_ が
+      // 'yyyy-MM-dd HH:mm:ss' のまま返し、次のポーリングでシートから読み直すまで表示が変わってしまう）。
       var dueDate = p.due ? new Date(p.due) : '';
       var it = {
         id: newId, meetingId: meetingId, kind: kind, no: no + 1,
         title: p.title, body: p.body || '', speaker: p.speaker || me.name, minutes: p.minutes || '',
         links: links, due: formatDate_(dueDate), dueRaw: dueDate,
         action: action, important: important, targetType: p.targetType || '全員', targetEmails: p.targetEmails || '',
-        posted: posted, created: nowStr_(), creatorEmail: String(me.email || '').toLowerCase()
+        posted: posted, created: createdAt, creatorEmail: String(me.email || '').toLowerCase()
       };
       // 月番号の算出には全会議の日付が要る（この連絡の会議だけでは他月の判定を誤る）
       var allMeetingDates = {};
