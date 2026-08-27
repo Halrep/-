@@ -43,10 +43,17 @@ var RESET_DAY = 1;
 var INACTIVE_DAYS = 30;
 
 // サイドバーのミニカレンダーで、日付にカーソルを乗せたときに表示する共有カレンダー。
-// カレンダーの「設定と共有」→「カレンダーの統合」に出るIDを貼る
+// 値は Code.gs に直接書かず、Apps Scriptの「スクリプト プロパティ」に設定する
+// （エディタ左の歯車アイコン「プロジェクトの設定」→ 一番下「スクリプト プロパティ」→
+//  「プロパティを追加」→ プロパティ = SHARED_CALENDAR_ID、値 = カレンダーID）。
+// カレンダーIDはカレンダーの「設定と共有」→「カレンダーの統合」に出る
 // （例: 'abcdef123456@group.calendar.google.com'。自分のカレンダーなら 'primary' でも可）。
-// 空のままなら、この機能は使われず他の動作にも影響しない。
-var SHARED_CALENDAR_ID = '';
+// コードに書かないのは、学校ごとに異なる設定を git 管理のコードに混ぜると、
+// 更新のたびにあなたの設定と衝突して git pull が止まってしまうため。
+// 未設定のままなら、この機能は使われず他の動作にも影響しない。
+function sharedCalendarId_() {
+  return PropertiesService.getScriptProperties().getProperty('SHARED_CALENDAR_ID') || '';
+}
 
 // ============================================================
 // ウェブアプリのエントリポイント
@@ -796,9 +803,10 @@ function getUncheckedNames(itemId) {
  * @return {Object} { 'yyyy-MM-dd': [{title, allDay, time}, …] }
  */
 function getCalendarEventsForMonth(ym) {
-  if (!SHARED_CALENDAR_ID) return {};
+  var calendarId = sharedCalendarId_();
+  if (!calendarId) return {};
   try {
-    var cal = CalendarApp.getCalendarById(SHARED_CALENDAR_ID);
+    var cal = CalendarApp.getCalendarById(calendarId);
     if (!cal) return {};
     var parts = ym.split('-');
     var year = Number(parts[0]), month = Number(parts[1]);
