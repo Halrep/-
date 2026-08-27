@@ -153,8 +153,8 @@ clasp push
   |---|---|---|
   | 掲載中 | 掲載中の全連絡 | 絞り込みを全解除（`clearFilters()` と同じ） |
   | 期限が今日／超過 | `action && dueClass==='today' && !fullyDone` | `toggleQuickFilter('due')` |
-  | あなたの未対応 | `action && myTarget && !myDone` | `toggleQuickFilter('mine')` |
-  | あなたの確認・対応済 | `myTarget && myDone` | `toggleQuickFilter('donemine')` |
+  | 未対応 | `action && myTarget && !myDone` | `toggleQuickFilter('mine')` |
+  | 確認・対応済 | `myTarget && myDone` | `toggleQuickFilter('donemine')` |
   | ★ ピン留め | `pinned` | `toggleQuickFilter('pin')` |
 
   - `toggleQuickFilter` は他の絞り込み（検索・月・発信者）をすべて解除し、対応状況を
@@ -162,8 +162,10 @@ clasp push
     もう一度押すと解除して「掲載中」と同じ状態に戻る。
   - 「済み」「ピン留め」で対応状況を「すべて」に広げるのは必須。完了済みの連絡が
     対象に入るので、既定の「未完了のみ」のままだと弾かれて0件になる。
-  - 「あなたの確認・対応済」だけ `action` で絞っていない。要対応（確認→対応の2段階）も
+  - 「確認・対応済」だけ `action` で絞っていない。要対応（確認→対応の2段階）も
     閲覧のみ（確認のみ）も「自分の手を離れたもの」として同じ意味を持つため。
+  - ラベルに「あなたの」は付けない（区画が5つ並ぶと横に伸びすぎるため）。
+    誰の話かは各ボタンの `title` 属性（ホバーで出る説明）が補う。
   - ピン留めをここに同居させているのは、同じ「押すと1条件に絞る」仲間だから。
     絞り込みバーに単独ボタンとして置くと1段に収まらなくなる。
   - タブ化はしなかった。かつて「今日のボード／完了した連絡」を廃止した理由（対応すると
