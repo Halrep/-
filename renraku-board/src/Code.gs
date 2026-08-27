@@ -24,7 +24,7 @@ var SHEET_PINS     = 'ピン';
 // 各シートのヘッダー（列順の唯一の定義。以降はここを参照）
 var HEADERS = {
   items: ['ID', '会議ID', '種別', 'No', '議題', '内容', '発言者', '時間', '資料', '資料リンク',
-          '期限', '要対応', '対象区分', '対象メール', '掲載', '作成日時', '作成者メール'],
+          '期限', '要対応', '対象区分', '対象メール', '掲載', '作成日時', '作成者メール', '重要'],
   staff: ['氏名', 'メール', '分掌', '表示順', '在職', '最終ログイン'],
   log:   ['連絡ID', 'メール', '氏名', '状態', '更新日時', 'チェック種別'],
   meetings: ['会議ID', '日付', '種別', '名称'],
@@ -266,7 +266,10 @@ function toItem_(row, col) {
     posted: row[col['掲載']] === true || String(row[col['掲載']]).toUpperCase() === 'TRUE',
     created: row[col['作成日時']],
     // 作成者メール列が無い旧データは ''（＝誰でも編集可として扱う）
-    creatorEmail: col['作成者メール'] !== undefined ? String(row[col['作成者メール']] || '').toLowerCase() : ''
+    creatorEmail: col['作成者メール'] !== undefined ? String(row[col['作成者メール']] || '').toLowerCase() : '',
+    // 重要列が無い旧データは false（＝通常の連絡として扱う）
+    important: col['重要'] !== undefined &&
+      (row[col['重要']] === true || String(row[col['重要']]).toUpperCase() === 'TRUE')
   };
 }
 
@@ -364,8 +367,10 @@ function getInitialData() {
     .filter(function (it) { return it.posted; }) // ボードは掲載中のみ
     .map(function (it) { return decorateItem_(it, staff, logs, me, meetingName, commentCounts, meetingDates, monthNoMap, pinSet); });
 
-  // 期限が近い順（期限なしは後ろ）→ 未対応を上に
+  // 重要を先頭に → 要対応 → 期限が近い順（期限なしは後ろ）
+  // ※ Index.html の itemSortComparator と同じ順序にすること
   items.sort(function (a, b) {
+    if (!!a.important !== !!b.important) return a.important ? -1 : 1;
     if (a.action !== b.action) return a.action ? -1 : 1;
     var da = a.dueSort, db = b.dueSort;
     if (da === db) return 0;
@@ -458,7 +463,7 @@ function decorateItem_(it, staff, logs, me, meetingName, commentCounts, meetingD
   return {
     id: it.id, kind: it.kind, meetingId: it.meetingId, meetingLabel: meetingName[it.meetingId] || it.meetingId,
     title: it.title, body: it.body, speaker: it.speaker, minutes: it.minutes, links: it.links,
-    action: it.action, targetType: it.targetType, targetEmails: it.targetEmails,
+    action: it.action, important: !!it.important, targetType: it.targetType, targetEmails: it.targetEmails,
     due: it.due, dueISO: meta.dueISO, dueLabel: it.dueLabel || '', dueClass: dueClass, dueSort: dueSort,
     dateISO: dObj ? Utilities.formatDate(dObj, TZ, 'yyyy-MM-dd') : '',
     ym: dObj ? Utilities.formatDate(dObj, TZ, 'yyyy-MM') : '',
@@ -595,6 +600,7 @@ function submitItem(p) {
       .map(function (s) { return String(s || '').trim(); }).filter(String).slice(0, 3);
     var kind = p.kind || '連絡';
     var action = !!p.action;
+    var important = !!p.important;
     var posted = p.posted !== false; // 既定は掲載ON
     var newId = uuid_();
 
@@ -616,6 +622,7 @@ function submitItem(p) {
     row[t.col['掲載']] = posted;
     row[t.col['作成日時']] = nowStr_();
     if (t.col['作成者メール'] !== undefined) row[t.col['作成者メール']] = me.email;
+    if (t.col['重要'] !== undefined) row[t.col['重要']] = important;
     t.sheet.appendRow(row);
 
     var decorated = null;
@@ -628,7 +635,7 @@ function submitItem(p) {
         id: newId, meetingId: meetingId, kind: kind, no: no + 1,
         title: p.title, body: p.body || '', speaker: p.speaker || me.name, minutes: p.minutes || '',
         links: links, due: formatDate_(dueDate), dueRaw: dueDate,
-        action: action, targetType: p.targetType || '全員', targetEmails: p.targetEmails || '',
+        action: action, important: important, targetType: p.targetType || '全員', targetEmails: p.targetEmails || '',
         posted: posted, created: nowStr_(), creatorEmail: String(me.email || '').toLowerCase()
       };
       // 月番号の算出には全会議の日付が要る（この連絡の会議だけでは他月の判定を誤る）
@@ -687,6 +694,7 @@ function editItem(itemId, p) {
     setCell('資料リンク', links.join('\n'));
     setCell('期限', p.due || '');
     setCell('要対応', !!p.action);
+    setCell('重要', !!p.important);
     setCell('対象区分', p.targetType || '全員');
     setCell('対象メール', p.targetEmails || '');
     // 作成者が未記録の旧データは、この編集をきっかけに記録する
@@ -696,7 +704,8 @@ function editItem(itemId, p) {
       id: existing.id, meetingId: existing.meetingId, kind: existing.kind, no: existing.no,
       title: p.title, body: p.body || '', speaker: p.speaker || me.name, minutes: p.minutes || '',
       links: links, due: formatDate_(dueDate), dueRaw: dueDate,
-      action: !!p.action, targetType: p.targetType || '全員', targetEmails: p.targetEmails || '',
+      action: !!p.action, important: !!p.important,
+      targetType: p.targetType || '全員', targetEmails: p.targetEmails || '',
       posted: existing.posted, created: existing.created, creatorEmail: existing.creatorEmail || String(me.email).toLowerCase()
     };
 
@@ -752,6 +761,8 @@ function getMeetingAgenda(meetingId) {
       due: it.due, // formatDate_ 済みの文字列
       dueISO: meta.dueISO,
       action: it.action,
+      // アジェンダ表から編集するときに重要フラグが消えないよう、必ず持たせる
+      important: !!it.important,
       targetType: it.targetType,
       targetEmails: it.targetEmails,
       canEdit: meta.canEdit,
@@ -1150,11 +1161,15 @@ function ensureLogColumns_() {
   }
 }
 
-/** 連絡事項に「作成者メール」列が無ければ末尾に追加する（旧バージョンからの移行用） */
+/** 連絡事項に「作成者メール」「重要」列が無ければ末尾に追加する（旧バージョンからの移行用） */
 function ensureItemColumns_() {
   var sh = sheet_(SHEET_ITEMS);
   var width = Math.max(sh.getLastColumn(), 1);
   var header = sh.getRange(1, 1, 1, width).getValues()[0];
+  if (header.indexOf('重要') < 0) {
+    sh.getRange(1, header.length + 1).setValue('重要').setFontWeight('bold');
+    header.push('重要'); // 続けて作成者メールを足すとき、同じ列を奪わないように
+  }
   if (header.indexOf('作成者メール') < 0) {
     sh.getRange(1, header.length + 1).setValue('作成者メール').setFontWeight('bold');
   }
@@ -1173,20 +1188,20 @@ function seedSample_() {
   }
   var itemSh = sheet_(SHEET_ITEMS);
   if (itemSh.getLastRow() <= 1) {
-    // 末尾の '' は「作成者メール」列（未記録＝誰でも編集可のサンプルとして残す）
+    // 末尾は「作成者メール」（未記録＝誰でも編集可のサンプル）と「重要」
     var rows = [
       [uuid_(), 'M20260717', '連絡', 1, '端末の管理番号について',
        'スズキ校務の詳細名簿に入力をお願いします。', '横田', 1, 'あり（データ）', '',
-       '2026-07-24', true, '全員', '', true, nowStr_(), ''],
+       '2026-07-24', true, '全員', '', true, nowStr_(), '', true],
       [uuid_(), 'M20260717', '連絡', 2, '夏休み宿題　習字・作文の集め方',
        'JAの習字は8月26日まで、作文は9月1日まで。', '清水', '', 'あり（データ）', '',
-       '2026-08-26', true, '全員', '', true, nowStr_(), ''],
+       '2026-08-26', true, '全員', '', true, nowStr_(), '', false],
       [uuid_(), 'M20260717', '連絡', 3, 'ご紹介：人権啓発セミナー受講者募集',
        '受講希望の方は相座までご連絡ください。', '相座', '', 'あり（データ）', '',
-       '', false, '全員', '', true, nowStr_(), ''],
+       '', false, '全員', '', true, nowStr_(), '', false],
       [uuid_(), 'M20260717', '協議', 1, '音楽会実施計画案（略案）',
        'プログラム順など変更。体育館練習を2時間削減。', '西村', 5, 'あり（データ）', '',
-       '', false, '全員', '', false, nowStr_(), '']
+       '', false, '全員', '', false, nowStr_(), '', false]
     ];
     itemSh.getRange(2, 1, rows.length, HEADERS.items.length).setValues(rows);
   }

@@ -5,28 +5,38 @@
 <meta charset="utf-8">
 <style>
   :root {
-    --paper:#f6f7f4; --card:#fff; --ink:#232b33; --ink-soft:#5a6672; --ink-faint:#66707b;
-    --line:#dde2e0; --accent:#35509e; --accent-soft:#e7ecf8;
-    --good:#2c774b; --good-soft:#e3f1e8; --warn:#925f0e; --warn-soft:#f7ecd8;
-    --danger:#b23a2f; --danger-soft:#f9e6e3; --shadow:0 1px 3px rgba(35,43,51,.08);
+    /* ライトは本文をAAA（7:1以上）まで引き上げている。AA（4.5:1）ぎりぎりだと
+       ノートPCの画面や明るい職員室では白っぽく沈んで読みにくいため。 */
+    --paper:#eef0ec; --card:#fff; --ink:#1a2027; --ink-soft:#48535e; --ink-faint:#5c666f;
+    --line:#b6c0b9; --neutral-soft:#e4e8e5; --accent:#2a4489; --accent-soft:#dde5f6;
+    --good:#1f6640; --good-soft:#d8ebe0; --warn:#7d500a; --warn-soft:#f5e6cc;
+    --danger:#9c2f25; --danger-soft:#f7dcd8; --important-soft:#fdf0ee;
+    --on-danger:#fff; --shadow:0 1px 3px rgba(26,32,39,.12);
   }
   @media (prefers-color-scheme: dark){ :root{
     --paper:#171b20; --card:#21262d; --ink:#e8ebee; --ink-soft:#a8b2bc; --ink-faint:#858f9a;
-    --line:#343c45; --accent:#8aa3e8; --accent-soft:#2a3450;
+    --line:#3d4650; --neutral-soft:#333b44; --accent:#8aa3e8; --accent-soft:#2a3450;
     --good:#6dbd8f; --good-soft:#23392c; --warn:#d9a44a; --warn-soft:#3d321f;
-    --danger:#e08074; --danger-soft:#452622; --shadow:0 1px 3px rgba(0,0,0,.35);
+    --danger:#e08074; --danger-soft:#452622; --important-soft:#2e1c1a;
+    /* ダークの --danger は明るいサーモン。白文字だと 2.8:1 で読めないので暗い文字を乗せる */
+    --on-danger:#171b20; --shadow:0 1px 3px rgba(0,0,0,.35);
   }}
   :root[data-theme="dark"]{
     --paper:#171b20; --card:#21262d; --ink:#e8ebee; --ink-soft:#a8b2bc; --ink-faint:#858f9a;
-    --line:#343c45; --accent:#8aa3e8; --accent-soft:#2a3450;
+    --line:#3d4650; --neutral-soft:#333b44; --accent:#8aa3e8; --accent-soft:#2a3450;
     --good:#6dbd8f; --good-soft:#23392c; --warn:#d9a44a; --warn-soft:#3d321f;
-    --danger:#e08074; --danger-soft:#452622; --shadow:0 1px 3px rgba(0,0,0,.35);
+    --danger:#e08074; --danger-soft:#452622; --important-soft:#2e1c1a;
+    /* ダークの --danger は明るいサーモン。白文字だと 2.8:1 で読めないので暗い文字を乗せる */
+    --on-danger:#171b20; --shadow:0 1px 3px rgba(0,0,0,.35);
   }
   :root[data-theme="light"]{
-    --paper:#f6f7f4; --card:#fff; --ink:#232b33; --ink-soft:#5a6672; --ink-faint:#66707b;
-    --line:#dde2e0; --accent:#35509e; --accent-soft:#e7ecf8;
-    --good:#2c774b; --good-soft:#e3f1e8; --warn:#925f0e; --warn-soft:#f7ecd8;
-    --danger:#b23a2f; --danger-soft:#f9e6e3; --shadow:0 1px 3px rgba(35,43,51,.08);
+    /* ライトは本文をAAA（7:1以上）まで引き上げている。AA（4.5:1）ぎりぎりだと
+       ノートPCの画面や明るい職員室では白っぽく沈んで読みにくいため。 */
+    --paper:#eef0ec; --card:#fff; --ink:#1a2027; --ink-soft:#48535e; --ink-faint:#5c666f;
+    --line:#b6c0b9; --neutral-soft:#e4e8e5; --accent:#2a4489; --accent-soft:#dde5f6;
+    --good:#1f6640; --good-soft:#d8ebe0; --warn:#7d500a; --warn-soft:#f5e6cc;
+    --danger:#9c2f25; --danger-soft:#f7dcd8; --important-soft:#fdf0ee;
+    --on-danger:#fff; --shadow:0 1px 3px rgba(26,32,39,.12);
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--paper);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased;
@@ -214,11 +224,18 @@
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);
     padding:14px 20px;margin-bottom:12px;transition:opacity .25s}
   .card.done{opacity:.62}
+  /* 重要な連絡。左の太い赤帯＋淡い赤の下地で、ひと目で他と区別できるようにする
+     （下地は濃くしすぎると本文が読みにくくなるので、色味だけ乗せる程度に留める） */
+  .card.important{border-color:var(--danger);border-left:5px solid var(--danger);
+    background:var(--important-soft);padding-left:16px}
+  .chip.important{background:var(--danger);color:var(--on-danger)}
   .card-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
   .chip{font-size:.7rem;font-weight:700;border-radius:6px;padding:2px 8px;letter-spacing:.03em;white-space:nowrap}
   .chip.kind{background:var(--accent-soft);color:var(--accent)}
   .chip.action{background:var(--warn-soft);color:var(--warn)}
-  .chip.readonly{background:var(--line);color:var(--ink-soft)}
+  /* 下地は --line と分けている（--line は境界線用に濃くしたいが、
+     その上に文字を乗せるとコントラストが落ちるため） */
+  .chip.readonly{background:var(--neutral-soft);color:var(--ink-soft)}
   .chip.due{font-variant-numeric:tabular-nums}
   .chip.due.far{background:var(--good-soft);color:var(--good)}
   .chip.due.near{background:var(--warn-soft);color:var(--warn)}
@@ -497,6 +514,9 @@
     <div class="field">
       <label class="checkline"><input type="checkbox" id="f-action"> 対応が必要（チェックを集計する）</label>
     </div>
+    <div class="field">
+      <label class="checkline"><input type="checkbox" id="f-important"> ⚠️ 重要（カードを赤く強調し、月の先頭に表示）</label>
+    </div>
     <div class="field" id="f-action-fields" style="display:none">
       <div class="row">
         <div style="flex:1"><label>期限</label><input type="date" id="f-due"></div>
@@ -700,8 +720,9 @@ document.getElementById('filter-pin').addEventListener('click', function(){
   onFilterChange();
 });
 
-// サーバー側の並び順（要対応が先、期限が近い順・期限なしは最後）と同じロジック
+// サーバー側の並び順（重要が先、次に要対応、期限が近い順・期限なしは最後）と同じロジック
 function itemSortComparator(a,b){
+  if(!!a.important!==!!b.important) return a.important?-1:1;
   if(a.action!==b.action) return a.action?-1:1;
   var da=a.dueSort, db=b.dueSort;
   if(da===db) return 0;
@@ -1212,6 +1233,7 @@ function refreshPinUI(it){
 
 function cardEl(it){
   var chips=it.monthNo ? '<span class="no-badge" title="打合せで「'+esc(it.monthNo)+'番」と言えば伝わります">No.'+esc(it.monthNo)+'</span>' : '';
+  if(it.important) chips+='<span class="chip important">⚠️ 重要</span>';
   chips+=it.meetingLabel ? '<span class="chip kind">'+esc(it.meetingLabel)+'</span>' : '<span class="chip kind">連絡</span>';
   chips+= it.action
     ? '<span class="chip action" title="対象者は「確認した」→「対応済み」の2段階でチェックします">要対応</span>'
@@ -1233,7 +1255,7 @@ function cardEl(it){
   var media=mediaHTML(it.links||[]);
 
   var card=el(
-    '<div class="card'+(it.myDone?' done':'')+'" data-item-id="'+esc(it.id)+'">'
+    '<div class="card'+(it.myDone?' done':'')+(it.important?' important':'')+'" data-item-id="'+esc(it.id)+'">'
     +'<div class="card-top">'+chips+'</div>'
     +'<div class="card-mid">'
       +'<div class="card-text">'
@@ -1583,6 +1605,7 @@ function openEditForm(it){
 
   var action=!!it.action;
   document.getElementById('f-action').checked=action;
+  document.getElementById('f-important').checked=!!it.important;
   document.getElementById('f-action-fields').style.display=action?'':'none';
   document.getElementById('f-due').value=it.dueISO||'';
   var targetType=it.targetType||'全員';
@@ -1627,6 +1650,7 @@ form.addEventListener('submit', function(e){
     speaker:document.getElementById('f-speaker').value.trim(),
     minutes:document.getElementById('f-min').value.trim(),
     action:action,
+    important:document.getElementById('f-important').checked,
     due:document.getElementById('f-due').value,
     targetType:targetType,
     targetEmails:targetEmails,
