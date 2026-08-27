@@ -115,13 +115,13 @@
     padding:0 7px;line-height:1.5;font-variant-numeric:tabular-nums}
   .tab .badge:empty{display:none}
 
-  /* 概況カード。1枚のカードの中を3分割し、各区画はボタンにして
+  /* 概況カード。1枚のカードの中を区画に分け、各区画はボタンにして
      クリックで絞り込める（押すとその条件だけに絞り込み、もう一度押すと解除）。
      ホバーで下線が出ることで「押せる」と伝わるようにしている。 */
   .summary{display:flex;align-items:stretch;height:var(--ctrl-h);background:var(--card);
     border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-shrink:0}
   .stat-seg{appearance:none;border:none;background:none;cursor:pointer;font:inherit;
-    display:flex;align-items:center;gap:5px;padding:0 13px;height:100%;
+    display:flex;align-items:center;gap:5px;padding:0 11px;height:100%;
     border-right:1px solid var(--line);color:var(--ink-soft);font-size:.75rem;white-space:nowrap}
   .stat-seg:last-child{border-right:none}
   .stat-seg:hover{background:var(--paper)}
@@ -129,7 +129,7 @@
   .stat-seg b{font-size:.92rem;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
   .stat-seg i{font-style:normal}
   .stat-seg.alert b{color:var(--danger)} .stat-seg.warn b{color:var(--warn)}
-  .stat-seg.pin b{color:var(--accent)}
+  .stat-seg.good b{color:var(--good)} .stat-seg.pin b{color:var(--accent)}
   .stat-seg[aria-pressed="true"]{background:var(--accent-soft)}
   .stat-seg[aria-pressed="true"] b,.stat-seg[aria-pressed="true"] i{color:var(--accent)}
   .stat-seg:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
@@ -651,8 +651,8 @@ tabs.forEach(function(t){ t.addEventListener('click', function(){ switchView(t.d
 var filterYM=currentActualYM(), filterKW='', filterSpeaker='';
 var filterStatus='undone'; // undone=未完了のみ（既定） / all=すべて / done=完了のみ
 var filterPinned=false;    // ★ピン留めのみ表示するか
-// 概況カードの「期限」「未対応」をクリックしたときの一発絞り込み（toggleQuickFilter 参照）
-var filterDueOnly=false, filterMineOnly=false;
+// 概況カードの各区画をクリックしたときの一発絞り込み（toggleQuickFilter 参照）
+var filterDueOnly=false, filterMineOnly=false, filterDoneMineOnly=false;
 function fullyDone(it){ return it.targetCount>0 && it.doneCount>=it.targetCount; } // 対象全員が済み
 /** 対応状況の絞り込み。ここだけ他の条件と分けているのは、選択肢の件数を数える母集団になるため */
 function matchesStatus(it){
@@ -666,6 +666,9 @@ function matchesFilter(it){
   //   念のため明示しておく）
   if(filterDueOnly) return it.action && it.dueClass==='today' && !fullyDone(it);
   if(filterMineOnly) return it.action && it.myTarget && !it.myDone;
+  // 「あなたの確認・対応済」は要対応（確認→対応の2段階）と閲覧のみ（確認のみ）の
+  // 両方を含める。自分が手を離れたものすべて、という意味なので action で絞らない
+  if(filterDoneMineOnly) return it.myTarget && it.myDone;
   if(filterPinned && !it.pinned) return false;
   if(filterYM && it.ym!==filterYM) return false;
   if(filterSpeaker && (it.speaker||'')!==filterSpeaker) return false;
@@ -736,7 +739,7 @@ function clearFilters(status){
   document.getElementById('filter-ym').value='';
   document.getElementById('filter-speaker').value='';
   filterYM=''; filterKW=''; filterSpeaker='';
-  filterDueOnly=false; filterMineOnly=false;
+  filterDueOnly=false; filterMineOnly=false; filterDoneMineOnly=false;
   filterPinned=false;
   filterStatus=status||'undone';
   document.getElementById('filter-status').value=filterStatus;
@@ -747,16 +750,18 @@ document.getElementById('filter-clear').addEventListener('click', function(){
 });
 
 /**
- * 概況カードの「期限が今日／超過」「あなたの未対応」「★ピン留め」をクリックしたときの
- * 一発絞り込み。他の絞り込み（検索・月・発信者）と組み合わせると0件になりがちなので、
+ * 概況カードの各区画をクリックしたときの一発絞り込み。
+ * 他の絞り込み（検索・月・発信者）と組み合わせると0件になりがちなので、
  * 押すとまず全部解除してから、対応状況を「すべて」に広げてこの条件だけを適用する。
- * 「期限」「未対応」は条件自体が未完了を含意するので「すべて」でも実質未完了だけが残り、
- * 「ピン留め」は完了済みにも付けられるので「すべて」に広げないと留めた連絡が出てこない。
+ * 「期限」「未対応」は条件自体が未完了を含意するので「すべて」でも実質未完了だけが残る。
+ * 「済み」「ピン留め」は完了済みの連絡が対象に入るので、「すべて」に広げないと
+ * 既定の「未完了のみ」に弾かれて出てこない。
  * もう一度押すと解除して「掲載中」と同じ全解除状態に戻る。
  */
 function toggleQuickFilter(which){
   var turningOn = which==='due' ? !filterDueOnly
                 : which==='mine' ? !filterMineOnly
+                : which==='donemine' ? !filterDoneMineOnly
                 : !filterPinned;
   clearFilters();
   if(turningOn){
@@ -764,6 +769,7 @@ function toggleQuickFilter(which){
     document.getElementById('filter-status').value='all';
     if(which==='due') filterDueOnly=true;
     else if(which==='mine') filterMineOnly=true;
+    else if(which==='donemine') filterDoneMineOnly=true;
     else filterPinned=true;
   }
   renderBoard();
@@ -1150,10 +1156,11 @@ function renderBoard(){
   var mine=myOpenItems().length;
   updateBadge(mine);
 
-  // 上部の3つの数字は、キーワード・月・発信者・対応状況の絞り込みに影響されない
+  // 概況の数字は、キーワード・月・発信者・対応状況の絞り込みに影響されない
   // 「盤面全体の概況」として固定で数える。検索するたびにここが動くと、
   // 何を数えているのか分かりにくくなるため（以前は期限の件数だけ絞り込み後の値を使っていた）
   var dueToday=DATA.items.filter(function(it){ return it.action && it.dueClass==='today' && !fullyDone(it); }).length;
+  var doneMine=DATA.items.filter(function(it){ return it.myTarget && it.myDone; }).length;
   var pinCount=DATA.items.filter(function(it){ return it.pinned; }).length;
 
   // 概況は1枚のカードに統合し、各区画をクリックで絞り込めるようにする（toggleQuickFilter）。
@@ -1168,14 +1175,18 @@ function renderBoard(){
         +' title="期限が今日または超過していて未対応の連絡だけを表示">'
         +'<b>'+dueToday+'</b><i>期限が今日／超過</i></button>'
     +'<button type="button" class="stat-seg warn" id="stat-mine-seg" aria-pressed="'+filterMineOnly+'"'
-        +' title="自分が対象で未対応の連絡だけを表示">'
+        +' title="自分が対象で、まだ対応していない連絡だけを表示">'
         +'<b id="stat-mine">'+mine+'</b><i>あなたの未対応</i></button>'
+    +'<button type="button" class="stat-seg good" id="stat-donemine" aria-pressed="'+filterDoneMineOnly+'"'
+        +' title="自分が確認または対応を済ませた連絡だけを表示（他の人がまだでも表示されます）">'
+        +'<b>'+doneMine+'</b><i>あなたの確認・対応済</i></button>'
     +'<button type="button" class="stat-seg pin" id="stat-pin" aria-pressed="'+filterPinned+'"'
         +' title="自分がピン留めした連絡だけを表示（ピンは自分にしか見えません）">'
         +'<b>'+pinCount+'</b><i>★ ピン留め</i></button>';
   document.getElementById('stat-all').addEventListener('click', function(){ clearFilters(); renderBoard(); });
   document.getElementById('stat-due').addEventListener('click', function(){ toggleQuickFilter('due'); });
   document.getElementById('stat-mine-seg').addEventListener('click', function(){ toggleQuickFilter('mine'); });
+  document.getElementById('stat-donemine').addEventListener('click', function(){ toggleQuickFilter('donemine'); });
   document.getElementById('stat-pin').addEventListener('click', function(){ toggleQuickFilter('pin'); });
 
   if(!board.length){
@@ -1203,7 +1214,8 @@ function renderBoard(){
 }
 
 /** 状態以外の絞り込み（キーワード・月・発信者）が効いているか */
-function filtering(){ return !!(filterYM||filterKW||filterSpeaker||filterPinned||filterDueOnly||filterMineOnly); }
+function filtering(){ return !!(filterYM||filterKW||filterSpeaker||filterPinned
+  ||filterDueOnly||filterMineOnly||filterDoneMineOnly); }
 
 /** DriveのURLからファイルIDを取り出す（Drive以外は null） */
 function driveFileId(u){
