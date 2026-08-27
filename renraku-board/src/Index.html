@@ -44,7 +44,10 @@
     font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI","Yu Gothic","Noto Sans JP",sans-serif}
   /* 全体シェル: 1行目はヘッダー（左カラムのみ）、2行目が本文＋右サイドバー。
      これでサイドバーの上端が絞り込みバーの上端と自動的に揃う（高さを数値で固定しない）。 */
-  .app-shell{max-width:1500px;margin:0 auto;padding:0 28px 72px;
+  /* 幅の上限は設けない。上限を付けて中央寄せにすると、広い画面でサイドバーの右側に
+     使われない帯が残り「右端が余っている」ように見えるため。連絡カード側は
+     グリッドで段組みになるので、幅が広がっても1件が間延びしない。 */
+  .app-shell{margin:0;padding:0 28px 72px;
     display:grid;grid-template-columns:minmax(0,1fr) 300px;column-gap:28px;align-items:start}
   .appbar{grid-column:1;grid-row:1}
   .app{grid-column:1;grid-row:2;min-width:0}
@@ -113,6 +116,7 @@
   .stat-seg b{font-size:.92rem;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
   .stat-seg i{font-style:normal}
   .stat-seg.alert b{color:var(--danger)} .stat-seg.warn b{color:var(--warn)}
+  .stat-seg.pin b{color:var(--accent)}
   .stat-seg[aria-pressed="true"]{background:var(--accent-soft)}
   .stat-seg[aria-pressed="true"] b,.stat-seg[aria-pressed="true"] i{color:var(--accent)}
   .stat-seg:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
@@ -120,17 +124,24 @@
   section.view{display:none} section.view.active{display:block}
   h2.section-label{font-size:.78rem;font-weight:700;letter-spacing:.08em;color:var(--ink-faint);margin:24px 4px 10px}
 
-  /* 絞り込みバー。1段目＝概況＋検索（見る）、2段目＝絞り込みの条件（選ぶ）で役割を分け、
-     全部を1行に詰め込んで窮屈にならないようにしている。
-     入力・プルダウン・ボタン・概況カードの高さを --ctrl-h に統一して段ごとに揃える。 */
-  .filterbar{display:flex;flex-direction:column;gap:10px;margin:12px 0 0}
-  .filterbar-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  /* 絞り込みバーは1段。ピン留めを概況カードに取り込んでボタンが1つ減ったこと、
+     画面幅の上限を外して横に余裕ができたことで、2段に分けなくても収まる。
+     入力・プルダウン・ボタン・概況カードの高さは --ctrl-h に統一して揃える。 */
+  .filterbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0 0}
   .filterbar input[type=search]{flex:0 1 220px;height:var(--ctrl-h);box-sizing:border-box;
     font:inherit;background:var(--card);color:var(--ink);
     border:1px solid var(--line);border-radius:8px;padding:0 12px}
   .filterbar select{height:var(--ctrl-h);box-sizing:border-box;font:inherit;background:var(--card);
     color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:0 10px;max-width:180px}
   .filterbar .btn{height:var(--ctrl-h);box-sizing:border-box;padding:0 14px;font-size:.82rem}
+
+  /* 連絡の一覧。画面幅の上限を外したので、1列のままだと1件が横に間延びする。
+     カードが読みやすい幅（最低620px）を保ったまま、入るだけ段組みにして折り返す。
+     620pxを下回る幅（ノートPCなど）では自動的に1列になる。 */
+  #board-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(620px,1fr));
+    gap:0 20px;align-content:start}
+  /* 月の区切りと折りたたみトグルは段をまたいで1本に伸ばす（段組みの中で分断させない） */
+  #board-list .month-divider,#board-list .fold-toggle{grid-column:1/-1}
 
   /* 自分の済みを折りたたむトグル */
   .fold-toggle{appearance:none;cursor:pointer;font:inherit;font-size:.82rem;font-weight:600;color:var(--ink-soft);
@@ -222,9 +233,6 @@
   .pin-btn:hover{color:var(--accent)}
   .pin-btn.on{color:var(--accent);font-weight:700}
   .pin-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
-  /* 絞り込みバーのトグル。押されている間は選択中と分かるよう塗る */
-  .btn.pin-filter[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
-  .btn.pin-filter:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
   /* カレンダー・サイドバーからジャンプした先の一時ハイライト */
   @keyframes flash-highlight{0%{box-shadow:0 0 0 3px var(--accent)}100%{box-shadow:var(--shadow)}}
@@ -418,22 +426,16 @@
   <!-- 絞り込みバーは本文側に置く。タブによって使わない場合も、サイドバーの上端が
        ずれないよう visibility で隠して高さは確保する（display:none にしない） -->
   <div class="filterbar" id="filterbar">
-    <div class="filterbar-row">
-      <div class="summary" id="board-summary"></div>
-      <input type="search" id="filter-kw" placeholder="🔍 キーワードで絞り込み（議題・内容）">
-    </div>
-    <div class="filterbar-row">
-      <select id="filter-status" aria-label="対応状況で絞り込み">
-        <option value="undone">未完了のみ</option>
-        <option value="all">すべて</option>
-        <option value="done">完了のみ</option>
-      </select>
-      <select id="filter-ym" aria-label="月で絞り込み"><option value="">すべての月</option></select>
-      <select id="filter-speaker" aria-label="発信者で絞り込み"><option value="">すべての発信者</option></select>
-      <button type="button" class="btn pin-filter" id="filter-pin" aria-pressed="false"
-        title="自分がピン留めした連絡だけを表示">★ ピン留めのみ</button>
-      <button type="button" class="btn" id="filter-clear">クリア</button>
-    </div>
+    <div class="summary" id="board-summary"></div>
+    <input type="search" id="filter-kw" placeholder="🔍 キーワードで絞り込み（議題・内容）">
+    <select id="filter-status" aria-label="対応状況で絞り込み">
+      <option value="undone">未完了のみ</option>
+      <option value="all">すべて</option>
+      <option value="done">完了のみ</option>
+    </select>
+    <select id="filter-ym" aria-label="月で絞り込み"><option value="">すべての月</option></select>
+    <select id="filter-speaker" aria-label="発信者で絞り込み"><option value="">すべての発信者</option></select>
+    <button type="button" class="btn" id="filter-clear">クリア</button>
   </div>
 
   <section class="view active" id="view-board"><div class="loading">読み込み中…</div></section>
@@ -722,7 +724,7 @@ function clearFilters(status){
   document.getElementById('filter-speaker').value='';
   filterYM=''; filterKW=''; filterSpeaker='';
   filterDueOnly=false; filterMineOnly=false;
-  setPinFilter(false);
+  filterPinned=false;
   filterStatus=status||'undone';
   document.getElementById('filter-status').value=filterStatus;
 }
@@ -732,38 +734,27 @@ document.getElementById('filter-clear').addEventListener('click', function(){
 });
 
 /**
- * 概況カードの「期限が今日／超過」「あなたの未対応」をクリックしたときの一発絞り込み。
- * 他の絞り込み（検索・月・発信者・ピン留め）と組み合わせると0件になりがちなので、
- * 押すとまず全部解除してから、対応状況を「すべて」に広げてこの条件だけを適用する
- * （この条件自体が「未完了」を含意するので「すべて」にしても実質は未完了だけが残る）。
+ * 概況カードの「期限が今日／超過」「あなたの未対応」「★ピン留め」をクリックしたときの
+ * 一発絞り込み。他の絞り込み（検索・月・発信者）と組み合わせると0件になりがちなので、
+ * 押すとまず全部解除してから、対応状況を「すべて」に広げてこの条件だけを適用する。
+ * 「期限」「未対応」は条件自体が未完了を含意するので「すべて」でも実質未完了だけが残り、
+ * 「ピン留め」は完了済みにも付けられるので「すべて」に広げないと留めた連絡が出てこない。
  * もう一度押すと解除して「掲載中」と同じ全解除状態に戻る。
  */
 function toggleQuickFilter(which){
-  var turningOn = which==='due' ? !filterDueOnly : !filterMineOnly;
+  var turningOn = which==='due' ? !filterDueOnly
+                : which==='mine' ? !filterMineOnly
+                : !filterPinned;
   clearFilters();
   if(turningOn){
     filterStatus='all';
     document.getElementById('filter-status').value='all';
-    if(which==='due') filterDueOnly=true; else filterMineOnly=true;
+    if(which==='due') filterDueOnly=true;
+    else if(which==='mine') filterMineOnly=true;
+    else filterPinned=true;
   }
   renderBoard();
 }
-
-/** ★ピン留めのみ の ON/OFF（見た目と状態をまとめて切り替える） */
-function setPinFilter(on){
-  filterPinned=!!on;
-  document.getElementById('filter-pin').setAttribute('aria-pressed', String(filterPinned));
-}
-document.getElementById('filter-pin').addEventListener('click', function(){
-  setPinFilter(!filterPinned);
-  // ピン留めは完了済みの連絡にも付けられる。既定の「未完了のみ」のままだと
-  // 留めたはずの連絡が出てこないので、ONにするときは対応状況を「すべて」に広げる
-  if(filterPinned){
-    filterStatus='all';
-    document.getElementById('filter-status').value='all';
-  }
-  onFilterChange();
-});
 
 // サーバー側の並び順（重要が先、次に要対応、期限が近い順・期限なしは最後）と同じロジック
 function itemSortComparator(a,b){
@@ -1150,9 +1141,12 @@ function renderBoard(){
   // 「盤面全体の概況」として固定で数える。検索するたびにここが動くと、
   // 何を数えているのか分かりにくくなるため（以前は期限の件数だけ絞り込み後の値を使っていた）
   var dueToday=DATA.items.filter(function(it){ return it.action && it.dueClass==='today' && !fullyDone(it); }).length;
+  var pinCount=DATA.items.filter(function(it){ return it.pinned; }).length;
 
   // 概況は1枚のカードに統合し、各区画をクリックで絞り込めるようにする（toggleQuickFilter）。
-  // 「掲載中」は絞り込みの全解除、「期限」「未対応」はその条件だけへの一発絞り込み。
+  // 「掲載中」は絞り込みの全解除、それ以外はその条件だけへの一発絞り込み。
+  // ピン留めもここに同居させている（同じ「押すと1条件に絞る」仲間で、
+  // 絞り込みバーに単独のボタンを置くと1段に収まらなくなるため）。
   var boardSummary=document.getElementById('board-summary');
   boardSummary.innerHTML=
       '<button type="button" class="stat-seg" id="stat-all" title="絞り込みをすべて解除して見る">'
@@ -1162,10 +1156,14 @@ function renderBoard(){
         +'<b>'+dueToday+'</b><i>期限が今日／超過</i></button>'
     +'<button type="button" class="stat-seg warn" id="stat-mine-seg" aria-pressed="'+filterMineOnly+'"'
         +' title="自分が対象で未対応の連絡だけを表示">'
-        +'<b id="stat-mine">'+mine+'</b><i>あなたの未対応</i></button>';
+        +'<b id="stat-mine">'+mine+'</b><i>あなたの未対応</i></button>'
+    +'<button type="button" class="stat-seg pin" id="stat-pin" aria-pressed="'+filterPinned+'"'
+        +' title="自分がピン留めした連絡だけを表示（ピンは自分にしか見えません）">'
+        +'<b>'+pinCount+'</b><i>★ ピン留め</i></button>';
   document.getElementById('stat-all').addEventListener('click', function(){ clearFilters(); renderBoard(); });
   document.getElementById('stat-due').addEventListener('click', function(){ toggleQuickFilter('due'); });
   document.getElementById('stat-mine-seg').addEventListener('click', function(){ toggleQuickFilter('mine'); });
+  document.getElementById('stat-pin').addEventListener('click', function(){ toggleQuickFilter('pin'); });
 
   if(!board.length){
     // 絞り込み（検索・月・発信者・対応状況のいずれか）が働いているときだけ解除の導線を出す
