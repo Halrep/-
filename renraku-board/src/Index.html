@@ -195,6 +195,18 @@
   .side-todo-due.far{color:var(--ink-soft)}
   .side-todo-due.none{color:var(--ink-faint);font-weight:400}
 
+  /* ---- ピン留め ---- */
+  #side-pin-panel h2 span{color:var(--accent)}
+  /* カード内の★（コメントボタンの隣）。留めているときだけ色を付ける */
+  .pin-btn{appearance:none;border:none;background:none;font:inherit;cursor:pointer;padding:0;
+    font-size:.78rem;color:var(--ink-faint);white-space:nowrap}
+  .pin-btn:hover{color:var(--accent)}
+  .pin-btn.on{color:var(--accent);font-weight:700}
+  .pin-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+  /* 絞り込みバーのトグル。押されている間は選択中と分かるよう塗る */
+  .btn.pin-filter[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+  .btn.pin-filter:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
   /* カレンダー・サイドバーからジャンプした先の一時ハイライト */
   @keyframes flash-highlight{0%{box-shadow:0 0 0 3px var(--accent)}100%{box-shadow:var(--shadow)}}
   .card.flash{animation:flash-highlight 1.8s ease-out}
@@ -388,6 +400,8 @@
     </select>
     <select id="filter-ym" aria-label="月で絞り込み"><option value="">すべての月</option></select>
     <select id="filter-speaker" aria-label="発信者で絞り込み"><option value="">すべての発信者</option></select>
+    <button type="button" class="btn pin-filter" id="filter-pin" aria-pressed="false"
+      title="自分がピン留めした連絡だけを表示">★ ピン留めのみ</button>
     <button type="button" class="btn" id="filter-clear">クリア</button>
   </div>
 
@@ -397,6 +411,11 @@
 </div>
 
 <aside class="sidebar">
+  <!-- ピン留めは絞り込みの影響を受けず常に出す（完了済みをピン留めしても消えないように） -->
+  <div class="side-panel" id="side-pin-panel" hidden>
+    <h2>★ ピン留め <span id="side-pin-count"></span></h2>
+    <div id="side-pin-list"></div>
+  </div>
   <div class="side-panel cal-panel">
     <div class="cal-head">
       <button type="button" class="cal-nav" id="cal-prev" aria-label="前の月">‹</button>
@@ -579,6 +598,7 @@ tabs.forEach(function(t){ t.addEventListener('click', function(){ switchView(t.d
 /* ====== 絞り込み（対応状況・月・発信者・キーワード） ====== */
 var filterYM='', filterKW='', filterSpeaker='';
 var filterStatus='undone'; // undone=未完了のみ（既定） / all=すべて / done=完了のみ
+var filterPinned=false;    // ★ピン留めのみ表示するか
 function fullyDone(it){ return it.targetCount>0 && it.doneCount>=it.targetCount; } // 対象全員が済み
 /** 対応状況の絞り込み。ここだけ他の条件と分けているのは、選択肢の件数を数える母集団になるため */
 function matchesStatus(it){
@@ -587,6 +607,7 @@ function matchesStatus(it){
   return true; // all
 }
 function matchesFilter(it){
+  if(filterPinned && !it.pinned) return false;
   if(filterYM && it.ym!==filterYM) return false;
   if(filterSpeaker && (it.speaker||'')!==filterSpeaker) return false;
   if(filterKW){
@@ -654,12 +675,29 @@ function clearFilters(status){
   document.getElementById('filter-ym').value='';
   document.getElementById('filter-speaker').value='';
   filterYM=''; filterKW=''; filterSpeaker='';
+  setPinFilter(false);
   filterStatus=status||'undone';
   document.getElementById('filter-status').value=filterStatus;
 }
 document.getElementById('filter-clear').addEventListener('click', function(){
   clearFilters();
   if(currentView==='board') renderBoard();
+});
+
+/** ★ピン留めのみ の ON/OFF（見た目と状態をまとめて切り替える） */
+function setPinFilter(on){
+  filterPinned=!!on;
+  document.getElementById('filter-pin').setAttribute('aria-pressed', String(filterPinned));
+}
+document.getElementById('filter-pin').addEventListener('click', function(){
+  setPinFilter(!filterPinned);
+  // ピン留めは完了済みの連絡にも付けられる。既定の「未完了のみ」のままだと
+  // 留めたはずの連絡が出てこないので、ONにするときは対応状況を「すべて」に広げる
+  if(filterPinned){
+    filterStatus='all';
+    document.getElementById('filter-status').value='all';
+  }
+  onFilterChange();
 });
 
 // サーバー側の並び順（要対応が先、期限が近い順・期限なしは最後）と同じロジック
@@ -688,6 +726,7 @@ function load(){
     switchView('board'); // ここで renderBoard() も実行される
     loadCalendarMonth();
     renderSideTodo();
+    renderSidePins();
     startPolling();
   }).withFailureHandler(function(err){
     document.getElementById('view-board').innerHTML='<div class="empty">読み込みに失敗しました：'+esc(err.message)+'</div>';
@@ -753,7 +792,7 @@ function mergeFreshData(d){
   if(currentView==='board') renderBoard();
   else if(currentView==='admin') renderAdmin();
   else if(currentView==='meeting') renderMeeting(keepMeeting);
-  refreshMineCounters(); // renderSideTodo() もここで実行される
+  refreshMineCounters(); // renderSideTodo() / renderSidePins() もここで実行される
   renderCalendar();
   return added;
 }
@@ -972,7 +1011,32 @@ function renderSideTodo(){
   });
 }
 
-/** 特定の連絡IDへジャンプ（サイドバーの自分の未対応リストから使用） */
+/**
+ * サイドバーのピン留めリスト。絞り込みとは無関係に、常に自分のピン全件を出す
+ * （完了済みをピン留めしたときに「未完了のみ」表示で消えてしまわないように）。
+ * ピンが1件も無いときはパネルごと隠す（使っていない人の邪魔をしない）。
+ */
+function renderSidePins(){
+  if(!DATA) return;
+  var list=DATA.items.filter(function(it){ return it.pinned; });
+  var panel=document.getElementById('side-pin-panel');
+  panel.hidden=!list.length;
+  if(!list.length) return;
+  document.getElementById('side-pin-count').textContent='('+list.length+')';
+  var box=document.getElementById('side-pin-list');
+  box.innerHTML='';
+  list.forEach(function(it){
+    var btn=el('<button type="button" class="side-todo-item">'
+      +'<span class="side-todo-title">'+(it.monthNo?'No.'+esc(it.monthNo)+' ':'')+esc(it.title)+'</span>'
+      +'<span class="side-todo-meta"><span class="side-todo-due '+(it.dueLabel?it.dueClass:'none')+'">'
+      +esc(it.dueLabel||'期限なし')+'</span></span>'
+      +'</button>');
+    btn.addEventListener('click', function(){ jumpToItem(it.id); });
+    box.appendChild(btn);
+  });
+}
+
+/** 特定の連絡IDへジャンプ（サイドバーの自分の未対応・ピン留めリストから使用） */
 function jumpToItem(itemId){
   var it=DATA.items.find(function(x){ return x.id===itemId; });
   if(!it){ showToast('連絡が見つかりませんでした'); return; }
@@ -1067,7 +1131,7 @@ function renderBoard(){
 }
 
 /** 状態以外の絞り込み（キーワード・月・発信者）が効いているか */
-function filtering(){ return !!(filterYM||filterKW||filterSpeaker); }
+function filtering(){ return !!(filterYM||filterKW||filterSpeaker||filterPinned); }
 
 /** DriveのURLからファイルIDを取り出す（Drive以外は null） */
 function driveFileId(u){
@@ -1108,6 +1172,44 @@ function attachThumbFallback(root){
 
 function commentLabel(n){ return n>0 ? '💬 コメント（'+n+'）' : '💬 コメントする'; }
 
+/** カードの★ボタン。ピンは自分だけの目印なので、他の職員の画面には影響しない */
+function pinBtnHtml(it){
+  return '<button type="button" class="pin-btn'+(it.pinned?' on':'')+'" data-pin-btn="'+esc(it.id)+'"'
+    +' aria-pressed="'+(it.pinned?'true':'false')+'"'
+    +' title="'+(it.pinned?'ピン留めを外す':'自分の目印としてピン留めする（自分だけに見えます）')+'">'
+    +(it.pinned?'★ ピン留め中':'☆ ピン留め')+'</button>';
+}
+
+/**
+ * ピンの ON/OFF。チェックと同じくその場で反映し、保存は裏で行う（失敗したら戻す）。
+ * ピンは集計に関係しないので、失敗しても他の職員には影響しない。
+ */
+function togglePin(it){
+  var next=!it.pinned;
+  it.pinned=next;
+  refreshPinUI(it);
+  pendingSaves++;
+  google.script.run.withSuccessHandler(function(){
+    pendingSaves--;
+  }).withFailureHandler(function(err){
+    pendingSaves--;
+    it.pinned=!next; // 元に戻す
+    refreshPinUI(it);
+    showToast('ピンを保存できませんでした（'+err.message+'）');
+  }).togglePin(it.id, next);
+}
+
+/** 同じ連絡の★ボタン（カード・アジェンダ表）とサイドバーをまとめて更新する */
+function refreshPinUI(it){
+  document.querySelectorAll('[data-pin-btn="'+it.id+'"]').forEach(function(btn){
+    btn.classList.toggle('on', it.pinned);
+    btn.setAttribute('aria-pressed', it.pinned?'true':'false');
+    btn.textContent=it.pinned?'★ ピン留め中':'☆ ピン留め';
+    btn.title=it.pinned?'ピン留めを外す':'自分の目印としてピン留めする（自分だけに見えます）';
+  });
+  renderSidePins();
+}
+
 function cardEl(it){
   var chips=it.monthNo ? '<span class="no-badge" title="打合せで「'+esc(it.monthNo)+'番」と言えば伝わります">No.'+esc(it.monthNo)+'</span>' : '';
   chips+=it.meetingLabel ? '<span class="chip kind">'+esc(it.meetingLabel)+'</span>' : '<span class="chip kind">連絡</span>';
@@ -1145,6 +1247,7 @@ function cardEl(it){
         +'<div class="txt">'+progressText(it)+'</div></div>'
       +'<button class="linklike" data-names>'+(it.action?'未対応者を見る':'未確認者を見る')+'</button>'
       +'<button class="linklike muted" data-comment-btn="'+esc(it.id)+'">'+commentLabel(it.commentCount||0)+'</button>'
+      +pinBtnHtml(it)
       +'<div class="check-btns">'+buttons+'</div>'
     +'</div></div>');
 
@@ -1155,6 +1258,7 @@ function cardEl(it){
   });
   card.querySelector('[data-names]').addEventListener('click', function(){ showNames(it); });
   card.querySelector('[data-comment-btn]').addEventListener('click', function(){ openComments(it.id, it.title); });
+  card.querySelector('[data-pin-btn]').addEventListener('click', function(){ togglePin(it); });
   var editBtn=card.querySelector('[data-edit]');
   if(editBtn) editBtn.addEventListener('click', function(){ openEditForm(it); });
   return card;
@@ -1207,6 +1311,7 @@ function refreshMineCounters(){
   updateBadge(n);
   var sm=document.getElementById('stat-mine'); if(sm) sm.textContent=n;
   renderSideTodo();
+  renderSidePins(); // ピンの期限表示も一緒に更新する
 }
 
 /*

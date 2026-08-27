@@ -1,11 +1,11 @@
 /**
  * 職員連絡ボード — GAS ウェブアプリ バックエンド
  *
- * データベースは同じスプレッドシートの4シート:
- *   連絡事項 / 職員マスタ / 確認ログ / 会議
+ * データベースは同じスプレッドシートの6シート:
+ *   連絡事項 / 職員マスタ / 確認ログ / 会議 / コメント / ピン
  *
  * 初回セットアップ:
- *   1. setup()          … 4シートとサンプルデータを生成
+ *   1. setup()          … 6シートとサンプルデータを生成
  *   2. 職員マスタに実際の職員を入力
  *   3. デプロイ（実行=アクセスユーザー / アクセス=組織内全員）
  *   4. installTriggers()… 毎朝の督促メールを有効化
@@ -19,6 +19,7 @@ var SHEET_STAFF    = '職員マスタ';
 var SHEET_LOG      = '確認ログ';
 var SHEET_MEETINGS = '会議';
 var SHEET_COMMENTS = 'コメント';
+var SHEET_PINS     = 'ピン';
 
 // 各シートのヘッダー（列順の唯一の定義。以降はここを参照）
 var HEADERS = {
@@ -27,7 +28,8 @@ var HEADERS = {
   staff: ['氏名', 'メール', '分掌', '表示順', '在職', '最終ログイン'],
   log:   ['連絡ID', 'メール', '氏名', '状態', '更新日時', 'チェック種別'],
   meetings: ['会議ID', '日付', '種別', '名称'],
-  comments: ['連絡ID', 'メール', '氏名', '本文', '投稿日時']
+  comments: ['連絡ID', 'メール', '氏名', '本文', '投稿日時'],
+  pins:  ['連絡ID', 'メール', '日時']
 };
 
 var TZ = Session.getScriptTimeZone() || 'Asia/Tokyo';
@@ -354,12 +356,13 @@ function getInitialData() {
   });
   var commentCounts = commentCountMap_();
   var monthNoMap = buildMonthNoMap_(meetingDates);
+  var pinSet = pinSetFor_(email);
 
   var t = readTable_(SHEET_ITEMS);
   var items = t.rows
     .map(function (r) { return toItem_(r, t.col); })
     .filter(function (it) { return it.posted; }) // ボードは掲載中のみ
-    .map(function (it) { return decorateItem_(it, staff, logs, me, meetingName, commentCounts, meetingDates, monthNoMap); });
+    .map(function (it) { return decorateItem_(it, staff, logs, me, meetingName, commentCounts, meetingDates, monthNoMap, pinSet); });
 
   // 期限が近い順（期限なしは後ろ）→ 未対応を上に
   items.sort(function (a, b) {
@@ -411,8 +414,8 @@ function enrolledFrom_(t) {
   return list;
 }
 
-/** 1件の連絡に集計（確認・対応の進捗、自分のチェック、未対応者名、編集可否、月番号）を付与 */
-function decorateItem_(it, staff, logs, me, meetingName, commentCounts, meetingDates, monthNoMap) {
+/** 1件の連絡に集計（確認・対応の進捗、自分のチェック、未対応者名、編集可否、月番号、ピン）を付与 */
+function decorateItem_(it, staff, logs, me, meetingName, commentCounts, meetingDates, monthNoMap, pinSet) {
   var targets = targetsFor_(it, staff);
   var itemLog = logs[it.id] || {};
 
@@ -471,7 +474,8 @@ function decorateItem_(it, staff, logs, me, meetingName, commentCounts, meetingD
       : (!!me.name && String(it.speaker || '') === me.name),
     canEdit: meta.canEdit,
     commentCount: (commentCounts || {})[it.id] || 0,
-    monthNo: (monthNoMap || {})[it.id] || null
+    monthNo: (monthNoMap || {})[it.id] || null,
+    pinned: !!(pinSet || {})[it.id] // 自分がピン留めしているか（他の職員のピンは見えない）
   };
 }
 
@@ -705,7 +709,9 @@ function editItem(itemId, p) {
       meetings.forEach(function (m) { meetingName[m.id] = m.label; meetingDates[m.id] = m.sortKey ? new Date(m.sortKey) : null; });
       var commentCounts = commentCountMap_();
       var monthNoMap = buildMonthNoMap_(meetingDates);
-      decorated = decorateItem_(updated, staff, logs, me, meetingName, commentCounts, meetingDates, monthNoMap);
+      // ピンも渡す。渡さないと編集後の差し替えで自分のピンが外れたように見える
+      decorated = decorateItem_(updated, staff, logs, me, meetingName, commentCounts, meetingDates, monthNoMap,
+                                pinSetFor_(me.email));
     }
     return { item: decorated };
   } finally {
@@ -852,6 +858,55 @@ function addComment(itemId, text) {
   }
 }
 
+// ============================================================
+// ピン留め（個人ごとの目印。他の職員には見えない）
+// ============================================================
+/**
+ * 指定メールの職員がピン留めしている連絡を {連絡ID: true} で返す。
+ * 「自分の未対応」が拾えない連絡（閲覧のみ・対象外・対応済み・期限なし）を
+ * 手元に残しておくための仕組みなので、対象や状態では絞らない。
+ */
+function pinSetFor_(email) {
+  email = String(email || '').toLowerCase();
+  var set = {};
+  if (!email) return set;
+  var t = readTable_(SHEET_PINS);
+  t.rows.forEach(function (r) {
+    if (String(r[t.col['メール']] || '').toLowerCase() === email) set[r[t.col['連絡ID']]] = true;
+  });
+  return set;
+}
+
+/**
+ * ピン留めの ON/OFF を切り替える。1人1連絡につき最大1行。
+ * @param {string} itemId 連絡ID
+ * @param {boolean} pinned true=ピン留めする / false=外す
+ * @return {{ok:boolean, pinned:boolean}}
+ */
+function togglePin(itemId, pinned) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var email = String(currentEmail_() || '').toLowerCase();
+    if (!email) throw new Error('ログイン情報を取得できませんでした。');
+    var sh = sheet_(SHEET_PINS);
+    var t = readTable_(SHEET_PINS);
+    var found = -1;
+    t.rows.forEach(function (r, i) {
+      if (r[t.col['連絡ID']] === itemId &&
+          String(r[t.col['メール']] || '').toLowerCase() === email) found = i;
+    });
+    if (pinned && found < 0) {
+      sh.appendRow([itemId, email, nowStr_()]);
+    } else if (!pinned && found >= 0) {
+      sh.deleteRow(found + 2); // +1=ヘッダー行 / +1=1始まりの行番号
+    }
+    return { ok: true, pinned: !!pinned };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 /**
  * 指定日の会議を用意してIDを返す。同じ日付の会議が既にあれば再利用する。
  * @param {string} dateStr 'yyyy-MM-dd'
@@ -993,14 +1048,14 @@ function resetStaffMasterYearly() {
   yearEndReset();
 }
 
-/** 4シートを「シート名_YYYY年度」に退避してから中身を空にする（ヘッダーは残す） */
+/** 全シートを「シート名_YYYY年度」に退避してから中身を空にする（ヘッダーは残す） */
 function archiveYearEnd_() {
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
     var endedYear = new Date().getFullYear() - 1; // 4/1実行時点で「終わった年度」
     var suffix = '_' + endedYear + '年度';
-    [SHEET_STAFF, SHEET_ITEMS, SHEET_LOG, SHEET_MEETINGS, SHEET_COMMENTS].forEach(function (name) {
+    [SHEET_STAFF, SHEET_ITEMS, SHEET_LOG, SHEET_MEETINGS, SHEET_COMMENTS, SHEET_PINS].forEach(function (name) {
       archiveAndClearSheet_(name, name + suffix);
     });
   } finally {
@@ -1057,6 +1112,7 @@ function setup() {
   ensureSheet_(ss, SHEET_LOG, HEADERS.log);
   ensureSheet_(ss, SHEET_MEETINGS, HEADERS.meetings);
   ensureSheet_(ss, SHEET_COMMENTS, HEADERS.comments);
+  ensureSheet_(ss, SHEET_PINS, HEADERS.pins);
   ensureStaffColumns_(); // 旧シートに「最終ログイン」列が無ければ追加（再セットアップ時の移行）
   ensureLogColumns_();   // 旧シートに「チェック種別」列が無ければ追加（同上）
   ensureItemColumns_();  // 旧シートに「作成者メール」列が無ければ追加（同上）
