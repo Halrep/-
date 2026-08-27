@@ -43,22 +43,35 @@
   body{margin:0;background:var(--paper);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased;
     font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI","Yu Gothic","Noto Sans JP",sans-serif}
   /* 全体シェル: 1行目はヘッダー（左カラムのみ）、2行目が本文＋右サイドバー。
-     これでサイドバーの上端が絞り込みバーの上端と自動的に揃う（高さを数値で固定しない）。 */
-  /* 幅の上限は設けない。上限を付けて中央寄せにすると、広い画面でサイドバーの右側に
-     使われない帯が残り「右端が余っている」ように見えるため。連絡カード側は
-     グリッドで段組みになるので、幅が広がっても1件が間延びしない。 */
-  .app-shell{margin:0;padding:0 28px 72px;
-    display:grid;grid-template-columns:minmax(0,1fr) 300px;column-gap:28px;align-items:start}
+     これでサイドバーの上端が絞り込みバーの上端と自動的に揃う（高さを数値で固定しない）。
+     幅の上限は設けない。上限を付けて中央寄せにすると、広い画面でサイドバーの右側に
+     使われない帯が残り「右端が余っている」ように見えるため。
+
+     ページ全体はスクロールさせず（body:overflow:hidden）、画面の高さにぴったり収める。
+     スクロールするのは表示中のビュー（section.view.active）とサイドバーだけ。これで
+     ヘッダー・タブ・絞り込みバーが常に上に出たままになる。 */
+  html,body{height:100%}
+  body{overflow:hidden}
+  .app-shell{margin:0;padding:0 28px;height:100vh;
+    display:grid;grid-template-columns:minmax(0,1fr) 300px;column-gap:28px;
+    grid-template-rows:auto minmax(0,1fr);align-items:stretch}
   .appbar{grid-column:1;grid-row:1}
-  .app{grid-column:1;grid-row:2;min-width:0}
+  /* .app は縦積み。中の section.view.active だけが余った高さを受け取ってスクロールする */
+  .app{grid-column:1;grid-row:2;min-width:0;display:flex;flex-direction:column;min-height:0}
   /* margin-top は絞り込みバーの margin と同じ値。これで両者の上端がぴったり揃う */
-  .sidebar{grid-column:2;grid-row:2;margin-top:12px;position:sticky;top:20px;
+  .sidebar{grid-column:2;grid-row:2;margin-top:12px;min-height:0;
     display:flex;flex-direction:column;gap:20px;min-width:0;
-    max-height:calc(100vh - 40px);overflow-y:auto}
+    overflow-y:auto;padding-bottom:20px}
   @media (max-width:1100px){
-    .app-shell{grid-template-columns:1fr;padding:0 16px 72px}
+    /* 狭い画面は1カラムに畳み、ページ全体のスクロールに戻す
+       （画面が狭いと固定領域だけで縦を使い切ってしまうため） */
+    html,body{height:auto}
+    body{overflow:auto}
+    .app-shell{grid-template-columns:1fr;padding:0 16px 72px;height:auto;grid-template-rows:auto auto}
     .appbar,.app,.sidebar{grid-column:1}
-    .sidebar{grid-row:auto;position:static;max-height:none;overflow-y:visible;margin-top:20px}
+    .app{display:block}
+    section.view.active{overflow-y:visible;min-height:0;padding-bottom:0}
+    .sidebar{grid-row:auto;overflow-y:visible;margin-top:20px;padding-bottom:0}
   }
   a{color:var(--accent)}
 
@@ -121,7 +134,13 @@
   .stat-seg[aria-pressed="true"] b,.stat-seg[aria-pressed="true"] i{color:var(--accent)}
   .stat-seg:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 
-  section.view{display:none} section.view.active{display:block}
+  /* 表示中のビューだけが余った高さを受け取り、ここがスクロールする。
+     ヘッダー・タブ・絞り込みバーは外側に残るので常に見えたままになる。
+     margin-top は絞り込みバーとの間の余白（スクロールしても詰まらないよう外側に置く）。
+     padding-bottom は右下の「＋ 連絡を追加」ボタンに最後のカードが隠れないための逃げ。 */
+  section.view{display:none}
+  section.view.active{display:block;flex:1;min-height:0;overflow-y:auto;
+    margin-top:16px;padding:0 4px 80px}
   h2.section-label{font-size:.78rem;font-weight:700;letter-spacing:.08em;color:var(--ink-faint);margin:24px 4px 10px}
 
   /* 絞り込みバーは1段。ピン留めを概況カードに取り込んでボタンが1つ減ったこと、
@@ -134,14 +153,6 @@
   .filterbar select{height:var(--ctrl-h);box-sizing:border-box;font:inherit;background:var(--card);
     color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:0 10px;max-width:180px}
   .filterbar .btn{height:var(--ctrl-h);box-sizing:border-box;padding:0 14px;font-size:.82rem}
-
-  /* 連絡の一覧。画面幅の上限を外したので、1列のままだと1件が横に間延びする。
-     カードが読みやすい幅（最低620px）を保ったまま、入るだけ段組みにして折り返す。
-     620pxを下回る幅（ノートPCなど）では自動的に1列になる。 */
-  #board-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(620px,1fr));
-    gap:0 20px;align-content:start}
-  /* 月の区切りと折りたたみトグルは段をまたいで1本に伸ばす（段組みの中で分断させない） */
-  #board-list .month-divider,#board-list .fold-toggle{grid-column:1/-1}
 
   /* 自分の済みを折りたたむトグル */
   .fold-toggle{appearance:none;cursor:pointer;font:inherit;font-size:.82rem;font-weight:600;color:var(--ink-soft);
@@ -444,11 +455,8 @@
 </div>
 
 <aside class="sidebar">
-  <!-- ピン留めは絞り込みの影響を受けず常に出す（完了済みをピン留めしても消えないように） -->
-  <div class="side-panel" id="side-pin-panel" hidden>
-    <h2>★ ピン留め <span id="side-pin-count"></span></h2>
-    <div id="side-pin-list"></div>
-  </div>
+  <!-- カレンダーは常に最上部（位置が動かない目印になるよう、件数で出し入れされる
+       ピン留めパネルより上に置く） -->
   <div class="side-panel cal-panel">
     <div class="cal-head">
       <button type="button" class="cal-nav" id="cal-prev" aria-label="前の月">‹</button>
@@ -458,6 +466,11 @@
     <div class="cal-weekdays"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
     <div class="cal-grid" id="cal-grid"></div>
     <p class="cal-legend"><span class="dot green"></span>追加日<span class="dot red"></span>期限日</p>
+  </div>
+  <!-- ピン留めは絞り込みの影響を受けず常に出す（完了済みをピン留めしても消えないように） -->
+  <div class="side-panel" id="side-pin-panel" hidden>
+    <h2>★ ピン留め <span id="side-pin-count"></span></h2>
+    <div id="side-pin-list"></div>
   </div>
   <div class="side-panel">
     <h2>自分の未対応 <span id="side-todo-count"></span></h2>
