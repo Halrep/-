@@ -98,12 +98,11 @@
     padding:0 7px;line-height:1.5;font-variant-numeric:tabular-nums}
   .tab .badge:empty{display:none}
 
-  .summary{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 4px}
-  .stat{flex:1 1 140px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;
-    box-shadow:var(--shadow);display:flex;align-items:baseline;gap:10px}
-  .stat .n{font-size:1.4rem;font-weight:700;font-variant-numeric:tabular-nums}
-  .stat .l{font-size:.75rem;color:var(--ink-soft)}
-  .stat.alert .n{color:var(--danger)} .stat.warn .n{color:var(--warn)}
+  /* 概況は1行のテキスト。カード3枚だと縦を約78px使い、肝心の連絡が画面外に押し出される */
+  .summary{margin:12px 2px 10px;font-size:.82rem;color:var(--ink-soft)}
+  .summary b{font-size:.95rem;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+  .summary b.alert{color:var(--danger)} .summary b.warn{color:var(--warn)}
+  .summary .sep{margin:0 10px;color:var(--line)}
 
   section.view{display:none} section.view.active{display:block}
   h2.section-label{font-size:.78rem;font-weight:700;letter-spacing:.08em;color:var(--ink-faint);margin:24px 4px 10px}
@@ -122,19 +121,12 @@
   .fold-toggle:hover{border-color:var(--accent);color:var(--accent)}
   .fold-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
-  /* 月ごとの開閉セクション */
-  .month-section{margin-bottom:22px}
-  .month-toggle{appearance:none;cursor:pointer;font:inherit;width:100%;text-align:left;
-    display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);
-    border-radius:10px;padding:12px 16px}
-  .month-toggle:hover{border-color:var(--accent)}
-  .month-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-  .month-arrow{color:var(--accent);font-size:.75rem;flex-shrink:0}
-  .month-title{font-size:1rem;font-weight:700;flex-shrink:0}
-  .month-current{font-size:.72rem;font-weight:700;color:var(--accent);background:var(--accent-soft);
-    border-radius:999px;padding:2px 9px;flex-shrink:0}
-  .month-count{margin-left:auto;font-size:.78rem;color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap}
-  .month-body{padding:12px 2px 0}
+  /* 月の区切り。連絡Noは月ごとに1へ戻るため、2か月以上またぐときだけ挟む。
+     開閉ボタンではなく細い罫線＋ラベルにして、縦の占有を最小限にしている */
+  .month-divider{display:flex;align-items:center;gap:10px;margin:6px 2px 12px;
+    font-size:.76rem;font-weight:700;color:var(--ink-faint);white-space:nowrap}
+  .month-divider::after{content:"";flex:1;height:1px;background:var(--line)}
+  .month-divider:first-child{margin-top:0}
 
   /* 連絡の月番号バッジ（打合せで「n番」と言うための目印） */
   .no-badge{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:24px;
@@ -841,33 +833,46 @@ function myOpenItems(){
   return DATA.items.filter(function(it){ return it.action && it.myTarget && !it.myDone; });
 }
 /**
- * 1セクション分をコンテナに描画する。未対応（自分がまだ）を上に、
- * 自分が済ませたもの（myDone だが全員は未完了）は下に折りたたむ。
+ * 連絡を1本の連続リストとしてコンテナに描画する。
+ * 並び順は 重要 → 要対応 → 期限が近い順（itemSortComparator。サーバー側と同じ）。
+ * 未対応（自分がまだ）を上に、自分が済ませたものは末尾に折りたたむ。
+ *
+ * 月ごとの見出しは、表示中の連絡が2か月以上にまたがるときだけ細い区切りとして挟む。
+ * 連絡No.は月ごとに1へリセットされるため、月をまたいで並べると「何月の5番か」が
+ * 分からなくなる。1か月しか出ていないときは曖昧さが無いので区切りも出さない。
  */
-function renderSection(container, items, emptyText, foldKey){
-  if(!items.length){ container.innerHTML='<div class="empty">'+emptyText+'</div>'; return; }
+function renderList(container, items){
+  var multiMonth=false, seen={};
+  items.forEach(function(it){ seen[it.ym||'']=true; });
+  multiMonth=Object.keys(seen).length>1;
+
+  var lastYm=null;
+  function put(it){
+    if(multiMonth && (it.ym||'')!==lastYm){
+      lastYm=it.ym||'';
+      container.appendChild(el('<div class="month-divider"><span>'+esc(ymLabel(it.ym))+'</span></div>'));
+    }
+    container.appendChild(cardEl(it));
+  }
+
   // 折りたたみは「未完了のみ」表示のときだけ。完了を含む表示では、自分の済みを畳むと
   // ほぼ全件が隠れて空に見えてしまうため、そのまま並べる
-  if(filterStatus!=='undone'){
-    items.forEach(function(it){ container.appendChild(cardEl(it)); });
-    return;
-  }
+  if(filterStatus!=='undone'){ items.forEach(put); return; }
+
   var open=items.filter(function(it){ return !it.myDone; });
   var mineDone=items.filter(function(it){ return it.myDone; });
-  open.forEach(function(it){ container.appendChild(cardEl(it)); });
+  open.forEach(put);
   if(mineDone.length){
-    var expanded=foldState[foldKey];
     var toggle=el('<button type="button" class="fold-toggle">'
-      +(expanded?'▼ 自分が済ませた連絡（'+mineDone.length+'件）を隠す':'▶ 自分が済ませた連絡（'+mineDone.length+'件）を表示')
+      +(foldDoneOpen?'▼ 自分が済ませた連絡（'+mineDone.length+'件）を隠す':'▶ 自分が済ませた連絡（'+mineDone.length+'件）を表示')
       +'</button>');
-    toggle.addEventListener('click', function(){ foldState[foldKey]=!expanded; renderBoard(); });
+    toggle.addEventListener('click', function(){ foldDoneOpen=!foldDoneOpen; renderBoard(); });
     container.appendChild(toggle);
-    if(expanded) mineDone.forEach(function(it){ container.appendChild(cardEl(it)); });
+    if(foldDoneOpen){ lastYm=null; mineDone.forEach(put); }
   }
 }
 
-var foldState={}; // 「自分が済ませた連絡」折りたたみの開閉を記憶（キー: ym+'|action'/'|read'）
-var monthOpenState={}; // 月セクションの開閉を記憶（キー: ym）
+var foldDoneOpen=false; // 「自分が済ませた連絡」の折りたたみを開いているか
 
 function currentActualYM(){
   var d=new Date();
@@ -993,10 +998,8 @@ function jumpToDate(dateISO){
   var target=openMatches.length?openMatches[0]:matches[0];
   clearFilters(openMatches.length?'undone':'all');
 
-  (openMatches.length?openMatches:[target]).forEach(function(it){
-    monthOpenState[it.ym]=true;
-    if(it.myDone) foldState[it.ym+'|'+(it.action?'action':'read')]=true;
-  });
+  // 自分が済ませた連絡は末尾に畳まれているので、飛び先がそれなら開いておく
+  if(target.myDone) foldDoneOpen=true;
   switchView('board');
   setTimeout(function(){
     var card=document.querySelector('[data-item-id="'+target.id+'"]');
@@ -1063,8 +1066,8 @@ function jumpToItem(itemId){
   if(!it){ showToast('連絡が見つかりませんでした'); return; }
   // 完了済みの連絡は「未完了のみ」表示では見えないので、状態フィルタを「すべて」にする
   clearFilters(fullyDone(it)?'all':'undone');
-  monthOpenState[it.ym]=true;
-  if(it.myDone) foldState[it.ym+'|'+(it.action?'action':'read')]=true;
+  // 自分が済ませた連絡は末尾に畳まれているので、飛び先がそれなら開いておく
+  if(it.myDone) foldDoneOpen=true;
   switchView('board');
   setTimeout(function(){
     var card=document.querySelector('[data-item-id="'+itemId+'"]');
@@ -1095,11 +1098,12 @@ function renderBoard(){
   // 何を数えているのか分かりにくくなるため（以前は期限の件数だけ絞り込み後の値を使っていた）
   var dueToday=DATA.items.filter(function(it){ return it.action && it.dueClass==='today' && !fullyDone(it); }).length;
 
-  var html='<div class="summary">'
-    +'<div class="stat"><span class="n">'+DATA.items.length+'</span><span class="l">掲載中の連絡</span></div>'
-    +'<div class="stat alert"><span class="n">'+dueToday+'</span><span class="l">期限が今日／超過</span></div>'
-    +'<div class="stat warn"><span class="n" id="stat-mine">'+mine+'</span><span class="l">あなたの未対応</span></div>'
-    +'</div>';
+  // 概況は1行に収める（3枚のカードは縦を約78px使い、肝心の連絡が画面から押し出されるため）
+  var html='<p class="summary">'
+    +'掲載中 <b>'+DATA.items.length+'</b>件'
+    +'<span class="sep">・</span>期限が今日／超過 <b class="alert">'+dueToday+'</b>件'
+    +'<span class="sep">・</span>あなたの未対応 <b class="warn" id="stat-mine">'+mine+'</b>件'
+    +'</p>';
 
   if(!board.length){
     // 絞り込み（検索・月・発信者・対応状況のいずれか）が働いているときだけ解除の導線を出す
@@ -1112,43 +1116,17 @@ function renderBoard(){
     if(clearBtn) clearBtn.addEventListener('click', function(){ clearFilters(); renderBoard(); });
     return;
   }
-  v.innerHTML=html+'<div id="month-sections"></div>';
-  var root=v.querySelector('#month-sections');
-
-  var byYm={};
-  board.forEach(function(it){ var k=it.ym||''; (byYm[k]=byYm[k]||[]).push(it); });
-  var yms=Object.keys(byYm).sort().reverse(); // 'yyyy-MM' 降順（日付不明の ''  は最後）
-  var curYM=currentActualYM();
-  // 折りたたみが働くのは「未完了のみ」表示のときだけ（renderSection と揃える）
-  var foldNote=(filterStatus==='undone')?' — 未対応が上／自分の済みは折りたたみ':'';
-
-  yms.forEach(function(ym){
-    var items=byYm[ym];
-    var actionItems=items.filter(function(it){ return it.action; });
-    var readItems=items.filter(function(it){ return !it.action; });
-    var openCount=items.filter(function(it){ return !it.myDone; }).length;
-    // 絞り込み中は結果が隠れないよう必ず開く。そうでなければ記憶した状態（初期値は今月のみ開く）
-    var isOpen = filtering() ? true : ((ym in monthOpenState) ? monthOpenState[ym] : (ym===curYM));
-
-    var sec=el('<section class="month-section">'
-      +'<button type="button" class="month-toggle">'
-        +'<span class="month-arrow">'+(isOpen?'▼':'▶')+'</span>'
-        +'<span class="month-title">'+esc(ymLabel(ym))+'</span>'
-        +(ym===curYM?'<span class="month-current">今月</span>':'')
-        +'<span class="month-count">全'+items.length+'件・未対応'+openCount+'件</span>'
-      +'</button>'
-      +'<div class="month-body" style="display:'+(isOpen?'':'none')+'">'
-        +'<h2 class="section-label">要対応'+foldNote+'</h2><div class="action-list"></div>'
-        +'<h2 class="section-label">閲覧のみ'+foldNote+'</h2><div class="read-list"></div>'
-      +'</div>'
-    +'</section>');
-    sec.querySelector('.month-toggle').addEventListener('click', function(){
-      monthOpenState[ym]=!isOpen; renderBoard();
-    });
-    renderSection(sec.querySelector('.action-list'), actionItems, filtering()?'条件に合う要対応の連絡はありません。':'要対応の連絡はありません。', ym+'|action');
-    renderSection(sec.querySelector('.read-list'), readItems, filtering()?'条件に合う閲覧のみの連絡はありません。':'閲覧のみの連絡はありません。', ym+'|read');
-    root.appendChild(sec);
+  // 月が新しい順にまとめてから、月の中を 重要→要対応→期限順 に並べる。
+  // 月をまたいで通し番号がリセットされるので、月が飛び飛びになると
+  // 区切りが何度も現れて逆に読みにくくなる（日付不明の '' は末尾）
+  board=board.slice().sort(function(a,b){
+    var ya=a.ym||'', yb=b.ym||'';
+    if(ya!==yb) return ya<yb?1:-1;
+    return itemSortComparator(a,b);
   });
+
+  v.innerHTML=html+'<div id="board-list"></div>';
+  renderList(v.querySelector('#board-list'), board);
 }
 
 /** 状態以外の絞り込み（キーワード・月・発信者）が効いているか */
