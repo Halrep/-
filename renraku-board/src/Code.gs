@@ -1218,3 +1218,242 @@ function seedSample_() {
     itemSh.getRange(2, 1, rows.length, HEADERS.items.length).setValues(rows);
   }
 }
+
+// ============================================================
+// テストデータ（動作確認用。本番運用では使わない）
+// ============================================================
+// スプレッドシートを開くと現れる「🧪 テストデータ」メニューから追加・削除する。
+//
+// 削除を安全にするため、ダミーは ID の接頭辞で見分ける（議題の文字列ではなく）。
+// 議題は編集され得るが、IDは画面から変更できないため。この接頭辞を持たない行は
+// 何があっても削除しない ＝ 実データを巻き込む事故が起きない。
+var DUMMY_ID_PREFIX = 'DUMMY-';
+var DUMMY_MEETING_PREFIX = 'DUMMYM-';
+
+/** スプレッドシートを開いたときにメニューを追加する（簡易トリガー。登録作業は不要） */
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('🧪 テストデータ')
+    .addItem('ダミー連絡を追加（20件）', 'addDummyItems20')
+    .addItem('ダミー連絡を追加（件数を指定）…', 'addDummyItemsPrompt')
+    .addSeparator()
+    .addItem('いま入っているダミーを数える', 'countDummyData')
+    .addItem('ダミーをすべて削除', 'deleteDummyData')
+    .addToUi();
+}
+
+function addDummyItems20() { addDummyItems_(20); }
+
+function addDummyItemsPrompt() {
+  var ui = SpreadsheetApp.getUi();
+  var res = ui.prompt('ダミー連絡の追加', '何件つくりますか？（1〜300）', ui.ButtonSet.OK_CANCEL);
+  if (res.getSelectedButton() !== ui.Button.OK) return;
+  var n = Math.floor(Number(res.getResponseText()));
+  if (!n || n < 1 || n > 300) { ui.alert('1〜300 の数字を入力してください。'); return; }
+  addDummyItems_(n);
+}
+
+var DUMMY_TITLES = [
+  '職員作業の分担について', '運動会の係打ち合わせ', '個人面談の日程調整',
+  '校内研究授業の指導案提出', '保健室からのお願い（インフルエンザ対策）',
+  '図書室の蔵書点検について', '教材費の集金締切', '避難訓練の実施要領',
+  '校外学習のバス配車', 'ICT端末の充電保管庫の使い方', '長期休業中の当番割',
+  '学級通信の印刷枚数について', '職員写真の撮影日', '体育館の使用予定変更',
+  '給食の食物アレルギー対応確認', '来週の時程変更のお知らせ',
+  '出張報告書の様式が変わります', '卒業アルバム用の写真提供のお願い',
+  '校内清掃用具の補充希望', 'PTA役員会の会場変更'
+];
+var DUMMY_BODIES = [
+  '詳細は別紙のとおりです。ご確認をお願いします。',
+  '締切が近いため、お早めにご対応ください。不明な点は担当までお願いします。',
+  '前回の打ち合わせから変更があります。該当の学年は特にご注意ください。\n変更点は資料にまとめてあります。',
+  '職員室前の掲示板にも同じものを貼っています。',
+  '',
+  '当日の流れは次のとおりです。準備物は各自でご用意ください。担当が決まっていない箇所は、気づいた方から声をかけていただけると助かります。',
+  'すでに提出済みの方はご対応不要です。'
+];
+var DUMMY_SPEAKERS = ['横田', '清水', '西村', '相座', '藤原', '松嶋'];
+var DUMMY_MEETING_KINDS = ['職員会議', '学年会', '打合せ'];
+
+/**
+ * ダミーの連絡を count 件つくる。
+ * 月をまたいで散らす（月ごとの通し番号・月の区切りの確認用）、要対応と閲覧のみを混ぜる、
+ * 期限を過去／当日／未来に散らす、といったバリエーションを持たせる。
+ * あわせて確認ログもランダムに入れる（進捗バーが0%のままだと表示の確認にならないため）。
+ */
+function addDummyItems_(count) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var ss = ss_();
+    var staff = activeStaff_();
+    var t = readTable_(SHEET_ITEMS);
+    var col = t.col;
+    // 幅はシートの実際の列数に合わせる。HEADERS 側に合わせて広げると、まだ setup を
+    // 再実行していない（重要・作成者メール列が無い）シートで範囲外になり書き込みが失敗する。
+    // 足りない列は col[...] の undefined ガードで単に書き込まれないだけになる。
+    var width = t.header.length;
+
+    // 会議も数件つくる（会議に紐づく連絡は、月の判定に会議日を使う経路のテストになる）
+    var meetSh = sheet_(SHEET_MEETINGS);
+    var meetings = [];
+    for (var mi = 0; mi < 4; mi++) {
+      var md = new Date();
+      md.setDate(md.getDate() - mi * 24); // だいたい月をまたぐ間隔
+      var mid = DUMMY_MEETING_PREFIX + Utilities.formatDate(md, TZ, 'yyyyMMdd') + '-' + mi;
+      var kind = DUMMY_MEETING_KINDS[mi % DUMMY_MEETING_KINDS.length];
+      meetings.push({ id: mid, date: md, kind: kind });
+      meetSh.appendRow([mid, md, kind, Utilities.formatDate(md, TZ, 'M/d') + '（テスト）' + kind]);
+    }
+
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var rows = [], logRows = [];
+
+    for (var i = 0; i < count; i++) {
+      var id = DUMMY_ID_PREFIX + Utilities.getUuid();
+      var action = (i % 2 === 0);                 // 半分を要対応に
+      var important = (i % 8 === 0);              // 8件に1件を重要に
+      var useMeeting = (i % 3 === 0);             // 3件に1件を会議に紐づける
+      var meeting = useMeeting ? meetings[i % meetings.length] : null;
+
+      // 作成日時を過去90日に散らす（会議に紐づく場合は月の判定に会議日が優先される）
+      var created = new Date();
+      created.setDate(created.getDate() - ((i * 7) % 90));
+      created.setHours(8 + (i % 9), (i * 13) % 60, 0, 0);
+
+      // 期限: 要対応の7割に付ける。過去・当日・未来を混ぜる
+      var due = '';
+      if (action && (i % 10) < 7) {
+        var d = new Date(today);
+        d.setDate(d.getDate() + [-9, -3, 0, 0, 2, 5, 14, 30][i % 8]);
+        due = d;
+      }
+
+      var targetType = (i % 7 === 0) ? '担任' : '全員';
+      var links = (i % 5 === 0) ? 'https://example.com/test-material-' + i : '';
+
+      var row = new Array(width).fill('');
+      row[col['ID']] = id;
+      row[col['会議ID']] = meeting ? meeting.id : '';
+      row[col['種別']] = '連絡';
+      row[col['No']] = i + 1;
+      row[col['議題']] = '[テスト] ' + DUMMY_TITLES[i % DUMMY_TITLES.length] + '（' + (i + 1) + '）';
+      row[col['内容']] = DUMMY_BODIES[i % DUMMY_BODIES.length];
+      row[col['発言者']] = DUMMY_SPEAKERS[i % DUMMY_SPEAKERS.length];
+      row[col['時間']] = '';
+      row[col['資料']] = links ? 'あり（データ）' : 'なし';
+      row[col['資料リンク']] = links;
+      row[col['期限']] = due;
+      row[col['要対応']] = action;
+      row[col['対象区分']] = targetType;
+      row[col['対象メール']] = '';
+      row[col['掲載']] = true;
+      row[col['作成日時']] = created;
+      if (col['作成者メール'] !== undefined) row[col['作成者メール']] = '';
+      if (col['重要'] !== undefined) row[col['重要']] = important;
+      rows.push(row);
+
+      // 確認ログ: 対象職員の一部にチェックを入れて進捗バーに差を出す
+      var targets = targetType === '担任'
+        ? staff.filter(function (s) { return String(s.role || '').indexOf('担任') >= 0; })
+        : staff;
+      var checked = Math.floor(targets.length * ((i % 5) / 5)); // 0%〜80%
+      for (var c = 0; c < checked; c++) {
+        var s = targets[c];
+        logRows.push([id, s.email, s.name, '済', created, action ? '対応' : '確認']);
+        if (action) logRows.push([id, s.email, s.name, '済', created, '確認']);
+      }
+    }
+
+    sheet_(SHEET_ITEMS).getRange(t.sheet.getLastRow() + 1, 1, rows.length, width).setValues(rows);
+    if (logRows.length) {
+      var logSh = sheet_(SHEET_LOG);
+      logSh.getRange(logSh.getLastRow() + 1, 1, logRows.length, HEADERS.log.length).setValues(logRows);
+    }
+    ss.toast(count + '件のダミー連絡を追加しました（確認ログ ' + logRows.length + '行）。', '🧪 テストデータ', 8);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** ダミー（IDが DUMMY- で始まる行）の件数を数えて表示する */
+function countDummyData() {
+  var c = countDummyRows_();
+  SpreadsheetApp.getUi().alert(
+    'いま入っているダミー\n\n'
+    + '連絡事項: ' + c.items + ' 件\n'
+    + '確認ログ: ' + c.logs + ' 行\n'
+    + 'コメント: ' + c.comments + ' 行\n'
+    + 'ピン: ' + c.pins + ' 行\n'
+    + '会議: ' + c.meetings + ' 件');
+}
+
+function countDummyRows_() {
+  return {
+    items: countPrefixRows_(SHEET_ITEMS, 'ID', DUMMY_ID_PREFIX),
+    logs: countPrefixRows_(SHEET_LOG, '連絡ID', DUMMY_ID_PREFIX),
+    comments: countPrefixRows_(SHEET_COMMENTS, '連絡ID', DUMMY_ID_PREFIX),
+    pins: countPrefixRows_(SHEET_PINS, '連絡ID', DUMMY_ID_PREFIX),
+    meetings: countPrefixRows_(SHEET_MEETINGS, '会議ID', DUMMY_MEETING_PREFIX)
+  };
+}
+
+function countPrefixRows_(sheetName, colName, prefix) {
+  var sh = ss_().getSheetByName(sheetName);
+  if (!sh) return 0;
+  var t = readTable_(sheetName);
+  if (t.col[colName] === undefined) return 0;
+  return t.rows.filter(function (r) {
+    return String(r[t.col[colName]] || '').indexOf(prefix) === 0;
+  }).length;
+}
+
+/**
+ * ダミーをすべて削除する。IDの接頭辞が一致する行だけを消すので、実データは残る。
+ * 連絡本体だけでなく、それに紐づく確認ログ・コメント・ピン・会議も片付ける。
+ */
+function deleteDummyData() {
+  var ui = SpreadsheetApp.getUi();
+  var c = countDummyRows_();
+  var total = c.items + c.logs + c.comments + c.pins + c.meetings;
+  if (!total) { ui.alert('ダミーは見つかりませんでした。'); return; }
+  var ok = ui.alert('ダミーをすべて削除します',
+    '連絡事項 ' + c.items + '件 / 確認ログ ' + c.logs + '行 / コメント ' + c.comments
+    + '行 / ピン ' + c.pins + '行 / 会議 ' + c.meetings + '件 を削除します。\n\n'
+    + '（IDが「' + DUMMY_ID_PREFIX + '」で始まる行だけが対象です。実際の連絡は消えません）',
+    ui.ButtonSet.OK_CANCEL);
+  if (ok !== ui.Button.OK) return;
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    deletePrefixRows_(SHEET_LOG, '連絡ID', DUMMY_ID_PREFIX);
+    deletePrefixRows_(SHEET_COMMENTS, '連絡ID', DUMMY_ID_PREFIX);
+    deletePrefixRows_(SHEET_PINS, '連絡ID', DUMMY_ID_PREFIX);
+    deletePrefixRows_(SHEET_ITEMS, 'ID', DUMMY_ID_PREFIX);
+    deletePrefixRows_(SHEET_MEETINGS, '会議ID', DUMMY_MEETING_PREFIX);
+    ss_().toast('ダミーを削除しました。', '🧪 テストデータ', 6);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * 指定列が prefix で始まる行を削除する。
+ * 1行ずつ deleteRow すると行数分のAPI呼び出しになり、数百行あると実行時間の上限
+ * （6分）に届きうる。残す行だけを書き戻し、余った末尾をまとめて1回で削る方式にしている。
+ */
+function deletePrefixRows_(sheetName, colName, prefix) {
+  var sh = ss_().getSheetByName(sheetName);
+  if (!sh) return;
+  var t = readTable_(sheetName);
+  if (t.col[colName] === undefined) return;
+  var keep = t.rows.filter(function (r) {
+    return String(r[t.col[colName]] || '').indexOf(prefix) !== 0;
+  });
+  var surplus = t.rows.length - keep.length;
+  if (!surplus) return; // 消すものが無い
+  var width = t.header.length;
+  if (keep.length) sh.getRange(2, 1, keep.length, width).setValues(keep);
+  sh.deleteRows(2 + keep.length, surplus);
+}
