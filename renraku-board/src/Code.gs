@@ -20,6 +20,8 @@ var SHEET_LOG      = '確認ログ';
 var SHEET_MEETINGS = '会議';
 var SHEET_COMMENTS = 'コメント';
 var SHEET_PINS     = 'ピン';
+// 1枚目に置く案内シート。データではないので、集計・アーカイブの対象には入れない
+var SHEET_MANUAL   = 'はじめにお読みください';
 
 // 各シートのヘッダー（列順の唯一の定義。以降はここを参照）
 var HEADERS = {
@@ -1232,6 +1234,7 @@ function setup() {
   // 確認ログから現在の状態を連絡の行へ書き戻す。何度実行しても同じ結果になるので、
   // 再セットアップのたびに走っても問題ない
   var rebuilt = rebuildCheckColumns_();
+  buildManualSheet_(); // 1枚目の案内シートを作り直して最新の状態を反映する
   SpreadsheetApp.getActiveSpreadsheet().toast(
     'セットアップ完了。職員は初回アクセス時に自動登録されます。'
     + (rebuilt ? '（' + rebuilt + '件の連絡にチェック状態を移行しました）' : ''),
@@ -1367,13 +1370,16 @@ var DUMMY_MEETING_PREFIX = 'DUMMYM-';
 
 /** スプレッドシートを開いたときにメニューを追加する（簡易トリガー。登録作業は不要） */
 function onOpen() {
-  SpreadsheetApp.getUi()
-    .createMenu('🧪 テストデータ')
-    .addItem('ダミー連絡を追加（20件）', 'addDummyItems20')
-    .addItem('ダミー連絡を追加（件数を指定）…', 'addDummyItemsPrompt')
+  var ui = SpreadsheetApp.getUi();
+  ui.createMenu('🛠 連絡ボード')
+    .addItem('📖 マニュアルシートを最新にする', 'refreshManualSheet')
     .addSeparator()
-    .addItem('いま入っているダミーを数える', 'countDummyData')
-    .addItem('ダミーをすべて削除', 'deleteDummyData')
+    .addSubMenu(ui.createMenu('🧪 テストデータ')
+      .addItem('ダミー連絡を追加（20件）', 'addDummyItems20')
+      .addItem('ダミー連絡を追加（件数を指定）…', 'addDummyItemsPrompt')
+      .addSeparator()
+      .addItem('いま入っているダミーを数える', 'countDummyData')
+      .addItem('ダミーをすべて削除', 'deleteDummyData'))
     .addToUi();
 }
 
@@ -1600,4 +1606,177 @@ function deletePrefixRows_(sheetName, colName, prefix) {
   var width = t.header.length;
   if (keep.length) sh.getRange(2, 1, keep.length, width).setValues(keep);
   sh.deleteRows(2 + keep.length, surplus);
+}
+
+// ============================================================
+// マニュアルシート（1枚目に置く案内ページ）
+// ============================================================
+// 導入・運用・保守の手順に加えて、いまの状態（URL・職員数・トリガーの有無など）を
+// 自動で表示する。手順書を別ファイルで配るとファイルとバージョンがずれるため、
+// スプレッドシート自身に持たせて setup() のたびに作り直す。
+//
+// 注意: このシートはデータではないので、readTable_ / 年度末アーカイブ /
+// ダミー削除のいずれの対象にも入れない（対象は名前で明示している6シートのみ）。
+
+/** メニューから呼ぶ。マニュアルを作り直して1枚目へ移動し、そのシートを開く */
+function refreshManualSheet() {
+  var sh = buildManualSheet_();
+  SpreadsheetApp.getActiveSpreadsheet().setActiveSheet(sh);
+  SpreadsheetApp.getActiveSpreadsheet().toast('マニュアルを最新にしました。', '🛠 連絡ボード', 5);
+}
+
+/** いまの状態を調べる（マニュアルの「現在の状態」欄に出す） */
+function manualStatus_() {
+  var ss = ss_();
+  var missing = '—（シートがありません。setup を実行してください）';
+
+  // 職員数：在職の人数を数える。シートは1回だけ読む
+  var staff = missing;
+  if (ss.getSheetByName(SHEET_STAFF)) {
+    var t = readTable_(SHEET_STAFF);
+    var zaiseki = t.rows.filter(function (r) {
+      var v = r[t.col['在職']];
+      return v === true || String(v).toUpperCase() === 'TRUE';
+    }).length;
+    staff = zaiseki + '名';
+  }
+
+  // 連絡の件数：掲載中と全体の両方を出す
+  var items = missing;
+  if (ss.getSheetByName(SHEET_ITEMS)) {
+    var ti = readTable_(SHEET_ITEMS);
+    var posted = ti.rows.filter(function (r) {
+      var v = r[ti.col['掲載']];
+      return v === true || String(v).toUpperCase() === 'TRUE';
+    }).length;
+    items = '掲載中 ' + posted + '件（全' + ti.rows.length + '件）';
+  }
+
+  var url = '';
+  try { url = ScriptApp.getService().getUrl() || ''; } catch (e) { url = ''; }
+
+  var triggers;
+  try {
+    var names = ScriptApp.getProjectTriggers().map(function (tr) { return tr.getHandlerFunction(); });
+    triggers = names.length ? '登録済み: ' + names.join(' / ') : '未登録（下の手順4を実行してください）';
+  } catch (e) {
+    triggers = '確認できませんでした';
+  }
+
+  var calId = sharedCalendarId_();
+  return {
+    url: url || '（まだデプロイされていません。下の「初めて使うとき」の手順2を実行してください）',
+    staff: staff,
+    items: items,
+    calendar: calId ? '設定済み（' + calId + '）' : '未設定（使わない場合はこのままで問題ありません）',
+    triggers: triggers,
+    updated: nowStr_()
+  };
+}
+
+/**
+ * マニュアルシートを作り直して1枚目に置く。
+ * 行を [種類, A列, B列] で組み立ててから、まとめて書き込み・書式設定する。
+ */
+function buildManualSheet_() {
+  var ss = ss_();
+  var sh = ss.getSheetByName(SHEET_MANUAL);
+  if (!sh) sh = ss.insertSheet(SHEET_MANUAL);
+  sh.clear();
+  var st = manualStatus_();
+
+  var L = [];
+  function title(a) { L.push(['title', a, '']); }
+  function note(a) { L.push(['note', a, '']); }
+  function sec(a) { L.push(['sec', a, '']); }
+  function kv(a, b) { L.push(['kv', a, b]); }
+  function step(a, b) { L.push(['step', a, b]); }
+  function text(a) { L.push(['text', a, '']); }
+  function gap() { L.push(['gap', '', '']); }
+
+  title('職員連絡ボード — 導入・運用マニュアル');
+  note('このシートは自動生成されます。書き換えても「🛠 連絡ボード → 📖 マニュアルシートを最新にする」や setup 実行で元に戻ります。');
+  gap();
+
+  sec('現在の状態');
+  kv('ウェブアプリのURL', st.url);
+  kv('登録されている職員', st.staff);
+  kv('連絡事項の件数', st.items);
+  kv('共有カレンダー', st.calendar);
+  kv('自動処理のトリガー', st.triggers);
+  kv('この表示の更新日時', st.updated);
+  gap();
+
+  sec('初めて使うとき（初期セットアップ）');
+  step('1', 'このファイルの「拡張機能 → Apps Script」を開き、上部の関数リストから setup を選んで実行する。初回は権限の承認を求められます（提供元が確認できない旨の警告が出たら「詳細」→「安全ではないページに移動」で進めます）。');
+  step('2', '同じ画面で「デプロイ → 新しいデプロイ → 歯車から ウェブアプリ を選択」。次のユーザーとして実行＝アクセスしているユーザー／アクセスできるユーザー＝組織内の全員 にして「デプロイ」。');
+  step('3', '表示されたURLを職員に共有する（ブックマーク推奨）。上の「ウェブアプリのURL」にも出ます。');
+  step('4', 'Apps Script画面で installTriggers を実行する。毎朝7:30の督促メールと、4/1の年度末リセットが有効になります。');
+  step('5', '（任意）カレンダーの予定を画面に出したい場合は、Apps Script画面の左の歯車「プロジェクトの設定」→ 一番下の「スクリプト プロパティ」で、プロパティ名 SHARED_CALENDAR_ID、値にカレンダーIDを追加します。');
+  gap();
+
+  sec('毎日の使い方（職員向け）');
+  text('・学校のGoogleアカウントで上のURLを開くだけ。初回に名前を一度だけ登録します（以降は自動で本人と分かります）。');
+  text('・連絡を出すときは右下の「＋ 連絡を追加」。');
+  text('・「要対応」の連絡は「確認した」→「対応済み」の2段階でチェックします。「閲覧のみ」は確認するだけです。');
+  text('・連絡の番号（No.）は月ごとに1に戻ります。打合せで「5番を見てください」と言えば伝わります。');
+  text('・自分だけの目印を付けたいときはカードの★（ピン留め）。他の職員には見えません。');
+  gap();
+
+  sec('保守（担当者向け）');
+  text('・職員名簿は自己維持です。名簿を手で管理する必要はありません。30日ログインが無い職員は自動で集計対象から外れ、4/1に名簿ごとリセットされます（新年度は全員が開いて再登録）。');
+  text('・年度末（4/1の早朝）に、6つのデータシートが「シート名_YYYY年度」に自動で退避され、中身が空になります。過去のデータは退避先に残ります。');
+  text('・コードを更新したときは、clasp push → Apps Scriptで setup を実行 →「デプロイ → デプロイを管理 → 鉛筆アイコン → バージョンを『新バージョン』→ デプロイ」。最後の手順を忘れると画面が変わりません。');
+  text('・動作確認用のダミー連絡は「🛠 連絡ボード → 🧪 テストデータ」から追加・削除できます。実際の連絡は消えません（IDが DUMMY- で始まる行だけが対象）。');
+  gap();
+
+  sec('困ったとき');
+  kv('画面が新しくならない', 'ほとんどの場合これです。「デプロイ → デプロイを管理 → 新バージョン」を発行してください。clasp push だけでは反映されません。');
+  kv('チェックが全部消えたように見える', 'setup を実行してください。チェック状態を新しい保存場所へ移す処理が走ります（記録は残っているので戻ります）。');
+  kv('「シートが見つかりません」と出る', 'setup を実行してください。不足しているシートが作られます。');
+  kv('カレンダーの予定が出ない', 'スクリプトプロパティの SHARED_CALENDAR_ID と、そのカレンダーが職員から見える共有設定になっているかを確認してください。未設定でも他の機能に影響はありません。');
+  kv('督促メールが届かない', 'installTriggers を実行済みか確認してください。対象は「期限が当日以前・要対応・未対応」の職員です。');
+  gap();
+
+  sec('他の学校で使うとき');
+  text('1. このファイルを「ファイル → コピーを作成」でコピーする。');
+  text('2. コピー先で、6つのデータシート（連絡事項・職員マスタ・確認ログ・会議・コメント・ピン）の2行目以降をすべて削除する。前の学校の連絡・氏名・メールアドレスが残るため、必ず行ってください（1行目のヘッダーは消さないこと）。');
+  text('3. 上の「初めて使うとき」の手順1〜5をやり直す。デプロイとトリガーはコピーされないため、新しく作る必要があります。');
+  text('※ カレンダーIDなどのスクリプトプロパティもコピーされないので、各校で設定してください。');
+
+  // 書き込み
+  var values = L.map(function (r) { return [r[1], r[2]]; });
+  sh.getRange(1, 1, values.length, 2).setValues(values);
+
+  // 書式
+  sh.setColumnWidth(1, 230);
+  sh.setColumnWidth(2, 760);
+  sh.getRange(1, 1, values.length, 2).setVerticalAlignment('top').setWrap(true);
+  L.forEach(function (r, i) {
+    var row = i + 1;
+    var rng = sh.getRange(row, 1, 1, 2);
+    if (r[0] === 'title') {
+      rng.merge().setFontSize(16).setFontWeight('bold').setBackground('#2a4489').setFontColor('#ffffff');
+      sh.setRowHeight(row, 36);
+    } else if (r[0] === 'note') {
+      rng.merge().setFontSize(9).setFontColor('#5c666f');
+    } else if (r[0] === 'sec') {
+      rng.merge().setFontSize(12).setFontWeight('bold').setBackground('#dde5f6').setFontColor('#2a4489');
+      sh.setRowHeight(row, 28);
+    } else if (r[0] === 'kv') {
+      sh.getRange(row, 1).setFontWeight('bold').setFontColor('#48535e');
+    } else if (r[0] === 'step') {
+      sh.getRange(row, 1).setFontWeight('bold').setHorizontalAlignment('center').setBackground('#eef0ec');
+    } else if (r[0] === 'text') {
+      rng.merge();
+    } else if (r[0] === 'gap') {
+      sh.setRowHeight(row, 10);
+    }
+  });
+
+  sh.setHiddenGridlines(true);
+  sh.setFrozenRows(1);
+  ss.setActiveSheet(sh);
+  ss.moveActiveSheet(1); // 1枚目に置く
+  return sh;
 }
