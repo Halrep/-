@@ -1341,16 +1341,16 @@ function seedSample_() {
     // 末尾は「作成者メール」（未記録＝誰でも編集可）「重要」「対応済みメール」「確認済みメール」
     var rows = [
       [uuid_(), 'M20260717', '連絡', 1, '端末の管理番号について',
-       'スズキ校務の詳細名簿に入力をお願いします。', '横田', 1, 'あり（データ）', '',
+       '校務支援システムの詳細名簿に入力をお願いします。', '山田', 1, 'あり（データ）', '',
        '2026-07-24', true, '全員', '', true, nowStr_(), '', true, '', ''],
       [uuid_(), 'M20260717', '連絡', 2, '夏休み宿題　習字・作文の集め方',
-       'JAの習字は8月26日まで、作文は9月1日まで。', '清水', '', 'あり（データ）', '',
+       '習字は8月26日まで、作文は9月1日まで。', '佐藤', '', 'あり（データ）', '',
        '2026-08-26', true, '全員', '', true, nowStr_(), '', false, '', ''],
       [uuid_(), 'M20260717', '連絡', 3, 'ご紹介：人権啓発セミナー受講者募集',
-       '受講希望の方は相座までご連絡ください。', '相座', '', 'あり（データ）', '',
+       '受講希望の方は担当までご連絡ください。', '鈴木', '', 'あり（データ）', '',
        '', false, '全員', '', true, nowStr_(), '', false, '', ''],
       [uuid_(), 'M20260717', '協議', 1, '音楽会実施計画案（略案）',
-       'プログラム順など変更。体育館練習を2時間削減。', '西村', 5, 'あり（データ）', '',
+       'プログラム順など変更。体育館練習を2時間削減。', '田中', 5, 'あり（データ）', '',
        '', false, '全員', '', false, nowStr_(), '', false, '', '']
     ];
     itemSh.getRange(2, 1, rows.length, HEADERS.items.length).setValues(rows);
@@ -1380,6 +1380,8 @@ function onOpen() {
       .addSeparator()
       .addItem('いま入っているダミーを数える', 'countDummyData')
       .addItem('ダミーをすべて削除', 'deleteDummyData'))
+    .addSeparator()
+    .addItem('🏫 新しい学校用に初期化…', 'resetForNewSchool')
     .addToUi();
 }
 
@@ -1413,7 +1415,7 @@ var DUMMY_BODIES = [
   '当日の流れは次のとおりです。準備物は各自でご用意ください。担当が決まっていない箇所は、気づいた方から声をかけていただけると助かります。',
   'すでに提出済みの方はご対応不要です。'
 ];
-var DUMMY_SPEAKERS = ['横田', '清水', '西村', '相座', '藤原', '松嶋'];
+var DUMMY_SPEAKERS = ['山田', '佐藤', '鈴木', '田中', '高橋', '伊藤'];
 var DUMMY_MEETING_KINDS = ['職員会議', '学年会', '打合せ'];
 
 /**
@@ -1740,9 +1742,9 @@ function buildManualSheet_() {
 
   sec('他の学校で使うとき');
   text('1. このファイルを「ファイル → コピーを作成」でコピーする。');
-  text('2. コピー先で、6つのデータシート（連絡事項・職員マスタ・確認ログ・会議・コメント・ピン）の2行目以降をすべて削除する。前の学校の連絡・氏名・メールアドレスが残るため、必ず行ってください（1行目のヘッダーは消さないこと）。');
-  text('3. 上の「初めて使うとき」の手順1〜5をやり直す。デプロイとトリガーはコピーされないため、新しく作る必要があります。');
-  text('※ カレンダーIDなどのスクリプトプロパティもコピーされないので、各校で設定してください。');
+  text('2. コピーしたファイルで「🛠 連絡ボード → 🏫 新しい学校用に初期化…」を実行する。前の学校の連絡・氏名・メールアドレス・確認記録がそのまま付いてくるため、渡す前に必ず実行してください（確認のため「初期化」と入力を求められます）。');
+  text('3. 上の「初めて使うとき」の手順1〜4をやり直す。デプロイとトリガーはコピーされないため、新しく作る必要があります。');
+  text('※ カレンダーIDなどのスクリプトプロパティもコピーされません。各校で設定してください（手順5）。');
 
   // 書き込み
   var values = L.map(function (r) { return [r[1], r[2]]; });
@@ -1779,4 +1781,64 @@ function buildManualSheet_() {
   ss.setActiveSheet(sh);
   ss.moveActiveSheet(1); // 1枚目に置く
   return sh;
+}
+
+// ============================================================
+// 他の学校へ渡すための初期化
+// ============================================================
+/**
+ * 6つのデータシートの中身を空にして、新しい学校がそのまま使える状態にする。
+ * ヘッダー行は残し、サンプルとマニュアルは作り直す。
+ *
+ * スプレッドシートをコピーすると前の学校の連絡・氏名・メールアドレス・確認記録が
+ * そのまま付いてくるため、渡す前にこれを実行する。取り消せない操作なので、
+ * 確認ダイアログで「初期化」と入力させる二段構えにしている。
+ */
+function resetForNewSchool() {
+  var ui = SpreadsheetApp.getUi();
+  var counts = [];
+  [SHEET_ITEMS, SHEET_STAFF, SHEET_LOG, SHEET_MEETINGS, SHEET_COMMENTS, SHEET_PINS].forEach(function (name) {
+    var sh = ss_().getSheetByName(name);
+    counts.push(name + ' ' + (sh ? Math.max(sh.getLastRow() - 1, 0) : 0) + '行');
+  });
+
+  var res = ui.prompt('新しい学校用に初期化',
+    'つぎのデータをすべて削除します。元に戻せません。\n\n'
+    + counts.join(' / ') + '\n\n'
+    + 'アーカイブ（「シート名_YYYY年度」）には手を触れません。\n'
+    + '続けるには下の欄に「初期化」と入力して OK を押してください。',
+    ui.ButtonSet.OK_CANCEL);
+  if (res.getSelectedButton() !== ui.Button.OK) return;
+  if (String(res.getResponseText() || '').trim() !== '初期化') {
+    ui.alert('入力が「初期化」と一致しなかったため、中止しました。');
+    return;
+  }
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    [SHEET_ITEMS, SHEET_STAFF, SHEET_LOG, SHEET_MEETINGS, SHEET_COMMENTS, SHEET_PINS].forEach(function (name) {
+      var sh = ss_().getSheetByName(name);
+      if (sh && sh.getLastRow() > 1) {
+        sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).clearContent();
+      }
+    });
+    // 前の学校のカレンダー設定と更新カウンタも引き継がない
+    var props = PropertiesService.getScriptProperties();
+    props.deleteProperty('SHARED_CALENDAR_ID');
+    props.deleteProperty(BOARD_VERSION_KEY);
+    seedSample_();        // 空になったのでサンプルが入り直る
+    buildManualSheet_();  // 「現在の状態」を新しい状態で作り直す
+  } finally {
+    lock.releaseLock();
+  }
+
+  ui.alert('初期化しました',
+    'このあとの手順:\n\n'
+    + '1. Apps Script で setup を実行\n'
+    + '2. デプロイ → 新しいデプロイ → ウェブアプリ（実行=アクセスしているユーザー／アクセス=組織内の全員）\n'
+    + '3. Apps Script で installTriggers を実行\n'
+    + '4. （任意）スクリプトプロパティに SHARED_CALENDAR_ID を設定\n\n'
+    + '詳しくは1枚目の「はじめにお読みください」をご覧ください。',
+    ui.ButtonSet.OK);
 }

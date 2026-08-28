@@ -414,7 +414,7 @@
 <div class="app-shell">
   <header class="appbar">
     <div class="appbar-row">
-      <h1 class="app-title">職員連絡ボード<small>令和8年度</small></h1>
+      <h1 class="app-title">職員連絡ボード<small id="nendo"></small></h1>
       <div class="appbar-right">
         <button type="button" class="refresh-btn" id="refresh-btn" title="他の職員の更新を確認"><span class="spin-icon">⟳</span> 更新</button>
         <div class="theme-switch" role="group" aria-label="カラーテーマ">
@@ -619,6 +619,7 @@ function applyTheme(mode){
 }
 themeBtns.forEach(function(b){ b.addEventListener('click', function(){ applyTheme(b.dataset.mode); }); });
 (function(){ var s='auto'; try{ s=localStorage.getItem('renraku-theme')||'auto'; }catch(e){} applyTheme(s); })();
+document.getElementById('nendo').textContent=nendoLabel();
 
 /* ====== ユーティリティ ====== */
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){
@@ -963,6 +964,17 @@ var foldDoneOpen=false; // 「自分が済ませた連絡」の折りたたみ�
 function currentActualYM(){
   var d=new Date();
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+}
+/**
+ * 見出しに出す年度。日本の年度は4月始まりなので、1〜3月は前年の年度に属する。
+ * 令和は西暦-2018（2019年=令和元年）。固定文字列にすると年度が変わっても直らず、
+ * 他校にコピーしたときも前の学校の年度のままになるため、日付から毎回計算する。
+ */
+function nendoLabel(){
+  var d=new Date();
+  var y=d.getFullYear() - (d.getMonth()+1 < 4 ? 1 : 0); // 1〜3月は前年度
+  var r=y-2018;
+  return '令和'+(r===1?'元':r)+'年度';
 }
 function ymLabel(ym){
   if(!ym) return '日付不明';
