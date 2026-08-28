@@ -56,6 +56,37 @@ function sharedCalendarId_() {
 }
 
 // ============================================================
+// 更新カウンタ（ポーリングを軽くするための仕組み）
+// ============================================================
+// 60秒ごとのポーリングで毎回 getInitialData() を呼ぶと、職員31名・1年度分のデータで
+// 1回あたり約13万セルを読むことになり、1日数千回ぶんの実行時間がかかる。
+// そこで書き込みのたびにこのカウンタを+1し、画面は普段このカウンタだけを見に行く。
+// 値が前回と同じなら何も取りに行かない（カウンタはスクリプトプロパティなので
+// シートに一切触れず、ほぼ無料で読める）。
+var BOARD_VERSION_KEY = 'BOARD_VERSION';
+
+/** 画面が変化の有無を確かめるための軽量API。シートは読まない */
+function getBoardVersion() {
+  return PropertiesService.getScriptProperties().getProperty(BOARD_VERSION_KEY) || '0';
+}
+
+/**
+ * ボードの内容を変える書き込みのあと必ず呼ぶ。値が変わることだけが意味を持つので、
+ * 競合して同じ値になっても実害はない（次の書き込みで必ず変わる）。
+ */
+function bumpBoardVersion_() {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var n = Number(props.getProperty(BOARD_VERSION_KEY) || 0) + 1;
+    props.setProperty(BOARD_VERSION_KEY, String(n));
+  } catch (e) {
+    // カウンタの更新に失敗しても保存自体は成立している。ここで例外を投げると
+    // 「保存できませんでした」と誤って表示されてしまうので握りつぶす
+    // （画面は次の手動更新か、他の書き込みをきっかけに追いつく）
+  }
+}
+
+// ============================================================
 // ウェブアプリのエントリポイント
 // ============================================================
 function doGet(e) {
@@ -171,6 +202,8 @@ function registerMe(name, isHomeroom) {
     row[t.col['在職']] = true;
     row[t.col['最終ログイン']] = nowStr_();
     t.sheet.appendRow(row);
+    // 職員が増えると全連絡の対象人数（進捗の分母）が変わるので、全員に反映させる
+    bumpBoardVersion_();
     return { ok: true };
   } finally {
     lock.releaseLock();
@@ -299,8 +332,9 @@ function computeYm_(it, meetingDates) {
  * シート内の行順＝追加順として扱う（appendRowは常に末尾追加のため）。
  * @return {Object} { 連絡ID: 番号 }
  */
-function buildMonthNoMap_(meetingDates) {
-  var t = readTable_(SHEET_ITEMS);
+function buildMonthNoMap_(meetingDates, itemsTable) {
+  // 呼び出し元がすでに連絡事項を読んでいればそれを使う（同じシートの二度読みを避ける）
+  var t = itemsTable || readTable_(SHEET_ITEMS);
   var counters = {}, map = {};
   t.rows.forEach(function (r) {
     var it = toItem_(r, t.col);
@@ -365,10 +399,10 @@ function getInitialData() {
     meetingDates[m.id] = m.sortKey ? new Date(m.sortKey) : null; // 絞り込みの日付に使う
   });
   var commentCounts = commentCountMap_();
-  var monthNoMap = buildMonthNoMap_(meetingDates);
   var pinSet = pinSetFor_(email);
 
   var t = readTable_(SHEET_ITEMS);
+  var monthNoMap = buildMonthNoMap_(meetingDates, t); // 読み込み済みのテーブルを渡す
   var items = t.rows
     .map(function (r) { return toItem_(r, t.col); })
     .filter(function (it) { return it.posted; }) // ボードは掲載中のみ
@@ -392,7 +426,10 @@ function getInitialData() {
     staffCount: staff.length,
     meetings: meetings,
     items: items,
-    staffList: enrolledFrom_(st) // 起票フォームの「個別」対象選択用（在職の全職員）
+    staffList: enrolledFrom_(st), // 起票フォームの「個別」対象選択用（在職の全職員）
+    // このデータがどの時点のものかを表す。画面はこれを覚えておき、
+    // ポーリングでは getBoardVersion() と突き合わせて変化の有無だけを見る
+    version: getBoardVersion()
   };
 }
 
@@ -539,6 +576,7 @@ function recordCheck(itemId, done, checkType) {
       t.sheet.appendRow(row);
     }
     // 集計はここでは行わない（画面側が即時反映済み。全体の再集計は次回の画面読込時）
+    bumpBoardVersion_();
     return { ok: true };
   } finally {
     lock.releaseLock();
@@ -652,9 +690,11 @@ function submitItem(p) {
       // 月番号の算出には全会議の日付が要る（この連絡の会議だけでは他月の判定を誤る）
       var allMeetingDates = {};
       readMeetings_().forEach(function (m) { allMeetingDates[m.id] = m.sortKey ? new Date(m.sortKey) : null; });
+      // ここは読み直しが必要。上の t は appendRow の前に読んだもので、今追加した行を含まない
       var monthNoMap = buildMonthNoMap_(allMeetingDates);
       decorated = decorateItem_(it, staff, {}, me, meetingId ? mapOf_(meetingId, meetingLabel) : {}, {}, allMeetingDates, monthNoMap);
     }
+    bumpBoardVersion_();
     return { item: decorated, meeting: newMeetingInfo };
   } finally {
     lock.releaseLock();
@@ -728,11 +768,14 @@ function editItem(itemId, p) {
       var meetingName = {}, meetingDates = {};
       meetings.forEach(function (m) { meetingName[m.id] = m.label; meetingDates[m.id] = m.sortKey ? new Date(m.sortKey) : null; });
       var commentCounts = commentCountMap_();
-      var monthNoMap = buildMonthNoMap_(meetingDates);
+      // 読み込み済みの t を渡す。編集では 会議ID・種別・作成日時（月番号の材料）を
+      // 変更しないので、編集前のスナップショットでも同じ番号になる
+      var monthNoMap = buildMonthNoMap_(meetingDates, t);
       // ピンも渡す。渡さないと編集後の差し替えで自分のピンが外れたように見える
       decorated = decorateItem_(updated, staff, logs, me, meetingName, commentCounts, meetingDates, monthNoMap,
                                 pinSetFor_(me.email));
     }
+    bumpBoardVersion_();
     return { item: decorated };
   } finally {
     lock.releaseLock();
@@ -750,8 +793,9 @@ function getMeetingAgenda(meetingId) {
   var commentCounts = commentCountMap_();
   var meetingDates = {};
   readMeetings_().forEach(function (m) { meetingDates[m.id] = m.sortKey ? new Date(m.sortKey) : null; });
-  var monthNoMap = buildMonthNoMap_(meetingDates); // 連絡事項はボードと同じ「月ごとの番号」を表示
   var t = readTable_(SHEET_ITEMS);
+  // 連絡事項はボードと同じ「月ごとの番号」を表示。読み込み済みのテーブルを渡して二度読みを避ける
+  var monthNoMap = buildMonthNoMap_(meetingDates, t);
   var giron = [], renraku = [], total = 0;
   t.rows.forEach(function (r) {
     var it = toItem_(r, t.col);
@@ -875,6 +919,7 @@ function addComment(itemId, text) {
     if (!me.email) throw new Error('ログイン情報を取得できませんでした。');
     if (!findItem_(itemId)) throw new Error('連絡が見つかりませんでした。');
     sheet_(SHEET_COMMENTS).appendRow([itemId, me.email, me.name, text, nowStr_()]);
+    bumpBoardVersion_();
     return getComments(itemId);
   } finally {
     lock.releaseLock();
@@ -924,6 +969,9 @@ function togglePin(itemId, pinned) {
     } else if (!pinned && found >= 0) {
       sh.deleteRow(found + 2); // +1=ヘッダー行 / +1=1始まりの行番号
     }
+    // ここでは更新カウンタを上げない。ピンは自分にしか見えない変更なので、
+    // 上げると他の職員全員に無用な再読込をさせてしまう。押した本人の画面は
+    // その場で反映済みで、シートにも保存されているため次回の読込でも正しく出る
     return { ok: true, pinned: !!pinned };
   } finally {
     lock.releaseLock();
@@ -1370,6 +1418,7 @@ function addDummyItems_(count) {
       var logSh = sheet_(SHEET_LOG);
       logSh.getRange(logSh.getLastRow() + 1, 1, logRows.length, HEADERS.log.length).setValues(logRows);
     }
+    bumpBoardVersion_(); // 開いている画面がポーリングで追いつけるように
     ss.toast(count + '件のダミー連絡を追加しました（確認ログ ' + logRows.length + '行）。', '🧪 テストデータ', 8);
   } finally {
     lock.releaseLock();
@@ -1432,6 +1481,7 @@ function deleteDummyData() {
     deletePrefixRows_(SHEET_PINS, '連絡ID', DUMMY_ID_PREFIX);
     deletePrefixRows_(SHEET_ITEMS, 'ID', DUMMY_ID_PREFIX);
     deletePrefixRows_(SHEET_MEETINGS, '会議ID', DUMMY_MEETING_PREFIX);
+    bumpBoardVersion_(); // 開いている画面がポーリングで追いつけるように
     ss_().toast('ダミーを削除しました。', '🧪 テストデータ', 6);
   } finally {
     lock.releaseLock();

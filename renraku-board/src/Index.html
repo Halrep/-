@@ -790,6 +790,7 @@ function itemSortComparator(a,b){
 function load(){
   google.script.run.withSuccessHandler(function(d){
     DATA=d;
+    boardVersion=d.version; // 以降のポーリングはこの世代と突き合わせる
     document.getElementById('today').textContent=d.today;
     if(!d.me.email){
       document.getElementById('view-board').innerHTML='<div class="empty">'
@@ -825,6 +826,15 @@ function formsAreOpen(){
 }
 
 var refreshBtn=document.getElementById('refresh-btn');
+var boardVersion=null; // 最後に取り込んだデータの世代。サーバーの更新カウンタと突き合わせる
+
+/**
+ * 更新の確認。
+ * 自動ポーリングはまず getBoardVersion()（シートを読まない軽量API）で変化の有無だけを見て、
+ * 前回と同じなら何も取りに行かない。連絡1年分・職員31名だと getInitialData() は
+ * 1回で約13万セルを読むため、60秒ごとに全員が呼ぶとGASの実行時間をすぐ使い切ってしまう。
+ * 手動更新（⟳ボタン）は「押したのに何も起きない」と誤解されないよう、常に本体を取りに行く。
+ */
 function pollForUpdates(manual){
   if(!DATA || pendingSaves>0){
     if(manual) showToast('保存が完了してからもう一度お試しください');
@@ -832,10 +842,23 @@ function pollForUpdates(manual){
   }
   if(!manual && document.hidden) return; // タブが背面の間は自動ポーリングを休止（クォータ節約）
   if(!manual && formsAreOpen()) return; // 自動ポーリングのみ入力中は遠慮する
-  if(manual) refreshBtn.classList.add('spinning');
+
+  if(manual){ refreshBtn.classList.add('spinning'); fetchFullData(true); return; }
+
+  google.script.run.withSuccessHandler(function(v){
+    if(boardVersion!==null && String(v)===String(boardVersion)) return; // 変化なし＝取りに行かない
+    fetchFullData(false);
+  }).withFailureHandler(function(){
+    // 軽量チェックが失敗しても静かに無視し、次の周期で再試行する
+  }).getBoardVersion();
+}
+
+/** 本体を取得して画面へ反映する */
+function fetchFullData(manual){
   google.script.run.withSuccessHandler(function(d){
     if(manual) refreshBtn.classList.remove('spinning');
     if(!DATA || !d.me.email || !d.me.registered) return; // 想定外の状態は無視
+    boardVersion=d.version;
     var added=mergeFreshData(d);
     if(manual) showToast(added>0?added+'件の新しい連絡が届きました':'最新の状態です');
     else if(added>0) showToast(added+'件の新しい連絡が届きました');
