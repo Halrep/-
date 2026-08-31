@@ -62,6 +62,7 @@ var C = {
     SEL:     '選択',
     PROG:    '進度',
     SUSE:    '方略利用',
+    CONFIRM: '確かめ合い',
     HELP:    '援助要請',
     CHECK:   '確認タイム',
     REFL:    '振り返り',
@@ -127,6 +128,10 @@ C.HEADERS[C.SH.SEL]     = ['selection_id', 'unit_id', 'task_id', 'user_id', 'カ
 C.HEADERS[C.SH.PROG]    = ['progress_id', 'unit_id', 'task_id', 'user_id', '状態', '理解度', 'メモ', '更新時刻'];
 // 課題ごとの方略利用
 C.HEADERS[C.SH.SUSE]    = ['use_id', 'unit_id', 'task_id', 'user_id', 'strategy_id', '状態', '更新時刻'];
+// 共調整の事実チップ。学習形態で「ペアで／グループで」を選んだ課題にだけ出す。
+// 理由や内容は聞かない（考えさせる場ではなく、事実の申告）。教師のI/You/We判定にそのまま使う。
+C.HEADERS[C.SH.CONFIRM]  = ['confirm_id', 'unit_id', 'task_id', 'user_id', 'タグ', '状態', '更新時刻'];
+C.COREG_TAGS = ['目標をすり合わせた', 'やり方を教え合った', '進み具合を見せ合った', 'できたことを一緒に喜んだ'];
 C.HEADERS[C.SH.HELP]    = ['help_id', 'unit_id', 'user_id', '状態', '更新時刻'];
 C.HEADERS[C.SH.CHECK]   = ['check_id', 'unit_id', 'user_id', '日付', '経過分', '状態', 'メモ', '時刻'];
 // その日の振り返り（1人1日1件）
@@ -172,16 +177,17 @@ C.VALIDATIONS[C.SH.TASK] = {
 C.VALIDATIONS[C.SH.RES] = { '種別': C.RES_KIND, '公開': C.CHOICES.BOOL };
 C.VALIDATIONS[C.SH.STRAT] = { '分類': C.CHOICES.STRAT_CAT, '推奨フェーズ': C.CHOICES.STRAT_PHASE };
 C.VALIDATIONS[C.SH.PRESET] = { 'カテゴリ': C.CHOICES.PRESET_CAT, '複数選択可': C.CHOICES.BOOL };
+C.VALIDATIONS[C.SH.CONFIRM] = { 'タグ': C.COREG_TAGS, '状態': C.CHOICES.BOOL };
 C.VALIDATIONS[C.SH.UCHOICE] = { 'カテゴリ': C.CHOICES.PRESET_CAT, '開放': C.CHOICES.BOOL };
 
 // Setup で作る順
 C.SHEET_ORDER = [
   C.SH.USERS, C.SH.STRAT, C.SH.PRESET,
   C.SH.UNIT, C.SH.TASK, C.SH.RES, C.SH.USTRAT, C.SH.UCHOICE,
-  C.SH.PLAN, C.SH.GOAL, C.SH.SEL, C.SH.PROG, C.SH.SUSE, C.SH.HELP, C.SH.CHECK, C.SH.REFL, C.SH.FB, C.SH.OBS, C.SH.LOG
+  C.SH.PLAN, C.SH.GOAL, C.SH.SEL, C.SH.PROG, C.SH.SUSE, C.SH.CONFIRM, C.SH.HELP, C.SH.CHECK, C.SH.REFL, C.SH.FB, C.SH.OBS, C.SH.LOG
 ];
 
 // 記録系（授業のやり直しで消せるもの）
 // 学びログは入れない：シートの行を消しても Drive の写真は残り、
 // 消えたつもりの写真がドライブに残り続けるほうが危ない。写真は個別に取り消す。
-C.RECORD_SHEETS = [C.SH.PLAN, C.SH.GOAL, C.SH.SEL, C.SH.PROG, C.SH.SUSE, C.SH.HELP, C.SH.CHECK, C.SH.REFL, C.SH.FB, C.SH.OBS];
+C.RECORD_SHEETS = [C.SH.PLAN, C.SH.GOAL, C.SH.SEL, C.SH.PROG, C.SH.SUSE, C.SH.CONFIRM, C.SH.HELP, C.SH.CHECK, C.SH.REFL, C.SH.FB, C.SH.OBS];

@@ -253,7 +253,7 @@ function dropCache() { vm.runInContext('Repo.dropCache()', sandbox); }
 console.log('\n【1】初期セットアップ');
 call('setupSheets');
 const names = Object.keys(ss._sheets);
-ok(names.length === 19, 'シートが19枚生成された（実際: ' + names.length + '）');
+ok(names.length === 20, 'シートが20枚生成された（実際: ' + names.length + '）');
 ok(sheetRows('方略マスタ').length === 6, '方略マスタに6枚のサンプル');
 ok(sheetRows('単元').length === 1, 'デモ単元が1件');
 const allTasks = sheetRows('課題');
@@ -347,7 +347,23 @@ ok(byNo['4'].status === 'none', 'Dは未着手');
 ok(mon.taskDistribution.length === 9, '課題分布は9件（非公開も教師には見える）');
 const distT1 = mon.taskDistribution.find(d => d.title.indexOf('しくみを図に') >= 0);
 ok(distT1.doing === 1 && distT1.done === 1, '課題①に 取組中1・完了1');
-ok(mon.regulation.I === 1 && mon.regulation.We === 2, 'I/You/We の集計（Aはグループに変更済）');
+ok(mon.regulation.I === 3 && mon.regulation.We === 0 && mon.regulation.You === 0,
+  'ペア/グループを選んでも、確かめ合っていなければ I のまま（実際: I=' + mon.regulation.I + '）');
+
+// 「だれかと確かめ合った？」を押した子だけ You/We に数える
+asUser('c@school.jp');
+call('student_toggleConfirm', stC.tasks[7].taskId, '目標をすり合わせた', true);
+asUser('teacher@school.jp');
+const monConfirmed = call('teacher_getMonitor');
+ok(monConfirmed.regulation.We === 1 && monConfirmed.regulation.I === 2,
+  'グループでを選び、かつ確かめ合った子だけ We に移る（実際: We=' + monConfirmed.regulation.We + '）');
+
+// トグルなので、外すと I に戻る
+asUser('c@school.jp');
+call('student_toggleConfirm', stC.tasks[7].taskId, '目標をすり合わせた', false);
+asUser('teacher@school.jp');
+const monUnconfirmed = call('teacher_getMonitor');
+ok(monUnconfirmed.regulation.I === 3 && monUnconfirmed.regulation.We === 0, 'チップを外すと I に戻る');
 
 console.log('\n【10】段階的公開（環境は変えないと風景になる）');
 const hidden = mon.taskDistribution.find(d => !d.published);
@@ -1217,6 +1233,52 @@ call('unitSheetImport');
 ok(String(ui.lastAlert).indexOf('ゴールに直結する課題がありません') >= 0, 'ゴールが無いことを知らせる');
 ok(String(ui.lastAlert).indexOf('実験レポート') >= 0, '単元の出口を添えて知らせる');
 ok(sheetRows('課題').filter(t => t['unit_id'] === nsId).length > 0, '知らせるだけで、取り込みは止めない');
+
+console.log('\n【40】だれかと確かめ合った？（共調整の事実チップ）');
+asUser('a@school.jp');
+let stConfirm = call('student_getState');
+const cfTask = stConfirm.tasks[0], cfTask2 = stConfirm.tasks[1];
+ok(cfTask.confirms && Object.keys(cfTask.confirms).length === 0, '押していない課題は confirms が空');
+
+call('student_toggleConfirm', cfTask.taskId, '目標をすり合わせた', true);
+call('student_toggleConfirm', cfTask.taskId, 'やり方を教え合った', true);
+stConfirm = call('student_getState');
+ok(stConfirm.tasks[0].confirms['目標をすり合わせた'] === true && stConfirm.tasks[0].confirms['やり方を教え合った'] === true,
+  '押した2つのタグが両方立つ（1つのタグにつき1つの状態ではなく、タグごとに独立）');
+ok(!stConfirm.tasks[0].confirms['進み具合を見せ合った'], '押していないタグは立たない');
+
+// 別の課題は別の記録（課題をまたがない）
+ok(!stConfirm.tasks[1].confirms['目標をすり合わせた'], 'ある課題で押しても、別の課題には影響しない');
+call('student_toggleConfirm', cfTask2.taskId, 'できたことを一緒に喜んだ', true);
+stConfirm = call('student_getState');
+ok(stConfirm.tasks[0].confirms['目標をすり合わせた'] === true, '別の課題で押しても、先の課題の記録は残る');
+ok(stConfirm.tasks[1].confirms['できたことを一緒に喜んだ'] === true, '課題ごとに別々に記録される');
+
+// トグルなので、同じタグをもう一度押すと消える（行は増やさず上書き）
+call('student_toggleConfirm', cfTask.taskId, '目標をすり合わせた', false);
+const cfRows = sheetRows('確かめ合い').filter(r => r['user_id'] === 'U01' && r['task_id'] === cfTask.taskId && r['タグ'] === '目標をすり合わせた');
+ok(cfRows.length === 1, '同じ課題・同じタグを押し直しても行は増えない（実際: ' + cfRows.length + '件）');
+ok(truthy_G(cfRows[0]['状態']) === false, '外した状態がそのまま保存される');
+stConfirm = call('student_getState');
+ok(!stConfirm.tasks[0].confirms['目標をすり合わせた'], '外したことが本人にも反映される');
+
+// 知らないタグは拒む（先生が単元シート等で妙な値を混ぜても、児童の記録は決まった4つに保つ）
+let badTag = false;
+try { call('student_toggleConfirm', cfTask.taskId, 'ありがとうと言った', true); } catch (e) { badTag = /知らないタグ/.test(e.message); }
+ok(badTag, '決まった4つのタグ以外は拒む');
+
+// 記録は本人だけのもの。他の子には混ざらない
+asUser('b@school.jp');
+const stConfirmB = call('student_getState');
+ok(Object.keys(stConfirmB.tasks[0].confirms || {}).length === 0, '他の子の画面には他の子の確かめ合いは出ない');
+
+// 先生が見ているだけのときは書けない（読み取り専用のガードは他の記録と同じ）
+asUser('teacher@school.jp');
+call('doGet', { parameter: { as: 'student', who: 'U01' } });
+let confirmBlocked = false;
+try { call('student_toggleConfirm', cfTask.taskId, '目標をすり合わせた', true); } catch (e) { confirmBlocked = /読み取り専用/.test(e.message); }
+ok(confirmBlocked, '読み取り専用のあいだは確かめ合いを記録できない');
+call('doGet', { parameter: { as: 'teacher' } });
 
 /* =================== 結果 =================== */
 console.log('\n========================================');

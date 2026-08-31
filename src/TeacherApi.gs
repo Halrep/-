@@ -106,12 +106,22 @@ function teacher_getMonitor() {
   tiles.forEach(function (t) { counts[t.status]++; });
 
   // 調整層 I/You/We
+  //
+  // 「ペアで／グループでを選んだ人数」ではなく、「確かめ合った（＝共調整の事実チップを
+  // 押した）人数」で数える。学習形態はどこに座っていたかの申告に過ぎず、
+  // 隣にいただけで目標や進み具合をすり合わせていない子まで You/We に数えると、
+  // 教師の見取りが実態とずれる。ペア・グループを選んでも確かめ合っていなければ I に残す。
+  var confirmedUsers = {};
+  Repo.where(C.SH.CONFIRM, { unit_id: unitId }).forEach(function (c) {
+    if (truthy_(c['状態'])) confirmedUsers[c['user_id']] = true;
+  });
   var regulation = { I: 0, You: 0, We: 0, none: 0 };
   students.forEach(function (u) {
     var form = latestOf_(selByUser[u['user_id']] || [], '学習形態');
+    var confirmed = !!confirmedUsers[u['user_id']];
     if (form === 'ひとりで') regulation.I++;
-    else if (form === 'ペアで') regulation.You++;
-    else if (form === 'グループで') regulation.We++;
+    else if (form === 'ペアで') { confirmed ? regulation.You++ : regulation.I++; }
+    else if (form === 'グループで') { confirmed ? regulation.We++ : regulation.I++; }
     else regulation.none++;
   });
 

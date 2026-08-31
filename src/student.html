@@ -327,6 +327,8 @@
 
 <script>
 var BE_CHIPS = ['集中して','ねばり強く','協力して','資料をじっくり読んで','自分の考えをもって'];
+// サーバー（Constants.gs の C.COREG_TAGS）と同じ並び。事実の申告のみで理由は聞かない
+var COREG_TAGS = ['目標をすり合わせた','やり方を教え合った','進み具合を見せ合った','できたことを一緒に喜んだ'];
 var ATTR_GOOD = ['やり方（工夫）がよかった','集中できた','友だちと協力できた','時間の使い方がよかった'];
 var ATTR_HARD = ['やり方が合わなかった','集中が切れた','時間が足りなかった','資料がむずかしかった'];
 var MOODS = [
@@ -1133,6 +1135,17 @@ function renderBands(){
       '<button class="btn next" data-band-go="2">おわりに →</button>'+
     '</div>';
 
+  /* 👥 だれかと確かめ合った？
+     学習形態で「ペアで／グループで」を選んだ課題にだけ出す。ひとりで作業している子には
+     一切出さない（画面の情報量を増やさない）。理由は聞かず、事実を押すだけ。 */
+  var form = t.selections && t.selections['学習形態'];
+  var coregHtml = (form === 'ペアで' || form === 'グループで')
+    ? '<div class="card"><div class="card-h"><span class="h-badge">👥</span><h2>だれかと確かめ合った？　<span class="sub-h">いくつでもえらべます</span></h2></div>'+
+        '<div class="card-b"><div class="chips">'+ COREG_TAGS.map(function(tag){
+          return '<button class="chip" data-confirm="'+esc(tag)+'" aria-pressed="'+(!!(t.confirms && t.confirms[tag]))+'"><span class="cx">✓</span>'+esc(tag)+'</button>';
+        }).join('') +'</div></div></div>'
+    : '';
+
   /* 🏁 おわりに：自分の手ごたえを残して閉じる */
   $('#band2').innerHTML =
     '<div class="card"><div class="card-h"><span class="h-badge">🌱</span><h2>いまの分かりぐあい　<span class="sub-h">点数ではありません。あとで見直すための目印です</span></h2></div>'+
@@ -1140,6 +1153,7 @@ function renderBands(){
     '<div class="card"><div class="card-h"><span class="h-badge">📝</span><h2>この課題のメモ　<span class="sub-h">気づいたこと・大切だと思ったこと・分からなかったこと</span></h2></div>'+
       '<div class="card-b"><textarea rows="3" id="task-memo" placeholder="例：年表は下から読むと流れが分かった／「摂関政治」がまだあいまい">'+esc(t.memo||'')+'</textarea>'+
         sayHtml('task-memo', SAY['task-memo'])+'</div></div>'+
+    coregHtml+
     '<div class="card"><div class="card-h"><span class="h-badge">📷</span><h2>学びログ　<span class="sub-h">ノートや作品を撮って、あとから見返そう</span></h2></div>'+
       '<div class="card-b"><div class="log-grid mine">'+myLogHtml+
         '<button class="log-add" data-cam="'+esc(t.taskId)+'"><span class="ic">📷</span><span class="lb">写真をのこす</span></button>'+
@@ -1713,6 +1727,9 @@ document.addEventListener('click', function(e){
     var task = S.tasks[curTask];
     task.selections[choice.dataset.cat] = multi ? vals : (vals[0]||'');
     save('student_saveSelection', task.taskId, choice.dataset.cat, vals.join(','));
+    // 学習形態を変えたら「だれかと確かめ合った？」の出し分けを更新する（band2 はすでに描画済みのため）。
+    // 書きかけの課題メモが消えないよう、描き直す前に確定させる（closeTaskLayer 等と同じ配慮）。
+    if(choice.dataset.cat === '学習形態'){ flushTaskNote(); renderBands(); }
     return;
   }
 
@@ -1789,6 +1806,17 @@ document.addEventListener('click', function(e){
     var tk = S.tasks[curTask];
     tk.strategyUse[useCard.dataset.sid] = on;
     save('student_useStrategy', tk.taskId, useCard.dataset.sid, on).then(function(){ if(on) toast('「つかった！」を記録しました'); });
+    return;
+  }
+
+  var coregChip = e.target.closest('#band2 [data-confirm]');
+  if(coregChip){
+    var con = coregChip.getAttribute('aria-pressed')!=='true';
+    coregChip.setAttribute('aria-pressed', String(con));
+    var cTask = S.tasks[curTask];
+    cTask.confirms = cTask.confirms || {};
+    cTask.confirms[coregChip.dataset.confirm] = con;
+    save('student_toggleConfirm', cTask.taskId, coregChip.dataset.confirm, con);
     return;
   }
 

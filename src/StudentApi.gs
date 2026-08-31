@@ -76,6 +76,10 @@ function student_getState() {
   Repo.where(C.SH.SUSE, { unit_id: unitId, user_id: uid }).forEach(function (u) {
     (useMap[u['task_id']] = useMap[u['task_id']] || {})[u['strategy_id']] = truthy_(u['状態']);
   });
+  var confirmMap = {};
+  Repo.where(C.SH.CONFIRM, { unit_id: unitId, user_id: uid }).forEach(function (c) {
+    (confirmMap[c['task_id']] = confirmMap[c['task_id']] || {})[c['タグ']] = truthy_(c['状態']);
+  });
   var selMap = latestSelectionsByTask_(unitId, uid);
 
   var taskPayload = tasks.map(function (t) {
@@ -94,7 +98,8 @@ function student_getState() {
       resources: resByTask[tid] || [],
       strategies: stByTask[tid] || [],
       selections: selMap[tid] || {},
-      strategyUse: useMap[tid] || {}
+      strategyUse: useMap[tid] || {},
+      confirms: confirmMap[tid] || {}
     };
   });
 
@@ -305,6 +310,21 @@ function student_useStrategy(taskId, strategyId, on) {
   var existing = firstWhere_(C.SH.SUSE, match);
   Repo.upsert(C.SH.SUSE, match, {
     use_id: existing ? existing['use_id'] : Repo.uuid(),
+    '状態': on ? 'TRUE' : 'FALSE',
+    '更新時刻': Repo.now()
+  });
+  return { ok: true };
+}
+
+/** 共調整の事実チップ（だれかと確かめ合った？）のオン/オフ */
+function student_toggleConfirm(taskId, tag, on) {
+  var ctx = requireWritable_();
+  var unit = requireCurrentUnit_();
+  if (C.COREG_TAGS.indexOf(tag) < 0) throw new Error('知らないタグです。');
+  var match = { unit_id: unit['unit_id'], task_id: taskId, user_id: ctx.user.userId, 'タグ': tag };
+  var existing = firstWhere_(C.SH.CONFIRM, match);
+  Repo.upsert(C.SH.CONFIRM, match, {
+    confirm_id: existing ? existing['confirm_id'] : Repo.uuid(),
     '状態': on ? 'TRUE' : 'FALSE',
     '更新時刻': Repo.now()
   });
