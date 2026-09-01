@@ -180,28 +180,19 @@ textarea, input[type=text]{width:100%; min-height:44px; border:1.5px solid var(-
 .band-ink{position:absolute; bottom:-2px; left:0; height:3px; width:0; background:var(--primary); border-radius:2px;
   transition:transform .28s cubic-bezier(.2,.8,.2,1), width .28s cubic-bezier(.2,.8,.2,1)}
 
-/* 2カラム：🆘とみんなの様子は常に手の届くところに */
-.work-grid{display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:16px; align-items:start}
-.work-main{min-width:0}
-.work-side{position:sticky; top:12px; display:flex; flex-direction:column; gap:12px}
-.work-side .help-btn{width:100%; margin:0; padding:14px 12px; line-height:1.4}
-.hb-s{display:block; font-size:12.5px; font-weight:700; opacity:.85}
-.side-card .card-b{padding:12px 14px}
-.side-card .peer-grid{grid-template-columns:1fr}
-.side-btns{display:flex; flex-direction:column; gap:8px}
+/* 1カラム＋下部ドック：🆘・資料・みんなの様子・学びログは常設せず、タップで開く。
+   常設していた「みんなの様子」だけで縦に相当な高さを取っていたため、飛び石の
+   道すじが右カラムぶん狭められて折り返しが増えていた。中身はシート（引き出し）
+   に譲り、ドックにはボタンだけを横に並べる */
+.work-grid{display:block}
+.work-main{min-width:0; padding-bottom:104px}
+.work-dock{position:fixed; left:0; right:0; bottom:0; z-index:70; background:var(--bg);
+  border-top:1.5px solid var(--line); box-shadow:0 -4px 16px rgba(35,48,58,.12)}
+.work-dock-in{max-width:1180px; margin:0 auto; padding:10px 16px; display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+.hb-s{display:block; font-size:11.5px; font-weight:700; opacity:.85}
 .shelf-b{border:2px solid var(--line); background:var(--surface); border-radius:var(--r); padding:11px 14px;
-  font-size:12.5px; font-weight:800; text-align:left; transition:border-color .18s, background .18s}
+  min-height:44px; font-size:12.5px; font-weight:800; text-align:left; transition:border-color .18s, background .18s}
 .shelf-b:hover{border-color:var(--primary); background:var(--primary-soft); color:var(--primary)}
-
-@media (max-width: 900px){
-  .work-grid{grid-template-columns:1fr}
-  .work-side{position:static; padding-bottom:4px}
-  /* 1カラムになると右カラムは画面外に流れてしまう。
-     こまったボタンだけは画面の下に貼り付けて、いつでも押せるようにする */
-  .work-side .help-btn{position:fixed; left:16px; right:16px; bottom:14px; width:auto; z-index:70;
-    box-shadow:0 6px 20px rgba(35,48,58,.28)}
-  .app{padding-bottom:110px}
-}
 
 /* 引き出し（資料・学びログ・足あと） */
 .stash{display:none}
@@ -281,7 +272,8 @@ textarea, input[type=text]{width:100%; min-height:44px; border:1.5px solid var(-
 .rtag.link{background:var(--primary-soft); color:var(--primary)}
 .open-btn{flex:none; border:1.5px solid var(--primary-line); background:var(--surface); color:var(--primary); border-radius:8px; padding:5px 14px; font-size:12.5px; font-weight:800; text-decoration:none; display:inline-block}
 
-.help-btn{width:100%; border:2px solid var(--danger); background:var(--danger-soft); color:var(--danger-ink); border-radius:var(--r); padding:14px; font-size:16px; font-weight:800; transition:background .15s}
+.help-btn{border:2px solid var(--danger); background:var(--danger-soft); color:var(--danger-ink); border-radius:var(--r);
+  min-height:44px; padding:11px 16px; font-size:14px; font-weight:800; transition:background .15s}
 .help-btn[aria-pressed="true"]{background:var(--danger-ink); color:var(--on-fill)}
 
 .slider-wrap{display:flex; align-items:center; gap:16px}

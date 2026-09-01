@@ -162,24 +162,17 @@
 
       </div><!-- /work-main -->
 
-      <!-- 右カラム：いつでも手が届くところに置く -->
-      <aside class="work-side">
-        <button class="help-btn" id="help-btn" aria-pressed="false">🆘 こまっています<span class="hb-s">先生に知らせる</span></button>
-
-        <div class="card side-card" id="peer-card" style="display:none">
-          <div class="card-h"><span class="h-badge">👀</span><h2>みんなの様子</h2></div>
-          <div class="card-b">
-            <div class="peer-head"><span class="peer-mode" id="peer-mode"></span></div>
-            <div class="peer-grid" id="peer-grid"></div>
-            <div class="sub-h" style="margin-top:6px">約20秒ごとに更新</div>
-          </div>
-        </div>
-
-        <div class="side-btns">
+      <!-- 下部ドック：常設は最小限に。資料・みんなの様子・学びログはタップで開く（中身は stash に置いて sheet に移す）。
+           position:fixed で画面の下に貼り付ける。work-main 側に同じ高さぶんの余白を必ず取り、
+           道すじの飛び石やボタンがドックの下に隠れないようにする -->
+      <div class="work-dock">
+        <div class="work-dock-in">
+          <button class="help-btn" id="help-btn" aria-pressed="false">🆘 こまっています<span class="hb-s">先生に知らせる</span></button>
+          <button class="shelf-b" data-sheet="peer" id="shelf-peer" style="display:none">👀 みんなの様子</button>
           <button class="shelf-b" data-sheet="res">📎 いつでも使える資料</button>
           <button class="shelf-b" data-sheet="log" id="shelf-log" style="display:none">🖼 みんなの学びログ</button>
         </div>
-      </aside>
+      </div>
      </div><!-- /work-grid -->
     </div>
 
@@ -276,6 +269,11 @@
 <!-- 各シートの中身の置き場（表示はシートに移して使う） -->
 <div class="stash" hidden>
   <div id="src-res"><div class="always-res" id="common-res"></div></div>
+  <div id="src-peer">
+    <div class="peer-head"><span class="peer-mode" id="peer-mode"></span></div>
+    <div class="peer-grid" id="peer-grid"></div>
+    <div class="sub-h" style="margin-top:6px">約20秒ごとに更新</div>
+  </div>
   <div id="src-log"><div class="log-grid" id="classlog-grid"></div></div>
   <div id="src-fp" class="stack">
     <div id="fp-trend"></div>
@@ -1506,9 +1504,10 @@ function openLightbox(logId, cap){
    資料・学びログ・足あとは「参考にしたい時に開く」もの。
    常設すると本編が埋もれるので、中身は stash に置いて開くときだけ移す。 */
 var SHEETS = {
-  res: { title: '📎 いつでも使える資料', src: 'src-res' },
-  log: { title: '🖼 みんなの学びログ',   src: 'src-log', on: function(){ loadClassLogs(); } },
-  fp:  { title: '👣 学びの足跡',         src: 'src-fp',  on: function(){ loadPortfolio(); } }
+  res:  { title: '📎 いつでも使える資料', src: 'src-res' },
+  peer: { title: '👀 みんなの様子',       src: 'src-peer' },
+  log:  { title: '🖼 みんなの学びログ',   src: 'src-log', on: function(){ loadClassLogs(); } },
+  fp:   { title: '👣 学びの足跡',         src: 'src-fp',  on: function(){ loadPortfolio(); } }
 };
 var sheetSrc = null;
 
@@ -1612,7 +1611,7 @@ function closeCheckin(status){
 /* ---- 他者参照 ---- */
 var peerTimer = null;
 function startPeers(){
-  if(!S || !S.unit || !S.unit.peerRef){ $('#peer-card').style.display='none'; return; }
+  if(!S || !S.unit || !S.unit.peerRef){ $('#shelf-peer').style.display='none'; return; }
   pollPeers();
   if(peerTimer) clearInterval(peerTimer);
   peerTimer = setInterval(pollPeers, 20000);
@@ -1620,8 +1619,8 @@ function startPeers(){
 function stopPeers(){ if(peerTimer){ clearInterval(peerTimer); peerTimer=null; } }
 function pollPeers(){
   callServer('student_getPeers').then(function(res){
-    if(!res.enabled){ $('#peer-card').style.display='none'; return; }
-    $('#peer-card').style.display='';
+    if(!res.enabled){ $('#shelf-peer').style.display='none'; return; }
+    $('#shelf-peer').style.display='';
     $('#peer-mode').textContent = res.anon ? '匿名モード' : '記名モード';
     var stageCls = {'これから':'s0','とりくみ中':'s1','できた':'s2'};
     $('#peer-grid').innerHTML = res.cards.map(function(c){
