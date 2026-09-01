@@ -653,7 +653,7 @@ var filterYM=currentActualYM(), filterKW='', filterSpeaker='';
 var filterStatus='all'; // undone=未完了のみ / all=すべて（既定） / done=完了のみ
 var filterPinned=false;    // ★ピン留めのみ表示するか
 // 概況カードの各区画をクリックしたときの一発絞り込み（toggleQuickFilter 参照）
-var filterDueOnly=false, filterMineOnly=false, filterDoneMineOnly=false;
+var filterDueOnly=false, filterMineOnly=false, filterDoneMineOnly=false, filterUnreadOnly=false;
 function fullyDone(it){ return it.targetCount>0 && it.doneCount>=it.targetCount; } // 対象全員が済み
 /** 対応状況の絞り込み。ここだけ他の条件と分けているのは、選択肢の件数を数える母集団になるため */
 function matchesStatus(it){
@@ -665,6 +665,10 @@ function matchesFilter(it){
   // クイック絞り込み中は他の条件を無視し、その条件だけで決める
   // （toggleQuickFilter が有効化と同時に他の絞り込みを解除しているため、通常は結果は同じだが
   //   念のため明示しておく）
+  // 「未読」＝自分が対象で、まだ「確認した」を押していない連絡。
+  // 要対応・閲覧のみの両方が対象（閲覧のみは確認＝メインなので、押せば未読から外れる）。
+  // 「未対応」は要対応だけを見るため、閲覧のみの未確認はこちらでしか拾えない
+  if(filterUnreadOnly) return it.myTarget && !it.myAck;
   if(filterDueOnly) return it.action && it.dueClass==='today' && !fullyDone(it);
   if(filterMineOnly) return it.action && it.myTarget && !it.myDone;
   // 「あなたの確認・対応済」は要対応（確認→対応の2段階）と閲覧のみ（確認のみ）の
@@ -740,7 +744,7 @@ function clearFilters(status){
   document.getElementById('filter-ym').value='';
   document.getElementById('filter-speaker').value='';
   filterYM=''; filterKW=''; filterSpeaker='';
-  filterDueOnly=false; filterMineOnly=false; filterDoneMineOnly=false;
+  filterDueOnly=false; filterMineOnly=false; filterDoneMineOnly=false; filterUnreadOnly=false;
   filterPinned=false;
   filterStatus=status||'all';
   document.getElementById('filter-status').value=filterStatus;
@@ -760,7 +764,8 @@ document.getElementById('filter-clear').addEventListener('click', function(){
  * もう一度押すと解除して「掲載中」と同じ全解除状態に戻る。
  */
 function toggleQuickFilter(which){
-  var turningOn = which==='due' ? !filterDueOnly
+  var turningOn = which==='unread' ? !filterUnreadOnly
+                : which==='due' ? !filterDueOnly
                 : which==='mine' ? !filterMineOnly
                 : which==='donemine' ? !filterDoneMineOnly
                 : !filterPinned;
@@ -768,7 +773,8 @@ function toggleQuickFilter(which){
   if(turningOn){
     filterStatus='all';
     document.getElementById('filter-status').value='all';
-    if(which==='due') filterDueOnly=true;
+    if(which==='unread') filterUnreadOnly=true;
+    else if(which==='due') filterDueOnly=true;
     else if(which==='mine') filterMineOnly=true;
     else if(which==='donemine') filterDoneMineOnly=true;
     else filterPinned=true;
@@ -1196,17 +1202,22 @@ function renderBoard(){
   // 「盤面全体の概況」として固定で数える。検索するたびにここが動くと、
   // 何を数えているのか分かりにくくなるため（以前は期限の件数だけ絞り込み後の値を使っていた）
   var dueToday=DATA.items.filter(function(it){ return it.action && it.dueClass==='today' && !fullyDone(it); }).length;
+  // 未読＝自分が対象で、まだ「確認した」を押していないもの。要対応・閲覧のみの両方を含む
+  var unread=DATA.items.filter(function(it){ return it.myTarget && !it.myAck; }).length;
   var doneMine=DATA.items.filter(function(it){ return it.myTarget && it.myDone; }).length;
   var pinCount=DATA.items.filter(function(it){ return it.pinned; }).length;
 
   // 概況は1枚のカードに統合し、各区画をクリックで絞り込めるようにする（toggleQuickFilter）。
-  // 「掲載中」は絞り込みの全解除、それ以外はその条件だけへの一発絞り込み。
-  // ピン留めもここに同居させている（同じ「押すと1条件に絞る」仲間で、
+  // 5区画とも「押すとその条件だけに絞る」トグル。全解除は絞り込みバーの「クリア」か、
+  // 押している区画をもう一度押す。ピン留めもここに同居させている（同じ仲間で、
   // 絞り込みバーに単独のボタンを置くと1段に収まらなくなるため）。
+  // 掲載中の総数は区画から外したので、「未読」のツールチップに添えて残している。
   var boardSummary=document.getElementById('board-summary');
   boardSummary.innerHTML=
-      '<button type="button" class="stat-seg" id="stat-all" title="絞り込みをすべて解除して見る">'
-        +'<b>'+DATA.items.length+'</b><i>新しい連絡</i></button>'
+      '<button type="button" class="stat-seg" id="stat-unread" aria-pressed="'+filterUnreadOnly+'"'
+        +' title="自分が対象で、まだ「確認した」を押していない連絡だけを表示'
+        +'（閲覧のみの連絡も含みます。掲載中は全'+DATA.items.length+'件）">'
+        +'<b>'+unread+'</b><i>未読</i></button>'
     +'<button type="button" class="stat-seg alert" id="stat-due" aria-pressed="'+filterDueOnly+'"'
         +' title="期限が今日または超過していて未対応の連絡だけを表示">'
         +'<b>'+dueToday+'</b><i>期限が今日／超過</i></button>'
@@ -1219,7 +1230,7 @@ function renderBoard(){
     +'<button type="button" class="stat-seg pin" id="stat-pin" aria-pressed="'+filterPinned+'"'
         +' title="自分がピン留めした連絡だけを表示（ピンは自分にしか見えません）">'
         +'<b>'+pinCount+'</b><i>★ ピン留め</i></button>';
-  document.getElementById('stat-all').addEventListener('click', function(){ clearFilters(); renderBoard(); });
+  document.getElementById('stat-unread').addEventListener('click', function(){ toggleQuickFilter('unread'); });
   document.getElementById('stat-due').addEventListener('click', function(){ toggleQuickFilter('due'); });
   document.getElementById('stat-mine-seg').addEventListener('click', function(){ toggleQuickFilter('mine'); });
   document.getElementById('stat-donemine').addEventListener('click', function(){ toggleQuickFilter('donemine'); });
@@ -1251,7 +1262,7 @@ function renderBoard(){
 
 /** 状態以外の絞り込み（キーワード・月・発信者）が効いているか */
 function filtering(){ return !!(filterYM||filterKW||filterSpeaker||filterPinned
-  ||filterDueOnly||filterMineOnly||filterDoneMineOnly); }
+  ||filterDueOnly||filterMineOnly||filterDoneMineOnly||filterUnreadOnly); }
 
 /** DriveのURLからファイルIDを取り出す（Drive以外は null） */
 function driveFileId(u){
