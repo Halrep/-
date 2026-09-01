@@ -440,8 +440,8 @@
     <div class="summary" id="board-summary"></div>
     <input type="search" id="filter-kw" placeholder="🔍 キーワードで絞り込み（議題・内容）">
     <select id="filter-status" aria-label="対応状況で絞り込み">
+      <option value="all" selected>すべて</option>
       <option value="undone">未完了のみ</option>
-      <option value="all">すべて</option>
       <option value="done">完了のみ</option>
     </select>
     <select id="filter-ym" aria-label="月で絞り込み"><option value="">すべての月</option></select>
@@ -650,7 +650,7 @@ tabs.forEach(function(t){ t.addEventListener('click', function(){ switchView(t.d
 // 自動的に「すべての月」へフォールバックする）。クリア操作は他の絞り込みと同様に
 // 常に「すべての月」へ戻す（現在の月が0件のとき、クリアが何も変えない事態を避けるため）
 var filterYM=currentActualYM(), filterKW='', filterSpeaker='';
-var filterStatus='undone'; // undone=未完了のみ（既定） / all=すべて / done=完了のみ
+var filterStatus='all'; // undone=未完了のみ / all=すべて（既定） / done=完了のみ
 var filterPinned=false;    // ★ピン留めのみ表示するか
 // 概況カードの各区画をクリックしたときの一発絞り込み（toggleQuickFilter 参照）
 var filterDueOnly=false, filterMineOnly=false, filterDoneMineOnly=false;
@@ -742,7 +742,7 @@ function clearFilters(status){
   filterYM=''; filterKW=''; filterSpeaker='';
   filterDueOnly=false; filterMineOnly=false; filterDoneMineOnly=false;
   filterPinned=false;
-  filterStatus=status||'undone';
+  filterStatus=status||'all';
   document.getElementById('filter-status').value=filterStatus;
 }
 document.getElementById('filter-clear').addEventListener('click', function(){
@@ -942,20 +942,22 @@ function renderList(container, items){
     container.appendChild(cardEl(it));
   }
 
-  // 折りたたみは「未完了のみ」表示のときだけ。完了を含む表示では、自分の済みを畳むと
-  // ほぼ全件が隠れて空に見えてしまうため、そのまま並べる
-  if(filterStatus!=='undone'){ items.forEach(put); return; }
+  // 片付いた連絡は末尾に畳む。「完了のみ」表示のときだけ畳まない
+  // （その表示は畳む対象そのものを並べるので、畳むと画面が空に見えてしまう）。
+  // 対象は「自分が済ませた」または「対象者全員が済んだ」もの＝自分の手を離れたもの。
+  if(filterStatus==='done'){ items.forEach(put); return; }
 
-  var open=items.filter(function(it){ return !it.myDone; });
-  var mineDone=items.filter(function(it){ return it.myDone; });
+  var settled=function(it){ return it.myDone || fullyDone(it); };
+  var open=items.filter(function(it){ return !settled(it); });
+  var doneItems=items.filter(settled);
   open.forEach(put);
-  if(mineDone.length){
+  if(doneItems.length){
     var toggle=el('<button type="button" class="fold-toggle">'
-      +(foldDoneOpen?'▼ 自分が済ませた連絡（'+mineDone.length+'件）を隠す':'▶ 自分が済ませた連絡（'+mineDone.length+'件）を表示')
+      +(foldDoneOpen?'▼ 済んだ連絡（'+doneItems.length+'件）を隠す':'▶ 済んだ連絡（'+doneItems.length+'件）を表示')
       +'</button>');
     toggle.addEventListener('click', function(){ foldDoneOpen=!foldDoneOpen; renderBoard(); });
     container.appendChild(toggle);
-    if(foldDoneOpen){ lastYm=null; mineDone.forEach(put); }
+    if(foldDoneOpen){ lastYm=null; doneItems.forEach(put); }
   }
 }
 
@@ -1091,13 +1093,13 @@ function jumpToDate(dateISO){
   });
   if(!matches.length){ showToast('この日の連絡は見つかりませんでした'); return; }
 
-  // 未完了があればそれを優先。すべて完了済みなら状態フィルタを「すべて」にして見せる
+  // 未完了があればそちらを優先して飛ぶ（同じ日に複数あるとき、手が要るものを先に見せる）
   var openMatches=matches.filter(function(it){ return !fullyDone(it); });
   var target=openMatches.length?openMatches[0]:matches[0];
-  clearFilters(openMatches.length?'undone':'all');
+  clearFilters(); // 既定の「すべて」に戻す。完了済みでも必ず一覧に出る
 
-  // 自分が済ませた連絡は末尾に畳まれているので、飛び先がそれなら開いておく
-  if(target.myDone) foldDoneOpen=true;
+  // 済んだ連絡は末尾に畳まれているので、飛び先がそれなら開いておく
+  if(target.myDone || fullyDone(target)) foldDoneOpen=true;
   switchView('board');
   setTimeout(function(){
     var card=document.querySelector('[data-item-id="'+target.id+'"]');
@@ -1162,10 +1164,9 @@ function renderSidePins(){
 function jumpToItem(itemId){
   var it=DATA.items.find(function(x){ return x.id===itemId; });
   if(!it){ showToast('連絡が見つかりませんでした'); return; }
-  // 完了済みの連絡は「未完了のみ」表示では見えないので、状態フィルタを「すべて」にする
-  clearFilters(fullyDone(it)?'all':'undone');
-  // 自分が済ませた連絡は末尾に畳まれているので、飛び先がそれなら開いておく
-  if(it.myDone) foldDoneOpen=true;
+  clearFilters(); // 既定の「すべて」に戻す。完了済みでも必ず一覧に出る
+  // 済んだ連絡は末尾に畳まれているので、飛び先がそれなら開いておく
+  if(it.myDone || fullyDone(it)) foldDoneOpen=true;
   switchView('board');
   setTimeout(function(){
     var card=document.querySelector('[data-item-id="'+itemId+'"]');
@@ -1205,7 +1206,7 @@ function renderBoard(){
   var boardSummary=document.getElementById('board-summary');
   boardSummary.innerHTML=
       '<button type="button" class="stat-seg" id="stat-all" title="絞り込みをすべて解除して見る">'
-        +'<b>'+DATA.items.length+'</b><i>掲載中</i></button>'
+        +'<b>'+DATA.items.length+'</b><i>新しい連絡</i></button>'
     +'<button type="button" class="stat-seg alert" id="stat-due" aria-pressed="'+filterDueOnly+'"'
         +' title="期限が今日または超過していて未対応の連絡だけを表示">'
         +'<b>'+dueToday+'</b><i>期限が今日／超過</i></button>'
@@ -1226,7 +1227,7 @@ function renderBoard(){
 
   if(!board.length){
     // 絞り込み（検索・月・発信者・対応状況のいずれか）が働いているときだけ解除の導線を出す
-    var narrowed = filtering() || filterStatus!=='undone';
+    var narrowed = filtering() || filterStatus!=='all';
     var html= narrowed
       ? '<div class="empty">条件に合う連絡はありません。<button type="button" class="linklike" id="empty-clear">絞り込みを解除する</button></div>'
       : '<div class="empty">表示できる連絡はありません。</div>';
