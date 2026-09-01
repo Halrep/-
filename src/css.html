@@ -2,7 +2,8 @@
 :root{
   --bg:#F5F6F2; --surface:#FFFFFF; --surface2:#EDF0EA;
   --ink:#23303A; --muted:#5D6B76; --line:#D9DFD9;
-  --primary:#2E5E8C; --primary-ink:#FFFFFF; --primary-soft:#E3ECF5; --primary-line:#B9CDE0;
+  --primary:#0A5C51; --primary-ink:#FFFFFF; --primary-soft:#DFF3EF; --primary-line:#9FCFC5;
+  --confirm:#C0463A; --confirm-ink:#FFFFFF;
   --accent:#DF9A1F; --accent-soft:#FBF0DA;
   --ok:#2E9E6B; --ok-soft:#E0F2E9;
   --busy:#3D7BB8; --busy-soft:#E2EEF8;
@@ -23,7 +24,8 @@
   :root{
     --bg:#151A1F; --surface:#1E252C; --surface2:#252D35;
     --ink:#E7EBEE; --muted:#9AA7B1; --line:#37414B;
-    --primary:#6FA3D4; --primary-ink:#0F1519; --primary-soft:#24384C; --primary-line:#3A5878;
+    --primary:#5FD6B8; --primary-ink:#0F1519; --primary-soft:#1C3830; --primary-line:#2E5A4E;
+    --confirm:#E97A6E; --confirm-ink:#0F1519;
     --accent:#E5AC45; --accent-soft:#3A2F1A;
     --ok:#4CBB8A; --ok-soft:#1E3A2E; --busy:#6FA8DC; --busy-soft:#20344A;
     --warn:#D9B23C; --warn-soft:#3A331A; --danger:#E0736C; --danger-soft:#41231F;
@@ -70,6 +72,9 @@ h3{font-size:14px; margin:0 0 8px; color:var(--muted); font-weight:700}
 .btn{display:inline-flex; align-items:center; justify-content:center; min-height:44px; border:0; border-radius:var(--r);
   padding:10px 22px; font-weight:800; background:var(--primary); color:var(--primary-ink)}
 .btn.ghost{background:var(--surface); color:var(--primary); border:1.5px solid var(--primary-line)}
+/* .next は「記録される・後戻りに手間がかかる」操作専用（計画を始める・ふりかえりを
+   記録する・できた！など）。ほかの進むボタンは .ghost にして、色だけで区別できるようにする */
+.btn.next{background:var(--confirm); color:var(--confirm-ink)}
 .btn:active{transform:translateY(1px)}
 .btn[disabled]{opacity:.5; cursor:default}
 textarea, input[type=text]{width:100%; min-height:44px; border:1.5px solid var(--line); border-radius:8px;
@@ -524,7 +529,7 @@ ruby{ruby-align:center}
 body.ruby-on{line-height:2.2}
 body.ruby-on .node .nd-t, body.ruby-on h2, body.ruby-on h3{line-height:2}
 .fp-btn[aria-pressed="true"]{background:var(--accent); color:#1b1300; border-color:var(--accent)}
-.zb-v{background:rgba(255,255,255,.25); border-radius:999px; padding:1px 9px; font-size:12.5px; font-weight:800}
+.zb-v{background:rgba(0,0,0,.28); border-radius:999px; padding:1px 9px; font-size:12.5px; font-weight:800}
 
 /* ---- ① ゴールまでの道すじ（ノードをつないで単元の計画をつくる） ----
    課題は「飛び石」、あいだの線は「つながり」。
