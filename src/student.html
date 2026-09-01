@@ -80,7 +80,7 @@
 
           <div class="step-nav">
             <span class="route-sum" id="route-sum"></span>
-            <button class="btn next" data-go="0,1">きょうの計画を立てる →</button>
+            <button class="btn ghost" data-go="0,1">きょうの計画を立てる →</button>
           </div>
         </section>
 
@@ -214,7 +214,7 @@
           </div>
           <div class="step-nav">
             <span></span>
-            <button class="btn next" data-go="2,1">そのわけを考える →</button>
+            <button class="btn ghost" data-go="2,1">そのわけを考える →</button>
           </div>
         </section>
 
@@ -233,7 +233,7 @@
           </div>
           <div class="step-nav">
             <button class="btn ghost back" data-go="2,0">← もどる</button>
-            <button class="btn next" data-go="2,2">次にいかすことへ →</button>
+            <button class="btn ghost" data-go="2,2">次にいかすことへ →</button>
           </div>
         </section>
 
@@ -669,6 +669,24 @@ function lnkHtml(zone, gap, prev, opts){
   return '<i class="'+cls+'" aria-hidden="true"'+(zone ? ' data-zone="'+zone+'" data-gap="'+gap+'"' : '')+'></i>';
 }
 
+/** 飛び石の題名：末尾の述語（「〜を整理する」の「整理する」など）が送り仮名の
+ * 途中で折り返されないよう、直前の助詞のあとだけを分かち書きにする。助詞の直後
+ * での改行は日本語の見出しで普通に使う区切り方なので、そこは自由に折り返してよい。 */
+function softTitle(title){
+  var t = String(title == null ? '' : title);
+  // 「と」「の」「が」「は」は動詞そのものの送り仮名にもよく現れる（例：「まとめる」の「と」）
+  // ため、助詞としての手がかりにはしない。ほぼ助詞としてしか出てこない4つだけを使う
+  var PARTICLES = ['を','に','へ','で'];
+  var cut = -1;
+  for(var i = t.length - 2; i >= Math.max(0, t.length - 12); i--){
+    if(PARTICLES.indexOf(t[i]) >= 0){ cut = i; break; }
+  }
+  if(cut < 0) return esc(t);
+  var tail = t.slice(cut + 1);
+  if(tail.length < 2 || tail.length > 10) return esc(t);
+  return esc(t.slice(0, cut + 1)) + '<span class="nd-tail">' + esc(tail) + '</span>';
+}
+
 function nodeHtml(t, zone, i, count, mode, nextTid){
   var work = mode === 'work';
   var ix = taskIx(t.taskId);
@@ -683,7 +701,7 @@ function nodeHtml(t, zone, i, count, mode, nextTid){
       (work ? ' data-open="'+ix+'"' : '')+'>'+
     '<span class="nd-k k'+esc(t.kind)+'">'+esc(KIND_MARK[t.kind]||t.kind)+'</span>'+
     '<span class="nd-s s'+t.status+'">'+ST_LABEL[t.status]+'</span>'+
-    '<span class="nd-t">'+esc(t.title)+'</span>'+
+    '<span class="nd-t">'+softTitle(t.title)+'</span>'+
     '<span class="nd-m">めやす '+esc(t.mins)+'分'+(work && u ? ('　'+esc(u.icon)+' '+esc(u.label)) : '')+'</span>'+
     '<span class="nd-ops">'+
       (work
@@ -716,7 +734,7 @@ function renderTray(){
     return '<div class="node k'+esc(t.kind)+' s'+t.status+(beyond?' to-beyond':'')+
         '" data-tid="'+esc(t.taskId)+'" data-tray="1">'+
       '<span class="nd-k k'+esc(t.kind)+'">'+esc(KIND_MARK[t.kind]||t.kind)+'</span>'+
-      '<span class="nd-t">'+esc(t.title)+'</span>'+
+      '<span class="nd-t">'+softTitle(t.title)+'</span>'+
       '<span class="nd-m">めやす '+esc(t.mins)+'分</span>'+
       '<span class="nd-ops"><button class="nd-op" data-in="'+esc(t.taskId)+'">'+
         (beyond ? '＋ ゴールのむこうに置く' : '＋ 道すじに入れる')+'</button></span>'+
@@ -1121,7 +1139,7 @@ function renderBands(){
       '<span class="now s'+t.status+'">いま：'+ST_LABEL[t.status]+'</span>'+
       (t.status===0
         ? '<button class="btn next" data-status="1">▶ 取りかかる</button>'
-        : '<button class="btn next" data-band-go="1">すすめる →</button>')+
+        : '<button class="btn ghost" data-band-go="1">すすめる →</button>')+
     '</div>';
 
   /* ✏️ すすめる：資料と工夫だけ。作業中はここにいる */
@@ -1132,7 +1150,7 @@ function renderBands(){
       '<div class="card-b"><div class="strat-grid">'+stratHtml+'</div></div></div>'+
     '<div class="step-nav">'+
       '<button class="btn ghost back" data-band-go="0">← はじめるにもどる</button>'+
-      '<button class="btn next" data-band-go="2">おわりに →</button>'+
+      '<button class="btn ghost" data-band-go="2">おわりに →</button>'+
     '</div>';
 
   /* 👥 だれかと確かめ合った？
