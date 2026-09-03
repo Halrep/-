@@ -14,6 +14,7 @@ from src.agents.analyst import AnalystAgent
 from src.agents.editor import EditorAgent
 from src.agents.news_collector import NewsCollectorAgent
 from src.agents.publisher import PublisherAgent
+from src.agents.sns_collector import CompositeSNSProvider, FiveChProvider
 from src.agents.writer import WriterAgent
 from src.models import Article, NewsItem, SNSReaction, Topic
 
@@ -193,3 +194,42 @@ def test_writer_does_not_add_hedge_for_official_news_only():
     WriterAgent(llm_client=llm_client).run(topic)
 
     assert "未確認情報の印がついた" not in llm_client.last_prompt
+
+
+def test_five_ch_provider_converts_read_cgi_url_to_dat_url():
+    provider = FiveChProvider(["https://xxx.5ch.net/test/read.cgi/car/1234567890/"])
+
+    assert provider.thread_urls == ["https://xxx.5ch.net/car/dat/1234567890.dat"]
+
+
+def test_five_ch_provider_parses_dat_line():
+    line = "名無しさん<>sage<>2026/09/03(木) 12:00:00.00 ID:abcdefgh<>新型車<b>かっこいい</b>ですね<>スレタイ"
+
+    reaction = FiveChProvider._parse_line("https://xxx.5ch.net/car/dat/1.dat", 5, line)
+
+    assert reaction is not None
+    assert reaction.platform == "5ch"
+    assert reaction.author == "名無しさん"
+    assert reaction.text == "新型車かっこいいですね"
+    assert reaction.url == "https://xxx.5ch.net/car/dat/1.dat#5"
+
+
+def test_five_ch_provider_ignores_malformed_line():
+    assert FiveChProvider._parse_line("https://xxx.5ch.net/car/dat/1.dat", 1, "不正な行") is None
+
+
+def test_composite_sns_provider_merges_results():
+    class _StubProvider:
+        def __init__(self, reactions):
+            self._reactions = reactions
+
+        def search(self, query, max_results):
+            return self._reactions
+
+    reaction_a = SNSReaction(platform="YouTube", author="a", text="a", url="https://example.com/a", posted_at=datetime.now(timezone.utc))
+    reaction_b = SNSReaction(platform="5ch", author="b", text="b", url="https://example.com/b", posted_at=datetime.now(timezone.utc))
+
+    provider = CompositeSNSProvider([_StubProvider([reaction_a]), _StubProvider([reaction_b])])
+    results = list(provider.search("query", 30))
+
+    assert results == [reaction_a, reaction_b]

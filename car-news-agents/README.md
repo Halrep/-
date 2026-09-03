@@ -13,8 +13,8 @@ note.com連携の詳細・注意点は [`docs/NOTE_INTEGRATION.md`](docs/NOTE_IN
 
 | 部門 | 役割 |
 |---|---|
-| 情報収集（News） | RSSフィードから自動車関連ニュースを収集 |
-| 情報収集（SNS） | X(Twitter)等でのSNS上の反応を収集 |
+| 情報収集（News） | RSSフィードから自動車関連ニュースを収集（価格.com掲示板等の未確認情報源も区別して扱える） |
+| 情報収集（SNS） | X(Twitter) / YouTubeコメント / 5ch でのSNS上の反応を収集（複数プロバイダを組み合わせ可） |
 | 分析 | ニュースとSNS反応を突き合わせ、記事化するトピックに整理・傾向判定 |
 | 執筆 | LLMでnote.com向け記事（Markdown）を執筆 |
 | 編集・校正 | 文字数/NGワードチェック、出典整理、LLMによる校正 |
@@ -38,8 +38,14 @@ cp config/config.example.yaml config/config.yaml
 | 変数 | 用途 | 未設定時の挙動 |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | 分析・執筆・校正でのLLM呼び出し | 分析は簡易要約に、執筆/校正はエラーになるため設定必須 |
-| `X_BEARER_TOKEN` | X (Twitter) API v2でのSNS収集 | SNS収集をスキップ（ニュースのみで記事生成） |
+| `X_BEARER_TOKEN` | X (Twitter) API v2でのSNS収集（有料プラン必要） | Xからの収集をスキップ |
+| `YOUTUBE_API_KEY` | YouTube Data API v3でのコメント収集（無料枠あり） | YouTubeからの収集をスキップ |
 | `NOTE_EMAIL` / `NOTE_PASSWORD` | note.comへのログイン | note.comへの投稿をスキップし、ローカル保存のみ行う |
+
+`config/config.yaml` の `sns.five_ch_threads` に5chスレッドのURLを追加すると、
+そのスレッドの投稿も収集対象になります（APIキー不要、ただし公式APIが無いため
+自己責任での利用となります）。上記のいずれも未設定の場合、SNS収集はスキップされ
+ニュースのみで記事が生成されます。
 
 ## 実行
 

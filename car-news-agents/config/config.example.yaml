@@ -33,11 +33,20 @@ news:
   lookback_hours: 24
 
 sns:
-  # SNS検索クエリ（XApiProviderを使う場合、X API v2のクエリ構文に従う）
+  # SNS検索クエリ。X/YouTube検索、5ch投稿の絞り込みキーワードとして使われる。
   queries:
     - "新型車 OR フルモデルチェンジ"
     - "EV OR 電気自動車"
   max_results_per_query: 30
+
+  # 5ch（旧2ch）の追跡対象スレッドURL。話題を横断検索する公式APIが無いため、
+  # 具体的なスレッドURLを自分で調べて指定する必要がある
+  # （read.cgiのURL、または直接datファイルのURLどちらでも可。
+  #  例: https://xxx.5ch.net/test/read.cgi/car/1234567890/）。
+  # このサンドボックスからは5chへの直接アクセスができず、実在するスレッドURLを
+  # 確認できなかったため、既定では空にしています。
+  five_ch_threads: []
+    # - https://xxx.5ch.net/test/read.cgi/car/1234567890/
 
 analyst:
   # 1トピックとみなす最低ニュース件数

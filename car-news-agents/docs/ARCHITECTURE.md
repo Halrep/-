@@ -25,8 +25,8 @@ flowchart LR
 
 | 部門 | クラス | 役割 |
 |---|---|---|
-| 情報収集 | `NewsCollectorAgent` | 設定されたRSSフィードから自動車関連ニュースを収集する |
-| SNS反応収集 | `SNSCollectorAgent` | X(Twitter)等でのSNS上の反応を収集する（`SNSProvider`を差し替え可能） |
+| 情報収集 | `NewsCollectorAgent` | 設定されたRSSフィードから自動車関連ニュースを収集する。価格.com掲示板等の未確認情報源は`unofficial_feed_urls`に分離して指定でき、該当ニュースは`NewsItem.is_unofficial=True`となる |
+| SNS反応収集 | `SNSCollectorAgent` | X(Twitter) / YouTubeコメント / 5ch 等のSNS上の反応を収集する（`SNSProvider`を差し替え・`CompositeSNSProvider`で複数組み合わせ可能） |
 | 分析 | `AnalystAgent` | ニュースとSNS反応を突き合わせ、記事化する話題単位（`Topic`）に整理し、要約と反応傾向を判定する |
 | 執筆 | `WriterAgent` | トピックをもとにLLMでnote.com向け記事（Markdown）を執筆する |
 | 編集・校正 | `EditorAgent` | 文字数・NGワードチェック、出典セクションの付与、LLMによる校正を行う |
@@ -38,8 +38,11 @@ flowchart LR
 
 ## 拡張ポイント
 
-- **SNSプラットフォームの追加**: `SNSProvider` プロトコルを実装すれば Instagram や
-  YouTubeコメント等にも対応できます（`src/agents/sns_collector.py`）。
+- **SNSプラットフォームの追加**: `SNSProvider` プロトコルを実装すれば追加のプラット
+  フォームにも対応できます（`src/agents/sns_collector.py`）。標準で
+  `XApiProvider`（X、有料APIが必要）、`YouTubeCommentsProvider`（YouTube公式API、
+  無料枠あり）、`FiveChProvider`（5ch、設定したスレッドURLから収集・公式APIなし）
+  を用意しており、`CompositeSNSProvider` で複数を組み合わせて使えます。
 - **キーワード抽出/クラスタリングの高度化**: 現状は簡易な文字列分割によるクラスタリング
   です。精度を上げる場合は形態素解析器（Janome, MeCab等）や埋め込みベクトルによる
   類似度クラスタリングへの置き換えを検討してください（`AnalystAgent._extract_keyword`）。

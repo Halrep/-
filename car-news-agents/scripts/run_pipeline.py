@@ -21,7 +21,14 @@ from src.agents.analyst import AnalystAgent
 from src.agents.editor import EditorAgent
 from src.agents.news_collector import NewsCollectorAgent
 from src.agents.publisher import PublisherAgent
-from src.agents.sns_collector import NullSNSProvider, SNSCollectorAgent, XApiProvider
+from src.agents.sns_collector import (
+    CompositeSNSProvider,
+    FiveChProvider,
+    NullSNSProvider,
+    SNSCollectorAgent,
+    XApiProvider,
+    YouTubeCommentsProvider,
+)
 from src.agents.writer import WriterAgent
 from src.llm_client import LLMClient
 from src.note_client import NoteCredentials, NotePublisher
@@ -43,8 +50,21 @@ def build_orchestrator(config: dict) -> Orchestrator:
         unofficial_feed_urls=config["news"].get("unofficial_feeds", []),
     )
 
+    sns_providers = []
+
     bearer_token = os.environ.get("X_BEARER_TOKEN")
-    sns_provider = XApiProvider(bearer_token) if bearer_token else NullSNSProvider()
+    if bearer_token:
+        sns_providers.append(XApiProvider(bearer_token))
+
+    youtube_api_key = os.environ.get("YOUTUBE_API_KEY")
+    if youtube_api_key:
+        sns_providers.append(YouTubeCommentsProvider(youtube_api_key))
+
+    five_ch_threads = config.get("sns", {}).get("five_ch_threads", [])
+    if five_ch_threads:
+        sns_providers.append(FiveChProvider(five_ch_threads))
+
+    sns_provider = CompositeSNSProvider(sns_providers) if sns_providers else NullSNSProvider()
     sns_collector = SNSCollectorAgent(
         provider=sns_provider,
         queries=config["sns"]["queries"],
