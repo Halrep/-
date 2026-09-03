@@ -12,8 +12,34 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from src.agents.analyst import AnalystAgent
 from src.agents.editor import EditorAgent
+from src.agents.news_collector import NewsCollectorAgent
 from src.agents.publisher import PublisherAgent
+from src.agents.writer import WriterAgent
 from src.models import Article, NewsItem, SNSReaction, Topic
+
+_MINIMAL_RSS = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+<title>テストメディア</title>
+<item>
+  <title>テスト記事タイトル</title>
+  <link>https://example.com/test-article</link>
+  <description>概要</description>
+</item>
+</channel></rss>
+"""
+
+
+class _FakeLLMClient:
+    """LLMClientの代わりにプロンプトを記録するだけのテスト用スタブ。"""
+
+    available = True
+
+    def __init__(self):
+        self.last_prompt = None
+
+    def complete(self, system, prompt, max_tokens=2000):
+        self.last_prompt = prompt
+        return "## 見出し\n本文です。\n\n## SNSの反応\nおおむね好評です。"
 
 
 def _make_news(title: str, source: str = "テスト媒体") -> NewsItem:
@@ -111,3 +137,59 @@ def test_publisher_skips_note_when_publisher_not_configured(tmp_path):
     result = publisher.run(article)
 
     assert result is None
+
+
+def test_news_collector_flags_unofficial_feed_items():
+    # ネットワークを使わず、feedparserにRSS本文を直接渡してパースさせる。
+    collector = NewsCollectorAgent(feed_urls=[], unofficial_feed_urls=[_MINIMAL_RSS])
+
+    items = collector.run()
+
+    assert len(items) == 1
+    assert items[0].title == "テスト記事タイトル"
+    assert items[0].is_unofficial is True
+
+
+def test_news_collector_official_feed_items_are_not_flagged():
+    collector = NewsCollectorAgent(feed_urls=[_MINIMAL_RSS])
+
+    items = collector.run()
+
+    assert len(items) == 1
+    assert items[0].is_unofficial is False
+
+
+def test_writer_hedges_unofficial_news_in_prompt():
+    topic = Topic(
+        title="新型モデルの噂",
+        news_items=[
+            NewsItem(
+                title="ディーラー情報",
+                url="https://example.com/a",
+                source="価格.com 口コミ掲示板",
+                is_unofficial=True,
+            )
+        ],
+        summary="新型モデルの噂について",
+    )
+    llm_client = _FakeLLMClient()
+
+    WriterAgent(llm_client=llm_client).run(topic)
+
+    assert "未確認情報" in llm_client.last_prompt
+    assert "（未確認情報）" in llm_client.last_prompt
+
+
+def test_writer_does_not_add_hedge_for_official_news_only():
+    topic = Topic(
+        title="新型モデル発表",
+        news_items=[
+            NewsItem(title="公式発表", url="https://example.com/b", source="Response")
+        ],
+        summary="新型モデルが正式発表されました",
+    )
+    llm_client = _FakeLLMClient()
+
+    WriterAgent(llm_client=llm_client).run(topic)
+
+    assert "未確認情報の印がついた" not in llm_client.last_prompt

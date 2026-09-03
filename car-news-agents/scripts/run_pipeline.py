@@ -40,6 +40,7 @@ def build_orchestrator(config: dict) -> Orchestrator:
     news_collector = NewsCollectorAgent(
         feed_urls=config["news"]["feeds"],
         lookback_hours=config["news"].get("lookback_hours", 24),
+        unofficial_feed_urls=config["news"].get("unofficial_feeds", []),
     )
 
     bearer_token = os.environ.get("X_BEARER_TOKEN")

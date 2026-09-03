@@ -14,12 +14,11 @@ class WriterAgent(BaseAgent):
         self.llm_client = llm_client
 
     def run(self, topic: Topic) -> Article:
-        news_lines = "\n".join(
-            f"- {n.title}（出典: {n.source} / {n.url}）" for n in topic.news_items
-        )
+        news_lines = "\n".join(self._format_news_line(n) for n in topic.news_items)
         sns_lines = "\n".join(f"- {r.text}" for r in topic.sns_reactions[:15]) or (
             "（SNS上での目立った反応は見つかりませんでした）"
         )
+        has_unofficial = any(n.is_unofficial for n in topic.news_items)
 
         prompt = (
             "あなたは自動車ニュースメディアの記者です。以下の情報をもとに、"
@@ -30,8 +29,16 @@ class WriterAgent(BaseAgent):
             "- SNS投稿は長文の丸写しを避け、要点を要約または短い引用に留めること\n"
             "- 引用したニュースの出典（サイト名）は本文中で言及すること（URLは別途出典一覧に記載する）\n"
             "- 文体は「です・ます調」、読者は自動車好きの一般層\n"
-            "- 分量は800〜1200字程度\n\n"
-            f"# トピック概要\n{topic.summary}\n\n"
+            "- 分量は800〜1200字程度\n"
+            + (
+                "- 「(未確認情報)」の印がついたニュースは、メーカー公式発表前の"
+                "掲示板・ディーラー筋情報等であり正式発表ではない。"
+                "「〜という情報が掲示板に投稿されています」「正式発表ではありません」"
+                "のように断定を避けた表現で扱い、確定した仕様であるかのように書かないこと。\n"
+                if has_unofficial
+                else ""
+            )
+            + f"\n# トピック概要\n{topic.summary}\n\n"
             f"# 関連ニュース\n{news_lines}\n\n"
             f"# SNSでの反応（傾向: {topic.sentiment}）\n{sns_lines}\n"
         )
@@ -60,3 +67,8 @@ class WriterAgent(BaseAgent):
         tags = ["自動車", "クルマ好きと繋がりたい"]
         tags.extend(topic.keywords[:3])
         return tags
+
+    @staticmethod
+    def _format_news_line(item) -> str:
+        suffix = "（未確認情報）" if item.is_unofficial else ""
+        return f"- {item.title}{suffix}（出典: {item.source} / {item.url}）"

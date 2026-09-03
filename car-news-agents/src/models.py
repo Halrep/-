@@ -16,6 +16,9 @@ class NewsItem:
     published_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     summary: str = ""
     body: str = ""
+    # 価格.comの口コミ掲示板等、メーカー公式発表前の未確認情報の場合True。
+    # WriterAgentはこのフラグが立つ情報を断定的な文体で記載しない。
+    is_unofficial: bool = False
 
 
 @dataclass

@@ -3,11 +3,32 @@
 #   cp config/config.example.yaml config/config.yaml
 
 news:
-  # 収集対象のRSSフィード一覧。自動車系メディアのRSS URLを追加してください。
+  # 収集対象のRSSフィード一覧。
+  #
+  # 注意: このサンドボックス環境では一般サイトへの直接アクセスができず、
+  # 以下のURLは「WordPress系サイトに多いRSSパターン(/feed)」から一般論として
+  # 設定した未検証の候補です。実行時に無効なURLがあると
+  # news_collector が "フィードの解析に問題があります" という警告をログに
+  # 出すので、それを見て実際のURLに差し替えてください
+  # （各サイトのRSSアイコン、またはページソース内の
+  #   <link rel="alternate" type="application/rss+xml"> を確認するのが確実です）。
   feeds:
-    - https://response.jp/feed/all.rdf
-    - https://www.autocar.jp/rss/all.xml
-    - https://motor-fan.jp/feed
+    - https://kuruma-news.jp/feed          # くるまのニュース（要検証）
+    - https://autoc-one.jp/feed            # MOTA / オートックワン（要検証）
+    # - https://car.watch.impress.co.jp/... # Car Watch: RSS配信ページ
+    #   https://car.watch.impress.co.jp/docs/common/rss.html を参照しURLを確認
+    # - https://response.jp/...            # レスポンス: サイト内のRSSリンクを確認
+
+  # 価格.com（kuruma.kakaku.com）の口コミ掲示板に出るディーラー筋の
+  # 未公式情報など、「メーカー公式発表前で断定できない情報源」はここに入れる。
+  # ここに列挙したフィード由来のニュースは NewsItem.is_unofficial=True となり、
+  # WriterAgentが「未確認情報」として断定を避けた文体で扱う（src/agents/writer.py）。
+  # 口コミ掲示板はスレッド形式でRSS化されているか不明なため、実際のURLが
+  # 分かり次第ここに追加してください（見つからない場合は自動収集を諦め、
+  # 手動で確認した情報をトピックに追記する運用でも構いません）。
+  unofficial_feeds: []
+    # - https://kuruma.kakaku.com/...     # 価格.com 自動車 口コミ掲示板（要調査）
+
   # 何時間以内に公開された記事を対象とするか
   lookback_hours: 24
 
