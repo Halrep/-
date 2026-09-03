@@ -1,0 +1,34 @@
+# car-news-agents 設定ファイルの例。
+# コピーして config/config.yaml として使用してください。
+#   cp config/config.example.yaml config/config.yaml
+
+news:
+  # 収集対象のRSSフィード一覧。自動車系メディアのRSS URLを追加してください。
+  feeds:
+    - https://response.jp/feed/all.rdf
+    - https://www.autocar.jp/rss/all.xml
+    - https://motor-fan.jp/feed
+  # 何時間以内に公開された記事を対象とするか
+  lookback_hours: 24
+
+sns:
+  # SNS検索クエリ（XApiProviderを使う場合、X API v2のクエリ構文に従う）
+  queries:
+    - "新型車 OR フルモデルチェンジ"
+    - "EV OR 電気自動車"
+  max_results_per_query: 30
+
+analyst:
+  # 1トピックとみなす最低ニュース件数
+  min_news_per_topic: 1
+  # 1回の実行で生成する記事数の上限
+  max_topics: 3
+
+llm:
+  model: "claude-sonnet-5"
+
+publish:
+  # true: note.com への投稿は行わずローカル保存のみ（推奨・初期値）
+  # false: NOTE_EMAIL / NOTE_PASSWORD が設定されていればnote.comへ投稿を試みる
+  dry_run: true
+  local_output_dir: "./output"

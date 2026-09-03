@@ -4,3 +4,11 @@
 
 node_modules/
 .DS_Store
+
+# car-news-agents（Python）：認証情報・生成物・キャッシュはコミットしない
+car-news-agents/.env
+car-news-agents/config/config.yaml
+car-news-agents/output/
+__pycache__/
+*.pyc
+.pytest_cache/
