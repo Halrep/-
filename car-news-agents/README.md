@@ -37,7 +37,8 @@ cp config/config.example.yaml config/config.yaml
 
 | 変数 | 用途 | 未設定時の挙動 |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | 分析・執筆・校正でのLLM呼び出し | 分析は簡易要約に、執筆/校正はエラーになるため設定必須 |
+| `GEMINI_API_KEY` | 分析・執筆・校正でのLLM呼び出し（Google Gemini、無料枠あり） | 未設定かつANTHROPIC_API_KEYも無い場合、分析は簡易要約に、執筆/校正はエラーになる |
+| `ANTHROPIC_API_KEY` | 同上（Anthropic、従量課金） | 同上。GEMINI_API_KEYと両方設定時はGeminiが優先される |
 | `X_BEARER_TOKEN` | X (Twitter) API v2でのSNS収集（有料プラン必要） | Xからの収集をスキップ |
 | `YOUTUBE_API_KEY` | YouTube Data API v3でのコメント収集（無料枠あり） | YouTubeからの収集をスキップ |
 | `NOTE_EMAIL` / `NOTE_PASSWORD` | note.comへのログイン | note.comへの投稿をスキップし、ローカル保存のみ行う |

@@ -55,7 +55,16 @@ analyst:
   max_topics: 3
 
 llm:
-  model: "claude-sonnet-5"
+  # "gemini"（無料枠あり、.envにGEMINI_API_KEYを設定）または
+  # "anthropic"（従量課金、.envにANTHROPIC_API_KEYを設定）。
+  # 未指定の場合、設定されている方のAPIキーから自動判定する
+  # （両方設定されている場合はgeminiを優先）。
+  provider: "gemini"
+  # 未指定の場合、providerごとの既定モデルを使う
+  # （gemini: gemini-2.0-flash / anthropic: claude-sonnet-5）。
+  # 無料枠のモデル名は変更されることがあるため、動作しない場合は
+  # https://ai.google.dev/gemini-api/docs/models で最新のモデル名を確認すること。
+  model: "gemini-2.0-flash"
 
 publish:
   # true: note.com への投稿は行わずローカル保存のみ（推奨・初期値）

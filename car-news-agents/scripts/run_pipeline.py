@@ -42,7 +42,14 @@ def load_config(path: str) -> dict:
 
 
 def build_orchestrator(config: dict) -> Orchestrator:
-    llm_client = LLMClient(model=config.get("llm", {}).get("model", "claude-sonnet-5"))
+    llm_config = config.get("llm", {})
+    llm_client = LLMClient(provider=llm_config.get("provider"), model=llm_config.get("model"))
+    if not llm_client.available:
+        print(
+            "警告: LLMのAPIキーが未設定のため、分析は簡易要約に、"
+            "執筆/校正エージェントの実行時にはエラーになります。"
+            ".env に GEMINI_API_KEY または ANTHROPIC_API_KEY を設定してください。"
+        )
 
     news_collector = NewsCollectorAgent(
         feed_urls=config["news"]["feeds"],

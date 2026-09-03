@@ -43,6 +43,10 @@ flowchart LR
   `XApiProvider`（X、有料APIが必要）、`YouTubeCommentsProvider`（YouTube公式API、
   無料枠あり）、`FiveChProvider`（5ch、設定したスレッドURLから収集・公式APIなし）
   を用意しており、`CompositeSNSProvider` で複数を組み合わせて使えます。
+- **LLMプロバイダの切り替え**: `LLMClient`（`src/llm_client.py`）はAnthropic APIと
+  Google Gemini API（無料枠あり）の両方に対応しており、`.env`にどちらのAPIキーが
+  設定されているかで自動判定します（`config/config.yaml`の`llm.provider`で明示指定も可）。
+  他プロバイダを追加する場合は `_LLMBackend` プロトコルを実装してください。
 - **キーワード抽出/クラスタリングの高度化**: 現状は簡易な文字列分割によるクラスタリング
   です。精度を上げる場合は形態素解析器（Janome, MeCab等）や埋め込みベクトルによる
   類似度クラスタリングへの置き換えを検討してください（`AnalystAgent._extract_keyword`）。

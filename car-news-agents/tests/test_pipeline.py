@@ -16,6 +16,7 @@ from src.agents.news_collector import NewsCollectorAgent
 from src.agents.publisher import PublisherAgent
 from src.agents.sns_collector import CompositeSNSProvider, FiveChProvider
 from src.agents.writer import WriterAgent
+from src.llm_client import LLMClient, _GeminiBackend
 from src.models import Article, NewsItem, SNSReaction, Topic
 
 _MINIMAL_RSS = """<?xml version="1.0" encoding="UTF-8"?>
@@ -233,3 +234,46 @@ def test_composite_sns_provider_merges_results():
     results = list(provider.search("query", 30))
 
     assert results == [reaction_a, reaction_b]
+
+
+def test_gemini_backend_builds_expected_request_body():
+    body = _GeminiBackend._build_request_body("system指示", "本文プロンプト", 500)
+
+    assert body["systemInstruction"]["parts"][0]["text"] == "system指示"
+    assert body["contents"][0]["parts"][0]["text"] == "本文プロンプト"
+    assert body["generationConfig"]["maxOutputTokens"] == 500
+
+
+def test_gemini_backend_parses_response_text():
+    payload = {
+        "candidates": [{"content": {"parts": [{"text": "生成された"}, {"text": "記事です"}]}}]
+    }
+
+    assert _GeminiBackend._parse_response(payload) == "生成された記事です"
+
+
+def test_gemini_backend_raises_on_empty_candidates():
+    import pytest
+
+    with pytest.raises(RuntimeError):
+        _GeminiBackend._parse_response({"candidates": []})
+
+
+def test_llm_client_autodetects_gemini_over_anthropic(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "dummy-gemini-key")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy-anthropic-key")
+
+    client = LLMClient()
+
+    assert client.provider == "gemini"
+    assert client.available is True
+    assert client.model == "gemini-2.0-flash"
+
+
+def test_llm_client_unavailable_without_any_key(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+    client = LLMClient()
+
+    assert client.available is False
