@@ -1,0 +1,2674 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>アイデアスケッチノート</title>
+<meta name="theme-color" content="#5ec8a8">
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj4KICA8cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgcng9IjM2IiBmaWxsPSIjZmZmNmVhIi8+CiAgPGNpcmNsZSBjeD0iNzAiIGN5PSI3MiIgcj0iMzAiIGZpbGw9IiM1ZWM4YTgiLz4KICA8Y2lyY2xlIGN4PSIxMTgiIGN5PSI2NiIgcj0iMjQiIGZpbGw9IiNmZjhmNmIiLz4KICA8Y2lyY2xlIGN4PSI5NiIgY3k9IjExOCIgcj0iMzQiIGZpbGw9IiM1YjhkZWYiLz4KICA8cGF0aCBkPSJNNTAgMTUwYzMwLTE0IDYyLTE0IDkyIDAiIHN0cm9rZT0iIzNhM2EzYSIgc3Ryb2tlLXdpZHRoPSI4IiBzdHJva2UtbGluZWNhcD0icm91bmQiIGZpbGw9Im5vbmUiLz4KPC9zdmc+Cg==" type="image/svg+xml">
+<style>
+:root{
+  --ink:#3a3a3a;
+  --ink-soft:#6b6b6b;
+  --paper-bg:#fff6ea;
+  --panel-bg:#ffffff;
+  --line:#e2ddd2;
+  --mint:#5ec8a8;
+  --mint-dark:#3fa987;
+  --coral:#ff8f6b;
+  --danger:#e0604a;
+  --focus:#5b8def;
+  --topbar-h:56px;
+  --bottombar-h:76px;
+  --tap:48px;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;margin:0;}
+body{
+  font-family:"Hiragino Maru Gothic ProN","Yu Gothic",system-ui,sans-serif;
+  color:var(--ink);
+  background:var(--paper-bg);
+  font-size:16px;
+  -webkit-user-select:none;
+  user-select:none;
+  overflow:hidden;
+  touch-action:manipulation;
+}
+button{font-family:inherit;font-size:inherit;color:inherit;}
+input[type=text],input[type=number]{font-family:inherit;font-size:16px;}
+
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;}
+[hidden]{display:none!important;}
+
+/* ---------- ボタン共通 ---------- */
+.btn{
+  min-height:var(--tap);
+  min-width:var(--tap);
+  padding:8px 14px;
+  border:none;
+  border-radius:14px;
+  background:var(--panel-bg);
+  box-shadow:0 1px 0 var(--line);
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  cursor:pointer;
+}
+.btn:active{transform:translateY(1px);}
+.btn:focus-visible{outline:3px solid var(--focus);outline-offset:2px;}
+.btn-flat{background:transparent;box-shadow:none;}
+.btn-primary{background:var(--mint);color:#fff;font-weight:700;}
+.btn-primary:active{background:var(--mint-dark);}
+.btn-danger{background:var(--danger);color:#fff;font-weight:700;}
+.btn-lg{padding:12px 20px;font-size:18px;}
+.btn-icon-only{padding:0;justify-content:center;font-size:20px;}
+.btn[aria-disabled=true],.btn:disabled{opacity:.35;pointer-events:none;}
+.btn-icon{font-size:18px;}
+
+/* ---------- ふりがな ---------- */
+[data-ruby]{position:relative;}
+body.furigana-on [data-ruby]::before{
+  content:attr(data-ruby);
+  display:block;
+  font-size:.55em;
+  line-height:1.1;
+  color:var(--ink-soft);
+  white-space:nowrap;
+}
+
+/* ================= 作品一覧 ================= */
+.gallery-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 16px;background:var(--panel-bg);border-bottom:1px solid var(--line);
+}
+.app-title{font-size:20px;margin:0;}
+.gallery-toolbar{display:flex;align-items:center;gap:12px;padding:14px 16px;}
+.storage-hint{color:var(--ink-soft);font-size:13px;}
+.gallery-grid{
+  flex:1;overflow-y:auto;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  gap:14px;padding:0 16px 24px;
+}
+.gallery-empty{text-align:center;color:var(--ink-soft);margin-top:40px;line-height:1.8;}
+.work-card{
+  background:var(--panel-bg);border-radius:16px;overflow:hidden;
+  box-shadow:0 2px 6px rgba(0,0,0,.08);cursor:pointer;
+  display:flex;flex-direction:column;
+}
+.work-card img{width:100%;aspect-ratio:4/3;object-fit:cover;background:#f2efe6;display:block;}
+.work-card .work-name{padding:8px 10px;font-size:14px;flex:1;}
+.work-card .work-menu-row{display:flex;border-top:1px solid var(--line);}
+.work-card .work-menu-row button{
+  flex:1;min-height:44px;border:none;background:none;font-size:16px;cursor:pointer;
+}
+.work-card .work-menu-row button:active{background:var(--line);}
+
+/* ================= モーダル ================= */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.35);
+  display:flex;align-items:center;justify-content:center;z-index:50;padding:16px;
+}
+.modal-box{
+  background:var(--panel-bg);border-radius:20px;padding:20px;
+  width:min(480px,100%);max-height:90vh;overflow-y:auto;
+}
+.modal-box h2{margin-top:0;font-size:18px;}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;}
+.preset-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px;}
+.preset-grid-3{grid-template-columns:repeat(3,1fr);}
+.preset-card{
+  border:2px solid var(--line);border-radius:12px;padding:10px;text-align:center;
+  background:none;cursor:pointer;min-height:var(--tap);
+}
+.preset-card[aria-pressed=true]{border-color:var(--mint);background:#eafaf4;}
+.preset-shape{margin:0 auto 6px;background:#fff;border:1px solid var(--line);}
+.custom-size-row{margin:10px 0;}
+.custom-size-toggle{display:flex;align-items:center;gap:8px;min-height:var(--tap);}
+.custom-size-inputs{display:flex;gap:14px;margin-top:8px;}
+.custom-size-inputs input{width:80px;padding:6px;border:1px solid var(--line);border-radius:8px;}
+.title-row{display:block;margin-top:14px;font-size:14px;color:var(--ink-soft);}
+.title-row input{width:100%;padding:10px;margin-top:4px;border:1px solid var(--line);border-radius:10px;}
+.settings-row{display:flex;align-items:center;justify-content:space-between;min-height:var(--tap);gap:12px;}
+.settings-row input[type=checkbox]{width:24px;height:24px;}
+.settings-row input[type=range]{flex:1;}
+
+/* ================= 編集画面 ================= */
+.editor-topbar{
+  height:var(--topbar-h);flex:0 0 auto;display:flex;align-items:center;gap:6px;
+  padding:0 8px;background:var(--panel-bg);border-bottom:1px solid var(--line);
+}
+.editor-title-input{
+  border:none;background:none;font-size:16px;font-weight:700;color:var(--ink);
+  width:auto;flex:0 1 220px;padding:6px 8px;border-radius:8px;
+}
+.editor-title-input:focus{background:#f2efe6;outline:none;}
+.topbar-spacer{flex:1;}
+
+.canvas-viewport{
+  position:relative;flex:1;overflow:hidden;background:#ddd8cb;
+  touch-action:none;
+}
+.canvas-stage{
+  position:absolute;left:0;top:0;transform-origin:0 0;
+  box-shadow:0 4px 20px rgba(0,0,0,.25);
+}
+.canvas-stage canvas{position:absolute;left:0;top:0;image-rendering:pixelated;}
+.canvas-stage canvas.smooth{image-rendering:auto;}
+
+.layers-fab,.fit-fab{
+  position:absolute;right:12px;width:48px;height:48px;border-radius:50%;
+  background:var(--panel-bg);box-shadow:0 2px 8px rgba(0,0,0,.2);font-size:20px;
+  display:flex;align-items:center;justify-content:center;z-index:5;
+}
+.layers-fab{top:calc(var(--topbar-h) + 12px);}
+.fit-fab{bottom:calc(var(--bottombar-h) + 12px);}
+
+.layer-panel{
+  position:absolute;right:12px;top:calc(var(--topbar-h) + 64px);width:272px;max-height:60vh;overflow-y:auto;overflow-x:hidden;
+  background:var(--panel-bg);border-radius:14px;box-shadow:0 4px 16px rgba(0,0,0,.25);
+  z-index:6;padding:8px;
+}
+.layer-panel-head{display:flex;justify-content:space-between;align-items:center;padding:4px 6px 8px;font-weight:700;}
+.layer-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;}
+.layer-item{
+  display:flex;align-items:center;gap:6px;padding:6px;border-radius:10px;background:#f8f6f0;
+}
+.layer-item.active{outline:2px solid var(--mint);}
+.layer-item .layer-thumb{width:36px;height:28px;background:#fff;border:1px solid var(--line);object-fit:cover;}
+.layer-item .layer-name{flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.layer-item button{background:none;border:none;font-size:14px;min-width:26px;min-height:28px;cursor:pointer;padding:0;}
+.layer-item .opacity-toggle{font-size:11px;padding:2px 6px;border:1px solid var(--line);border-radius:8px;background:#fff;min-height:28px;}
+.layer-item .exclude-chk{display:flex;align-items:center;gap:2px;font-size:10px;color:var(--ink-soft);}
+
+.editor-bottombar{
+  min-height:var(--bottombar-h);flex:0 0 auto;background:var(--panel-bg);border-top:1px solid var(--line);
+  display:flex;flex-direction:row;align-items:center;padding:6px 10px;gap:12px;overflow-x:auto;
+}
+.tool-list{display:flex;gap:6px;flex:0 0 auto;}
+.tool-btn{
+  flex:0 0 auto;min-width:56px;min-height:44px;border:none;border-radius:12px;background:none;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;cursor:pointer;
+}
+.tool-btn .tool-icon{font-size:20px;}
+.tool-btn[aria-selected=true]{background:#eafaf4;color:var(--mint-dark);font-weight:700;}
+.tool-options{display:flex;align-items:center;gap:10px;padding:2px 2px;flex:0 0 auto;}
+.tool-option-btn{font-size:11px;flex-direction:column;padding:4px 10px;min-height:44px;}
+.color-swatch{
+  width:40px;height:40px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1px var(--line);
+  background:var(--swatch-color);cursor:pointer;
+}
+.size-btn{width:44px;height:44px;border-radius:50%;background:#f2efe6;justify-content:center;}
+.size-preview-dot{width:16px;height:16px;border-radius:50%;background:var(--ink);}
+
+/* ---------- ポップオーバー ---------- */
+.popover{
+  position:fixed;background:var(--panel-bg);border-radius:16px;box-shadow:0 6px 20px rgba(0,0,0,.3);
+  padding:14px;z-index:40;width:260px;
+}
+.color-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:8px;}
+.color-grid button{
+  width:32px;height:32px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--line);
+  cursor:pointer;background:var(--c);
+}
+.color-grid button[aria-pressed=true]{box-shadow:0 0 0 2px var(--ink);}
+.popover-subtitle{font-size:12px;color:var(--ink-soft);margin:6px 0 4px;}
+.color-advanced{display:flex;gap:10px;justify-content:center;margin-top:8px;}
+.slider-row{display:flex;flex-direction:column;gap:4px;font-size:13px;margin-bottom:10px;}
+.slider-row input{width:100%;}
+.brush-preview-wrap{display:flex;justify-content:center;padding-top:4px;}
+#brush-preview{background:#faf7ee;border-radius:8px;}
+
+/* ---------- 左利きレイアウト ---------- */
+body.left-handed .layers-fab,
+body.left-handed .layer-panel{ right:auto; left:12px; }
+body.left-handed .fit-fab{ right:auto; left:12px; }
+
+/* ---------- 印刷 ---------- */
+#print-area{display:none;}
+@media print{
+  body > *:not(#print-area){display:none!important;}
+  #print-area{display:block!important;}
+  #print-area canvas{width:100%;height:auto;display:block;}
+}
+
+@media (prefers-color-scheme: dark){
+  :root{
+    --ink:#eee9dd; --ink-soft:#b9b4a6; --paper-bg:#242220; --panel-bg:#2f2c28; --line:#45413a;
+  }
+  .canvas-viewport{background:#151412;}
+  .work-card img{background:#3a362f;}
+}
+
+</style>
+</head>
+<body>
+
+<!-- ==================== 作品一覧 画面 ==================== -->
+<section id="screen-gallery" class="screen" aria-label="作品一覧の画面">
+  <header class="gallery-header">
+    <h1 class="app-title">アイデアスケッチノート</h1>
+    <div class="header-actions">
+      <button id="btn-furigana" class="btn btn-flat" aria-pressed="false">
+        <span class="btn-icon" aria-hidden="true">振</span><span class="btn-label" data-ruby="ふりがな">ふりがな</span>
+      </button>
+    </div>
+  </header>
+  <div class="gallery-toolbar">
+    <button id="btn-new-work" class="btn btn-primary btn-lg">
+      <span class="btn-icon" aria-hidden="true">＋</span><span class="btn-label" data-ruby="あたらしい さくひん">あたらしい さくひん</span>
+    </button>
+    <span id="storage-hint" class="storage-hint" role="status"></span>
+  </div>
+  <div id="gallery-grid" class="gallery-grid" role="list"></div>
+  <p id="gallery-empty" class="gallery-empty" hidden>まだ さくひんが ありません。<br>「あたらしい さくひん」から はじめよう。</p>
+</section>
+
+<!-- ==================== 新規作成 モーダル ==================== -->
+<div id="modal-new-work" class="modal-overlay" hidden>
+  <div class="modal-box" role="dialog" aria-label="あたらしい さくひん" aria-modal="true">
+    <h2 data-ruby="ようし を えらぶ">用紙をえらぶ</h2>
+    <div id="paper-preset-list" class="preset-grid"></div>
+    <p class="popover-subtitle" data-ruby="かみ の しゅるい">紙のしゅるい</p>
+    <div id="paper-type-list" class="preset-grid preset-grid-3"></div>
+    <div class="custom-size-row">
+      <label class="custom-size-toggle">
+        <input type="checkbox" id="chk-custom-size">
+        <span data-ruby="じぶんで さいず を きめる">じぶんでサイズを決める</span>
+      </label>
+      <div id="custom-size-inputs" class="custom-size-inputs" hidden>
+        <label>幅(mm) <input type="number" id="input-w-mm" min="50" max="600" value="297"></label>
+        <label>高さ(mm) <input type="number" id="input-h-mm" min="50" max="600" value="210"></label>
+      </div>
+    </div>
+    <label class="title-row">
+      さくひんの名前
+      <input type="text" id="input-new-title" maxlength="40" placeholder="むだい">
+    </label>
+    <div class="modal-actions">
+      <button id="btn-cancel-new" class="btn btn-flat">やめる</button>
+      <button id="btn-confirm-new" class="btn btn-primary">つくる</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== キャンバス（編集）画面 ==================== -->
+<section id="screen-editor" class="screen" hidden aria-label="お絵かきの画面">
+  <header class="editor-topbar">
+    <button id="btn-back-gallery" class="btn btn-flat btn-icon-only" aria-label="作品一覧へもどる">←</button>
+    <input id="input-title" class="editor-title-input" maxlength="40" aria-label="さくひんの名前">
+    <div class="topbar-spacer"></div>
+    <button id="btn-undo" class="btn btn-flat btn-icon-only" aria-label="もどす" disabled>↺</button>
+    <button id="btn-redo" class="btn btn-flat btn-icon-only" aria-label="すすむ" disabled>↻</button>
+    <button id="btn-settings" class="btn btn-flat btn-icon-only" aria-label="せってい">⚙</button>
+  </header>
+
+  <div id="canvas-viewport" class="canvas-viewport">
+    <div id="canvas-stage" class="canvas-stage"></div>
+  </div>
+
+  <button id="btn-layers-toggle" class="btn layers-fab" aria-label="かさねる紙パネルを開く">
+    <span aria-hidden="true">▤</span>
+  </button>
+  <aside id="layer-panel" class="layer-panel" hidden aria-label="かさねる紙(レイヤー)パネル">
+    <div class="layer-panel-head">
+      <span data-ruby="かさねる かみ">かさねる紙</span>
+      <button id="btn-layer-add" class="btn btn-flat btn-icon-only" aria-label="紙をふやす">＋</button>
+    </div>
+    <ul id="layer-list" class="layer-list"></ul>
+  </aside>
+
+  <button id="btn-fit" class="btn fit-fab" aria-label="ぴったり表示にもどす">⤢</button>
+
+  <footer class="editor-bottombar">
+    <div id="tool-list" class="tool-list" role="tablist" aria-label="どうぐ"></div>
+    <div class="tool-options">
+      <button id="btn-dry" class="btn btn-flat tool-option-btn" hidden>
+        <span aria-hidden="true">🌬</span><span data-ruby="かわかす">かわかす</span>
+      </button>
+      <button id="btn-color-swatch" class="color-swatch" aria-label="いろをえらぶ" style="--swatch-color:#3a3a3a"></button>
+      <button id="btn-size-popover" class="btn btn-flat size-btn" aria-label="ふとさをえらぶ">
+        <span id="size-preview-dot" class="size-preview-dot"></span>
+      </button>
+    </div>
+  </footer>
+</section>
+
+<!-- ==================== 色えらび ポップオーバー ==================== -->
+<div id="popover-color" class="popover" hidden>
+  <div class="popover-arrow"></div>
+  <div class="color-grid" id="color-grid-base"></div>
+  <p class="popover-subtitle" data-ruby="さいきん つかった いろ">さいきん使った色</p>
+  <div class="color-grid" id="color-grid-recent"></div>
+  <button id="btn-more-color" class="btn btn-flat" data-ruby="もっと いろを えらぶ">もっと色をえらぶ</button>
+  <div id="color-advanced" class="color-advanced" hidden>
+    <canvas id="hue-ring" width="180" height="180"></canvas>
+    <canvas id="sv-square" width="120" height="120"></canvas>
+  </div>
+</div>
+
+<!-- ==================== 太さ ポップオーバー ==================== -->
+<div id="popover-size" class="popover" hidden>
+  <div class="popover-arrow"></div>
+  <label class="slider-row">
+    <span data-ruby="ふとさ">ふとさ</span>
+    <input type="range" id="range-size" min="1" max="100" value="20">
+  </label>
+  <label class="slider-row" id="row-strength">
+    <span id="strength-label" data-ruby="のうど">のうど</span>
+    <input type="range" id="range-strength" min="0" max="100" value="70">
+  </label>
+  <div class="brush-preview-wrap"><canvas id="brush-preview" width="80" height="80"></canvas></div>
+</div>
+
+<!-- ==================== せってい モーダル ==================== -->
+<div id="modal-settings" class="modal-overlay" hidden>
+  <div class="modal-box" role="dialog" aria-label="せってい" aria-modal="true">
+    <h2>せってい</h2>
+    <label class="settings-row">
+      <span data-ruby="ひんしつ を おとして はやくする">品質を落として速くする</span>
+      <input type="checkbox" id="chk-low-quality">
+    </label>
+    <label class="settings-row">
+      <span data-ruby="ひだりきき レイアウト">左利きレイアウト</span>
+      <input type="checkbox" id="chk-left-handed">
+    </label>
+    <label class="settings-row">
+      <span data-ruby="てぶれ を おさえる">手ぶれをおさえる</span>
+      <input type="range" id="range-stabilize" min="0" max="3" value="1">
+    </label>
+    <div class="modal-actions">
+      <button id="btn-export-png" class="btn btn-flat" data-ruby="PNGで ほぞん">PNGで保存</button>
+      <button id="btn-print" class="btn btn-flat" data-ruby="いんさつ">印刷</button>
+    </div>
+    <div class="modal-actions">
+      <button id="btn-close-settings" class="btn btn-primary">とじる</button>
+    </div>
+  </div>
+</div>
+
+<div id="confirm-dialog" class="modal-overlay" hidden>
+  <div class="modal-box" role="alertdialog" aria-modal="true">
+    <p id="confirm-message"></p>
+    <div class="modal-actions">
+      <button id="btn-confirm-no" class="btn btn-flat">やめる</button>
+      <button id="btn-confirm-yes" class="btn btn-danger">けす</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---- paper-texture.js ----
+// 紙の高さマップ（粒状感のもと）を作る。
+// 実寸解像度ではなく小さめのテクスチャを1回だけ生成し、キャンバス座標を
+// テクスチャ座標へ折り返して参照する（毎フレームの生成コストを避けるため）。
+
+const PAPER_PARAMS = {
+  gayoshi:    { texW: 512, texH: 384, octaves: [ [8, 0.55], [24, 0.30], [70, 0.15] ], contrast: 1.35, tint: null },
+  kent:       { texW: 512, texH: 384, octaves: [ [10, 0.7], [40, 0.3] ],             contrast: 0.55, tint: null },
+  warabanshi: { texW: 512, texH: 384, octaves: [ [6, 0.5], [20, 0.35], [55, 0.15] ], contrast: 1.15, tint: "#f3e9c9" },
+};
+
+// セルの格子点をランダムに決め、あまり(モジュロ)を使ったバイリニア補間で
+// 拡大する。補間の参照先が両端で必ずグリッドの反対側へ折り返すため、
+// CanvasPatternで敷き詰めても継ぎ目ができない（真にタイル可能なノイズ）。
+function makeOctave(cells, w, h) {
+  const cw = Math.max(2, Math.round(w / cells));
+  const ch = Math.max(2, Math.round(h / cells));
+  const grid = new Float32Array(cw * ch);
+  for (let i = 0; i < grid.length; i++) grid[i] = Math.random();
+
+  const out = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    const gy = (y / h) * ch;
+    const y0 = Math.floor(gy) % ch;
+    const y1 = (y0 + 1) % ch;
+    const fy = gy - Math.floor(gy);
+    for (let x = 0; x < w; x++) {
+      const gx = (x / w) * cw;
+      const x0 = Math.floor(gx) % cw;
+      const x1 = (x0 + 1) % cw;
+      const fx = gx - Math.floor(gx);
+      const v00 = grid[y0 * cw + x0];
+      const v10 = grid[y0 * cw + x1];
+      const v01 = grid[y1 * cw + x0];
+      const v11 = grid[y1 * cw + x1];
+      const top = v00 + (v10 - v00) * fx;
+      const bot = v01 + (v11 - v01) * fx;
+      out[y * w + x] = top + (bot - top) * fy;
+    }
+  }
+  return out;
+}
+
+function generatePaperTexture(paperType) {
+  const params = PAPER_PARAMS[paperType] || PAPER_PARAMS.gayoshi;
+  const { texW, texH, octaves, contrast } = params;
+  const combined = new Float32Array(texW * texH);
+  let totalWeight = 0;
+  for (const [cells, weight] of octaves) {
+    const layer = makeOctave(cells, texW, texH);
+    for (let p = 0; p < texW * texH; p++) {
+      combined[p] += layer[p] * weight;
+    }
+    totalWeight += weight;
+  }
+
+  let min = Infinity, max = -Infinity;
+  for (let p = 0; p < combined.length; p++) {
+    combined[p] /= totalWeight;
+    if (combined[p] < min) min = combined[p];
+    if (combined[p] > max) max = combined[p];
+  }
+  const range = Math.max(1e-4, max - min);
+  const data = new Uint8ClampedArray(texW * texH);
+  for (let p = 0; p < combined.length; p++) {
+    let v = (combined[p] - min) / range;
+    v = 0.5 + (v - 0.5) * contrast;
+    data[p] = Math.max(0, Math.min(255, Math.round(v * 255)));
+  }
+
+  const texCanvas = document.createElement("canvas");
+  texCanvas.width = texW;
+  texCanvas.height = texH;
+  const tctx = texCanvas.getContext("2d");
+  const timg = tctx.createImageData(texW, texH);
+  for (let p = 0; p < data.length; p++) {
+    timg.data[p * 4] = data[p];
+    timg.data[p * 4 + 1] = data[p];
+    timg.data[p * 4 + 2] = data[p];
+    timg.data[p * 4 + 3] = 255;
+  }
+  tctx.putImageData(timg, 0, 0);
+
+  // destination-out で使う「抜き量」パターン。凹(値が低い)ほど不透明=強く抜く。
+  const grainMaskCanvas = document.createElement("canvas");
+  grainMaskCanvas.width = texW;
+  grainMaskCanvas.height = texH;
+  const gctx = grainMaskCanvas.getContext("2d");
+  const gimg = gctx.createImageData(texW, texH);
+  for (let p = 0; p < data.length; p++) {
+    gimg.data[p * 4 + 3] = 255 - data[p];
+  }
+  gctx.putImageData(gimg, 0, 0);
+
+  return {
+    width: texW,
+    height: texH,
+    data,
+    texCanvas,
+    grainMaskCanvas,
+    tint: params.tint,
+    // canvas座標(px,py)における0..1の高さ（凸=1, 凹=0）を返す。紙の実寸に対して
+    // テクスチャを敷き詰めるので、原点はキャンバス左上に固定される（ズームしても紙目は動かない）。
+    heightAt(px, py) {
+      const x = ((Math.floor(px) % texW) + texW) % texW;
+      const y = ((Math.floor(py) % texH) + texH) % texH;
+      return data[y * texW + x] / 255;
+    },
+  };
+}
+
+
+// ---- canvas-engine.js ----
+
+let uidCounter = 0;
+function nextId(prefix = "id") {
+  uidCounter += 1;
+  return `${prefix}_${uidCounter}_${Date.now().toString(36)}`;
+}
+
+const OPACITY_LEVELS = [0.4, 0.7, 1.0];
+
+class Layer {
+  constructor(width, height, name, opts = {}) {
+    this.id = opts.id || nextId("layer");
+    this.name = name;
+    this.width = width;
+    this.height = height;
+    this.visible = true;
+    this.opacityLevel = opts.opacityLevel ?? 2;
+    this.isSketch = !!opts.isSketch;
+    this.excludeFromExport = opts.excludeFromExport ?? this.isSketch;
+
+    this.canvas = document.createElement("canvas");
+    this.canvas.width = width;
+    this.canvas.height = height;
+    this.canvas.style.pointerEvents = "none";
+    this.ctx = this.canvas.getContext("2d");
+
+    this.wetCanvas = document.createElement("canvas");
+    this.wetCanvas.width = width;
+    this.wetCanvas.height = height;
+    this.wetCanvas.style.pointerEvents = "none";
+    this.wetCtx = this.wetCanvas.getContext("2d");
+    this.wetSince = 0;
+  }
+
+  opacityValue() {
+    return OPACITY_LEVELS[this.opacityLevel];
+  }
+
+  applyOpacityToDom() {
+    const v = this.visible ? this.opacityValue() : 0;
+    this.canvas.style.opacity = String(v);
+    this.wetCanvas.style.opacity = String(v);
+  }
+
+  isWet() {
+    return this.wetSince !== 0;
+  }
+
+  markWet(now) {
+    this.wetSince = now;
+  }
+
+  mergeWetToDry() {
+    if (!this.isWet()) return;
+    this.ctx.globalAlpha = 1;
+    this.ctx.globalCompositeOperation = "source-over";
+    this.ctx.drawImage(this.wetCanvas, 0, 0);
+    this.wetCtx.clearRect(0, 0, this.width, this.height);
+    this.wetSince = 0;
+  }
+
+  clear() {
+    this.ctx.clearRect(0, 0, this.width, this.height);
+    this.wetCtx.clearRect(0, 0, this.width, this.height);
+    this.wetSince = 0;
+  }
+
+  snapshotClone() {
+    const c = document.createElement("canvas");
+    c.width = this.width;
+    c.height = this.height;
+    c.getContext("2d").drawImage(this.canvas, 0, 0);
+    return c;
+  }
+
+  restoreFrom(canvasClone) {
+    this.ctx.clearRect(0, 0, this.width, this.height);
+    this.ctx.drawImage(canvasClone, 0, 0);
+    this.wetCtx.clearRect(0, 0, this.width, this.height);
+    this.wetSince = 0;
+  }
+
+  toBlob() {
+    return new Promise((resolve) => this.canvas.toBlob(resolve, "image/png"));
+  }
+}
+
+class SketchDocument {
+  constructor({ id, title, width, height, paperType }) {
+    this.id = id || nextId("work");
+    this.title = title || "むだい";
+    this.width = width;
+    this.height = height;
+    this.paperType = paperType || "gayoshi";
+    this.paperTexture = generatePaperTexture(this.paperType);
+    this.paperCanvas = renderPaperBackground(width, height, this.paperTexture);
+    this.layers = [];
+    this.activeLayerIndex = 0;
+    this.createdAt = Date.now();
+    this.updatedAt = Date.now();
+  }
+
+  static createDefault(opts) {
+    const doc = new SketchDocument(opts);
+    doc.addLayer("したがき", { isSketch: true, opacityLevel: 0 });
+    doc.addLayer("いろ");
+    doc.addLayer("かきこみ");
+    doc.activeLayerIndex = doc.layers.length - 1;
+    return doc;
+  }
+
+  addLayer(name, opts = {}) {
+    if (this.layers.length >= 4) return null;
+    const layer = new Layer(this.width, this.height, name || `かみ${this.layers.length + 1}`, opts);
+    this.layers.push(layer);
+    return layer;
+  }
+
+  removeLayer(id) {
+    if (this.layers.length <= 1) return false;
+    const idx = this.layers.findIndex((l) => l.id === id);
+    if (idx < 0) return false;
+    this.layers.splice(idx, 1);
+    if (this.activeLayerIndex >= this.layers.length) this.activeLayerIndex = this.layers.length - 1;
+    return true;
+  }
+
+  duplicateLayer(id) {
+    if (this.layers.length >= 4) return null;
+    const idx = this.layers.findIndex((l) => l.id === id);
+    if (idx < 0) return null;
+    const src = this.layers[idx];
+    const copy = new Layer(this.width, this.height, `${src.name}のコピー`, {
+      opacityLevel: src.opacityLevel,
+      excludeFromExport: src.excludeFromExport,
+    });
+    copy.ctx.drawImage(src.canvas, 0, 0);
+    this.layers.splice(idx + 1, 0, copy);
+    return copy;
+  }
+
+  moveLayer(id, dir) {
+    const idx = this.layers.findIndex((l) => l.id === id);
+    const j = idx + dir;
+    if (idx < 0 || j < 0 || j >= this.layers.length) return false;
+    [this.layers[idx], this.layers[j]] = [this.layers[j], this.layers[idx]];
+    return true;
+  }
+
+  getActiveLayer() {
+    return this.layers[this.activeLayerIndex];
+  }
+
+  flatten({ forExport = false, maxSize = null } = {}) {
+    const out = document.createElement("canvas");
+    let w = this.width;
+    let h = this.height;
+    if (maxSize && Math.max(w, h) > maxSize) {
+      const scale = maxSize / Math.max(w, h);
+      w = Math.max(1, Math.round(w * scale));
+      h = Math.max(1, Math.round(h * scale));
+    }
+    out.width = w;
+    out.height = h;
+    const octx = out.getContext("2d");
+    octx.fillStyle = "#ffffff";
+    octx.fillRect(0, 0, w, h);
+    if (!forExport) octx.drawImage(this.paperCanvas, 0, 0, w, h);
+    for (const layer of this.layers) {
+      if (!layer.visible) continue;
+      if (forExport && layer.excludeFromExport) continue;
+      octx.globalAlpha = layer.opacityValue();
+      octx.drawImage(layer.canvas, 0, 0, w, h);
+      if (layer.isWet()) octx.drawImage(layer.wetCanvas, 0, 0, w, h);
+    }
+    octx.globalAlpha = 1;
+    return out;
+  }
+}
+
+function renderPaperBackground(width, height, texture) {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = texture.tint || "#ffffff";
+  ctx.fillRect(0, 0, width, height);
+  const pattern = ctx.createPattern(texture.texCanvas, "repeat");
+  ctx.save();
+  ctx.globalAlpha = 0.16;
+  ctx.globalCompositeOperation = "multiply";
+  ctx.fillStyle = pattern;
+  ctx.fillRect(0, 0, width, height);
+  ctx.restore();
+  return canvas;
+}
+
+// レイヤー配列の中身をDOM(#canvas-stage)へ反映する。
+// 追加・削除・並べ替え・表示/不透明度変更のたびに呼ぶ。
+function syncStageDom(doc, stageEl) {
+  stageEl.style.width = `${doc.width}px`;
+  stageEl.style.height = `${doc.height}px`;
+
+  if (doc.paperCanvas.parentNode !== stageEl) {
+    stageEl.innerHTML = "";
+    stageEl.appendChild(doc.paperCanvas);
+  } else {
+    stageEl.appendChild(doc.paperCanvas);
+  }
+
+  for (const layer of doc.layers) {
+    stageEl.appendChild(layer.canvas);
+    stageEl.appendChild(layer.wetCanvas);
+    layer.applyOpacityToDom();
+  }
+}
+
+const PAPER_PRESETS = [
+  { id: "postcard-h", label: "はがき(横)", w: 148, h: 100 },
+  { id: "postcard-v", label: "はがき(縦)", w: 100, h: 148 },
+  { id: "a5", label: "A5", w: 210, h: 148 },
+  { id: "a4-h", label: "A4(横)", w: 297, h: 210 },
+  { id: "square", label: "せいほうけい", w: 200, h: 200 },
+];
+
+const PAPER_TYPES = [
+  { id: "gayoshi", label: "画用紙" },
+  { id: "kent", label: "ケント紙" },
+  { id: "warabanshi", label: "わら半紙" },
+];
+
+const PX_PER_MM = 5.6;
+function mmToPx(mm) {
+  return Math.round(mm * PX_PER_MM);
+}
+
+
+// ---- viewport.js ----
+// キャンバスの表示だけを拡大・移動する（内部の描画解像度は変えない）。
+class Viewport {
+  constructor(viewportEl, stageEl, docWidth, docHeight) {
+    this.viewportEl = viewportEl;
+    this.stageEl = stageEl;
+    this.docWidth = docWidth;
+    this.docHeight = docHeight;
+    this.scale = 1;
+    this.x = 0;
+    this.y = 0;
+    this.minScale = 0.2;
+    this.maxScale = 8;
+  }
+
+  setDocSize(w, h) {
+    this.docWidth = w;
+    this.docHeight = h;
+  }
+
+  fit() {
+    const vw = this.viewportEl.clientWidth;
+    const vh = this.viewportEl.clientHeight;
+    const pad = 20;
+    const scale = Math.min((vw - pad * 2) / this.docWidth, (vh - pad * 2) / this.docHeight);
+    this.scale = Math.max(this.minScale, Math.min(this.maxScale, scale));
+    this.x = (vw - this.docWidth * this.scale) / 2;
+    this.y = (vh - this.docHeight * this.scale) / 2;
+    this.apply();
+  }
+
+  apply() {
+    this.stageEl.style.transform = `translate(${this.x}px, ${this.y}px) scale(${this.scale})`;
+  }
+
+  panBy(dx, dy) {
+    this.x += dx;
+    this.y += dy;
+    this.apply();
+  }
+
+  zoomAt(clientX, clientY, factor) {
+    const newScale = Math.max(this.minScale, Math.min(this.maxScale, this.scale * factor));
+    const rect = this.viewportEl.getBoundingClientRect();
+    const localX = clientX - rect.left;
+    const localY = clientY - rect.top;
+    const docX = (localX - this.x) / this.scale;
+    const docY = (localY - this.y) / this.scale;
+    this.scale = newScale;
+    this.x = localX - docX * this.scale;
+    this.y = localY - docY * this.scale;
+    this.apply();
+  }
+
+  screenToDoc(clientX, clientY) {
+    const rect = this.viewportEl.getBoundingClientRect();
+    const localX = clientX - rect.left;
+    const localY = clientY - rect.top;
+    return { x: (localX - this.x) / this.scale, y: (localY - this.y) / this.scale };
+  }
+}
+
+
+// ---- history.js ----
+// もどす/すすむ。ストローク単位で「変更のあったレイヤー」の描画前後を
+// まるごと複製して保持する（MVPでは1手=1レイヤーのスナップショット）。
+// レイヤーの追加・削除・並べ替えは対象外（現状復帰が難しいため）。
+
+const HISTORY_LIMIT = 20;
+
+class History {
+  constructor() {
+    this.undoStack = [];
+    this.redoStack = [];
+    this.onChange = null;
+    this._pendingLayer = null;
+    this._pendingSnapshot = null;
+  }
+
+  beginAction(layer) {
+    this._pendingLayer = layer;
+    this._pendingSnapshot = layer.snapshotClone();
+  }
+
+  commitAction() {
+    if (!this._pendingLayer) return;
+    this.undoStack.push({ layerId: this._pendingLayer.id, snapshot: this._pendingSnapshot });
+    if (this.undoStack.length > HISTORY_LIMIT) this.undoStack.shift();
+    this.redoStack = [];
+    this._pendingLayer = null;
+    this._pendingSnapshot = null;
+    this._notify();
+  }
+
+  canUndo() {
+    return this.undoStack.length > 0;
+  }
+
+  canRedo() {
+    return this.redoStack.length > 0;
+  }
+
+  undo(doc) {
+    const entry = this.undoStack.pop();
+    if (!entry) return false;
+    const layer = doc.layers.find((l) => l.id === entry.layerId);
+    if (!layer) {
+      this._notify();
+      return false;
+    }
+    const afterSnapshot = layer.snapshotClone();
+    layer.restoreFrom(entry.snapshot);
+    this.redoStack.push({ layerId: entry.layerId, snapshot: afterSnapshot });
+    this._notify();
+    return true;
+  }
+
+  redo(doc) {
+    const entry = this.redoStack.pop();
+    if (!entry) return false;
+    const layer = doc.layers.find((l) => l.id === entry.layerId);
+    if (!layer) {
+      this._notify();
+      return false;
+    }
+    const beforeSnapshot = layer.snapshotClone();
+    layer.restoreFrom(entry.snapshot);
+    this.undoStack.push({ layerId: entry.layerId, snapshot: beforeSnapshot });
+    this._notify();
+    return true;
+  }
+
+  reset() {
+    this.undoStack = [];
+    this.redoStack = [];
+    this._notify();
+  }
+
+  _notify() {
+    this.onChange?.(this.canUndo(), this.canRedo());
+  }
+}
+
+
+// ---- brushes.js ----
+// ブラシエンジン（Canvas2D）。
+// 端末に筆圧ペンが無い前提のため、速度からの筆圧推定を標準の入力として使う。
+// 水彩は「§6.3 フォールバック層」を既定実装とし、紙目は§6.0のとおり
+// キャンバス固定のCanvasPattern（destination-out）で表現する。
+
+const TOOLS = [
+  { id: "pencil", label: "えんぴつ", icon: "✏️", sizeRange: [2, 26], strengthLabel: "しん の こさ" },
+  { id: "crayon", label: "クレパス", icon: "🖍️", sizeRange: [10, 70], strengthLabel: "ちから の いれぐあい" },
+  { id: "watercolor", label: "すいさい", icon: "🖌️", sizeRange: [12, 90], strengthLabel: "みず の りょう" },
+  { id: "waterbrush", label: "みずふで", icon: "💧", sizeRange: [15, 100], strengthLabel: "みず の りょう" },
+  { id: "eraser", label: "けしゴム", icon: "🧹", sizeRange: [10, 100], strengthLabel: "けす つよさ" },
+];
+
+const DRY_TIMEOUT_MS = 6000;
+const STABILIZE_FACTORS = [1, 0.55, 0.32, 0.18];
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function hexToRgb(hex) {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!m) return { r: 58, g: 58, b: 58 };
+  return { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) };
+}
+
+class BrushEngine {
+  constructor() {
+    this.tool = "pencil";
+    this.color = "#3a3a3a";
+    this.settings = {};
+    for (const t of TOOLS) this.settings[t.id] = { size: 45, strength: 60 };
+    this.stabilizeLevel = 1;
+    this._active = false;
+  }
+
+  setTool(id) {
+    this.tool = id;
+  }
+
+  currentToolDef() {
+    return TOOLS.find((t) => t.id === this.tool);
+  }
+
+  setColor(hex) {
+    this.color = hex;
+  }
+
+  setSize(pct) {
+    this.settings[this.tool].size = pct;
+  }
+
+  getSize() {
+    return this.settings[this.tool].size;
+  }
+
+  setStrength(pct) {
+    this.settings[this.tool].strength = pct;
+  }
+
+  getStrength() {
+    return this.settings[this.tool].strength;
+  }
+
+  sizePx() {
+    const def = this.currentToolDef();
+    const pct = this.settings[this.tool].size / 100;
+    return lerp(def.sizeRange[0], def.sizeRange[1], pct);
+  }
+
+  strengthUnit() {
+    return this.settings[this.tool].strength / 100;
+  }
+
+  // --- 速度からの筆圧推定 ---
+  _estimatePressure(dx, dy, dtMs) {
+    if (dtMs <= 0) return 0.75;
+    const speed = Math.hypot(dx, dy) / dtMs;
+    const t = Math.max(0, Math.min(1, speed / 2.4));
+    return lerp(1.0, 0.28, t);
+  }
+
+  beginStroke(doc, layer, point, now) {
+    this._active = true;
+    this._layer = layer;
+    this._smoothX = point.x;
+    this._smoothY = point.y;
+    this._lastRawX = point.x;
+    this._lastRawY = point.y;
+    this._lastTime = now;
+    this._leftover = 0;
+    this._strokePoints = [];
+
+    if (this.tool === "watercolor" || this.tool === "waterbrush") {
+      layer.markWet(now);
+    }
+
+    this._stampAt(doc, layer, point.x, point.y, this._resolvePressure(point, 0));
+  }
+
+  _resolvePressure(point, estimated) {
+    const raw = point.pressure;
+    if (raw && raw > 0 && Math.abs(raw - 0.5) > 0.03) {
+      return raw * 0.55 + estimated * 0.45;
+    }
+    return estimated;
+  }
+
+  extendStroke(doc, layer, points, now) {
+    if (!this._active) return;
+    for (const p of points) {
+      const factor = STABILIZE_FACTORS[this.stabilizeLevel] ?? 0.32;
+      this._smoothX = lerp(this._smoothX, p.x, factor);
+      this._smoothY = lerp(this._smoothY, p.y, factor);
+
+      const dt = Math.max(1, (p.t ?? now) - this._lastTime);
+      const dx = p.x - this._lastRawX;
+      const dy = p.y - this._lastRawY;
+      const estimated = this._estimatePressure(dx, dy, dt);
+      const pressure = this._resolvePressure(p, estimated);
+
+      const dist = Math.hypot(this._smoothX - this._lastStampX, this._smoothY - this._lastStampY);
+      this._walkAndStamp(doc, layer, this._smoothX, this._smoothY, pressure);
+
+      this._lastRawX = p.x;
+      this._lastRawY = p.y;
+      this._lastTime = p.t ?? now;
+    }
+  }
+
+  _walkAndStamp(doc, layer, x, y, pressure) {
+    const spacingPx = Math.max(1.2, this.sizePx() * 0.16);
+    let dist = Math.hypot(x - this._lastStampX, y - this._lastStampY);
+    let steps = Math.floor((this._leftover + dist) / spacingPx);
+    if (steps <= 0) {
+      this._leftover += dist;
+      return;
+    }
+    const startX = this._lastStampX;
+    const startY = this._lastStampY;
+    for (let i = 1; i <= steps; i++) {
+      const t = (spacingPx * i - this._leftover) / dist;
+      const sx = lerp(startX, x, t);
+      const sy = lerp(startY, y, t);
+      this._stampAt(doc, layer, sx, sy, pressure);
+    }
+    this._leftover = this._leftover + dist - steps * spacingPx;
+  }
+
+  _stampAt(doc, layer, x, y, pressure) {
+    this._lastStampX = x;
+    this._lastStampY = y;
+    const angle = Math.atan2(y - (this._prevStampY ?? y), x - (this._prevStampX ?? x));
+    this._prevStampX = x;
+    this._prevStampY = y;
+
+    switch (this.tool) {
+      case "pencil":
+        stampPencil(layer.ctx, doc, x, y, pressure, this);
+        break;
+      case "crayon":
+        stampCrayon(layer.ctx, doc, x, y, pressure, angle, this);
+        break;
+      case "watercolor":
+        stampWatercolor(layer.wetCtx, x, y, pressure, this, 1);
+        this._strokePoints.push({ x, y, pressure });
+        break;
+      case "waterbrush":
+        stampWatercolor(layer.wetCtx, x, y, pressure, this, 0.3);
+        this._strokePoints.push({ x, y, pressure: pressure * 0.5 });
+        break;
+      case "eraser":
+        stampEraser(layer, x, y, pressure, this);
+        break;
+      default:
+        break;
+    }
+  }
+
+  endStroke(doc, layer, now) {
+    if (!this._active) return;
+    this._active = false;
+    if (this.tool === "watercolor" || this.tool === "waterbrush") {
+      const blurPx = 4 + this.strengthUnit() * 7;
+      diffuseWetLayer(layer, blurPx);
+      redepositEdges(layer.wetCtx, this._strokePoints, this.color);
+      layer.markWet(now);
+    }
+    this._strokePoints = [];
+  }
+
+  checkDrying(doc, now) {
+    for (const layer of doc.layers) {
+      if (layer.isWet() && now - layer.wetSince > DRY_TIMEOUT_MS) {
+        layer.mergeWetToDry();
+      }
+    }
+  }
+
+  forceDry(layer, now) {
+    layer.mergeWetToDry();
+  }
+}
+
+// ---- 紙目（凹凸）パターン。destination-out の抜き量をアルファで表す ----
+const grainPatternCache = new WeakMap();
+function getGrainPattern(ctx, doc) {
+  let p = grainPatternCache.get(doc.paperTexture);
+  if (!p) {
+    p = ctx.createPattern(doc.paperTexture.grainMaskCanvas, "repeat");
+    grainPatternCache.set(doc.paperTexture, p);
+  }
+  return p;
+}
+
+function punchGrain(ctx, doc, x, y, radius, strength) {
+  if (strength <= 0) return;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.globalCompositeOperation = "destination-out";
+  ctx.globalAlpha = strength;
+  ctx.fillStyle = getGrainPattern(ctx, doc);
+  ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+  ctx.restore();
+}
+
+function stampPencil(ctx, doc, x, y, pressure, brush) {
+  const hardness = brush.strengthUnit();
+  const radius = brush.sizePx() * (0.35 + pressure * 0.3);
+  const alphaBase = lerp(0.18, 0.8, hardness) * lerp(0.5, 1, pressure);
+  const grainStrength = lerp(0.75, 0.2, hardness);
+  const { r, g, b } = hexToRgb(brush.color);
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighten";
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fillStyle = `rgba(${r},${g},${b},${alphaBase})`;
+  ctx.fill();
+  ctx.restore();
+
+  punchGrain(ctx, doc, x, y, radius, grainStrength);
+}
+
+function stampCrayon(ctx, doc, x, y, pressure, angle, brush) {
+  const force = brush.strengthUnit();
+  const radius = brush.sizePx() * (0.4 + pressure * 0.25);
+  const alpha = lerp(0.35, 0.9, force) * lerp(0.6, 1, pressure);
+  const { r, g, b } = hexToRgb(brush.color);
+  const wobble = (Math.random() - 0.5) * radius * 0.18;
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.beginPath();
+  ctx.ellipse(wobble, 0, radius, radius * 0.62, 0, 0, Math.PI * 2);
+  ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+  ctx.fill();
+  ctx.restore();
+
+  punchGrain(ctx, doc, x, y, radius, 0.5);
+}
+
+function stampWatercolor(ctx, x, y, pressure, brush, amountScale) {
+  const radius = brush.sizePx() * (0.5 + pressure * 0.35);
+  const strengthUnit = brush.strengthUnit();
+  const alpha = lerp(0.08, 0.4, strengthUnit) * lerp(0.5, 1, pressure) * amountScale;
+  const { r, g, b } = hexToRgb(brush.color);
+
+  const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
+  grad.addColorStop(0, `rgba(${r},${g},${b},${alpha})`);
+  grad.addColorStop(0.7, `rgba(${r},${g},${b},${alpha * 0.7})`);
+  grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+
+  ctx.save();
+  ctx.globalCompositeOperation = "source-over";
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function redepositEdges(ctx, points, color) {
+  if (points.length < 2) return;
+  const { r, g, b } = hexToRgb(color);
+  ctx.save();
+  ctx.globalCompositeOperation = "source-over";
+  ctx.strokeStyle = `rgba(${r},${g},${b},0.14)`;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ctx.lineWidth = Math.max(1, points[0].pressure * 3);
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (const p of points) ctx.lineTo(p.x, p.y);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function stampEraser(layer, x, y, pressure, brush) {
+  const radius = brush.sizePx() * (0.4 + pressure * 0.3);
+  const strength = brush.strengthUnit();
+  const alpha = lerp(0.18, 1, strength) * lerp(0.6, 1, pressure);
+
+  for (const ctx of [layer.ctx, layer.wetCtx]) {
+    ctx.save();
+    ctx.globalCompositeOperation = "destination-out";
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    grad.addColorStop(0, `rgba(0,0,0,${alpha})`);
+    grad.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function diffuseWetLayer(layer, blurPx) {
+  const w = layer.width;
+  const h = layer.height;
+  const dw = Math.max(1, Math.round(w / 2));
+  const dh = Math.max(1, Math.round(h / 2));
+
+  const a = document.createElement("canvas");
+  a.width = dw;
+  a.height = dh;
+  a.getContext("2d").drawImage(layer.wetCanvas, 0, 0, dw, dh);
+
+  const b = document.createElement("canvas");
+  b.width = dw;
+  b.height = dh;
+  const bctx = b.getContext("2d");
+  try {
+    bctx.filter = `blur(${blurPx / 2}px)`;
+  } catch (e) {
+    /* filter未対応ブラウザはぼかし無しで続行 */
+  }
+  bctx.drawImage(a, 0, 0);
+
+  layer.wetCtx.clearRect(0, 0, w, h);
+  layer.wetCtx.imageSmoothingEnabled = true;
+  layer.wetCtx.drawImage(b, 0, 0, w, h);
+}
+
+function brushPreview(canvas, brush) {
+  const ctx = canvas.getContext("2d");
+  const w = canvas.width;
+  const h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = "#faf7ee";
+  ctx.fillRect(0, 0, w, h);
+  const radius = Math.min(w, h) * 0.32 * (0.4 + brush.settings[brush.tool].size / 100 * 0.6);
+  const { r, g, b } = hexToRgb(brush.color);
+  ctx.beginPath();
+  ctx.arc(w / 2, h / 2, radius, 0, Math.PI * 2);
+  const alpha = brush.tool === "eraser" ? 0.5 : lerp(0.3, 0.9, brush.strengthUnit());
+  ctx.fillStyle = brush.tool === "eraser" ? "rgba(200,200,200,0.6)" : `rgba(${r},${g},${b},${alpha})`;
+  ctx.fill();
+}
+
+
+// ---- dialogs.js ----
+function show(el) {
+  el.hidden = false;
+}
+
+function hide(el) {
+  el.hidden = true;
+}
+
+function confirmDialog(message, confirmLabel = "けす") {
+  const overlay = document.getElementById("confirm-dialog");
+  const msgEl = document.getElementById("confirm-message");
+  const yesBtn = document.getElementById("btn-confirm-yes");
+  const noBtn = document.getElementById("btn-confirm-no");
+  msgEl.textContent = message;
+  yesBtn.textContent = confirmLabel;
+  show(overlay);
+  return new Promise((resolve) => {
+    const cleanup = (result) => {
+      hide(overlay);
+      yesBtn.removeEventListener("click", onYes);
+      noBtn.removeEventListener("click", onNo);
+      resolve(result);
+    };
+    const onYes = () => cleanup(true);
+    const onNo = () => cleanup(false);
+    yesBtn.addEventListener("click", onYes);
+    noBtn.addEventListener("click", onNo);
+  });
+}
+
+function positionPopover(popoverEl, anchorEl) {
+  const rect = anchorEl.getBoundingClientRect();
+  const popRect = popoverEl.getBoundingClientRect();
+  let left = rect.left + rect.width / 2 - popRect.width / 2;
+  left = Math.max(8, Math.min(window.innerWidth - popRect.width - 8, left));
+  const top = rect.top - popRect.height - 12;
+  popoverEl.style.left = `${left}px`;
+  popoverEl.style.top = `${Math.max(8, top)}px`;
+  const arrow = popoverEl.querySelector(".popover-arrow");
+  if (arrow) arrow.style.left = `${rect.left + rect.width / 2 - left - 8}px`;
+}
+
+
+// ---- screens.js ----
+const galleryEl = document.getElementById("screen-gallery");
+const editorEl = document.getElementById("screen-editor");
+
+function showGalleryScreen() {
+  galleryEl.hidden = false;
+  editorEl.hidden = true;
+}
+
+function showEditorScreen() {
+  galleryEl.hidden = true;
+  editorEl.hidden = false;
+}
+
+
+// ---- furigana.js ----
+const KEY = "sketchnote_furigana";
+
+function readPref() {
+  try {
+    return localStorage.getItem(KEY) === "1";
+  } catch (e) {
+    return false;
+  }
+}
+
+function writePref(on) {
+  try {
+    localStorage.setItem(KEY, on ? "1" : "0");
+  } catch (e) {
+    /* ストレージが使えない場合は保存しないだけで動作は続ける */
+  }
+}
+
+function initFurigana(toggleBtn) {
+  const on = readPref();
+  document.body.classList.toggle("furigana-on", on);
+  toggleBtn.setAttribute("aria-pressed", String(on));
+  toggleBtn.addEventListener("click", () => {
+    const next = !document.body.classList.contains("furigana-on");
+    document.body.classList.toggle("furigana-on", next);
+    toggleBtn.setAttribute("aria-pressed", String(next));
+    writePref(next);
+  });
+}
+
+
+// ---- color-picker.js ----
+
+const BASE_COLORS = [
+  "#2b2b2b", "#7a5230", "#e0503c", "#f2924a",
+  "#f4d35e", "#9bc53d", "#3fa987", "#2ea3ac",
+  "#3b6fd4", "#5b4bcf", "#d65fa8", "#ffffff",
+];
+const RECENT_KEY = "sketchnote_recent_colors";
+
+function loadRecent() {
+  try {
+    return JSON.parse(localStorage.getItem(RECENT_KEY) || "[]");
+  } catch (e) {
+    return [];
+  }
+}
+function saveRecent(list) {
+  try {
+    localStorage.setItem(RECENT_KEY, JSON.stringify(list));
+  } catch (e) {
+    /* 保存できなくても致命的ではない */
+  }
+}
+
+function hsvToHex(h, s, v) {
+  const c = v * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = v - c;
+  let r = 0, g = 0, b = 0;
+  if (h < 60) [r, g, b] = [c, x, 0];
+  else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x];
+  else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+  const R = Math.round((r + m) * 255);
+  const G = Math.round((g + m) * 255);
+  const B = Math.round((b + m) * 255);
+  return `#${[R, G, B].map((n) => n.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function drawHueRing(canvas) {
+  const ctx = canvas.getContext("2d");
+  const w = canvas.width;
+  const h = canvas.height;
+  const cx = w / 2;
+  const cy = h / 2;
+  const outer = Math.min(w, h) / 2 - 2;
+  const inner = outer * 0.68;
+  ctx.clearRect(0, 0, w, h);
+  for (let a = 0; a < 360; a += 2) {
+    const r0 = ((a - 1.2) * Math.PI) / 180;
+    const r1 = ((a + 1.2) * Math.PI) / 180;
+    ctx.beginPath();
+    ctx.arc(cx, cy, outer, r0, r1);
+    ctx.arc(cx, cy, inner, r1, r0, true);
+    ctx.closePath();
+    ctx.fillStyle = `hsl(${a},85%,55%)`;
+    ctx.fill();
+  }
+}
+
+function drawSVSquare(canvas, hue) {
+  const ctx = canvas.getContext("2d");
+  const w = canvas.width;
+  const h = canvas.height;
+  ctx.fillStyle = `hsl(${hue},100%,50%)`;
+  ctx.fillRect(0, 0, w, h);
+  const whiteGrad = ctx.createLinearGradient(0, 0, w, 0);
+  whiteGrad.addColorStop(0, "rgba(255,255,255,1)");
+  whiteGrad.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = whiteGrad;
+  ctx.fillRect(0, 0, w, h);
+  const blackGrad = ctx.createLinearGradient(0, 0, 0, h);
+  blackGrad.addColorStop(0, "rgba(0,0,0,0)");
+  blackGrad.addColorStop(1, "rgba(0,0,0,1)");
+  ctx.fillStyle = blackGrad;
+  ctx.fillRect(0, 0, w, h);
+}
+
+class ColorPicker {
+  constructor(brush, onChange) {
+    this.brush = brush;
+    this.onChange = onChange;
+    this.recent = loadRecent();
+    this.currentHue = 0;
+
+    this.popover = document.getElementById("popover-color");
+    this.swatchBtn = document.getElementById("btn-color-swatch");
+    this.baseGrid = document.getElementById("color-grid-base");
+    this.recentGrid = document.getElementById("color-grid-recent");
+    this.moreBtn = document.getElementById("btn-more-color");
+    this.advanced = document.getElementById("color-advanced");
+    this.hueRing = document.getElementById("hue-ring");
+    this.svSquare = document.getElementById("sv-square");
+
+    this._buildBaseGrid();
+    this._renderRecent();
+    this._bindOpen();
+    this._bindAdvanced();
+    this.updateSwatch();
+  }
+
+  _buildBaseGrid() {
+    this.baseGrid.innerHTML = "";
+    for (const hex of BASE_COLORS) {
+      const b = document.createElement("button");
+      b.style.setProperty("--c", hex);
+      b.setAttribute("aria-label", `いろ ${hex}`);
+      b.addEventListener("click", () => this.selectColor(hex));
+      this.baseGrid.appendChild(b);
+    }
+  }
+
+  _renderRecent() {
+    this.recentGrid.innerHTML = "";
+    for (const hex of this.recent) {
+      const b = document.createElement("button");
+      b.style.setProperty("--c", hex);
+      b.setAttribute("aria-label", `さいきん つかった いろ ${hex}`);
+      b.addEventListener("click", () => this.selectColor(hex));
+      this.recentGrid.appendChild(b);
+    }
+  }
+
+  selectColor(hex) {
+    this.brush.setColor(hex);
+    this._pushRecent(hex);
+    this.updateSwatch();
+    this.onChange?.(hex);
+    hide(this.popover);
+  }
+
+  _liveColor(hex) {
+    this.brush.setColor(hex);
+    this.updateSwatch();
+    this.onChange?.(hex);
+  }
+
+  _pushRecent(hex) {
+    this.recent = [hex, ...this.recent.filter((c) => c !== hex)].slice(0, 8);
+    saveRecent(this.recent);
+    this._renderRecent();
+  }
+
+  updateSwatch() {
+    this.swatchBtn.style.setProperty("--swatch-color", this.brush.color);
+  }
+
+  _bindOpen() {
+    this.swatchBtn.addEventListener("click", () => {
+      if (!this.popover.hidden) {
+        hide(this.popover);
+        return;
+      }
+      show(this.popover);
+      positionPopover(this.popover, this.swatchBtn);
+    });
+    document.addEventListener("pointerdown", (e) => {
+      if (this.popover.hidden) return;
+      if (this.popover.contains(e.target) || this.swatchBtn.contains(e.target)) return;
+      hide(this.popover);
+    });
+  }
+
+  _bindAdvanced() {
+    this.moreBtn.addEventListener("click", () => {
+      const willShow = this.advanced.hidden;
+      this.advanced.hidden = !willShow;
+      if (willShow) {
+        drawHueRing(this.hueRing);
+        drawSVSquare(this.svSquare, this.currentHue);
+      }
+    });
+
+    const pickHue = (e) => {
+      const rect = this.hueRing.getBoundingClientRect();
+      const cx = rect.width / 2;
+      const cy = rect.height / 2;
+      const x = e.clientX - rect.left - cx;
+      const y = e.clientY - rect.top - cy;
+      let deg = (Math.atan2(y, x) * 180) / Math.PI;
+      if (deg < 0) deg += 360;
+      this.currentHue = deg;
+      drawSVSquare(this.svSquare, this.currentHue);
+      this._liveColor(hsvToHex(this.currentHue, 0.85, 0.9));
+    };
+    this.hueRing.addEventListener("pointerdown", (e) => {
+      this._hueDown = true;
+      this.hueRing.setPointerCapture(e.pointerId);
+      pickHue(e);
+    });
+    this.hueRing.addEventListener("pointermove", (e) => {
+      if (this._hueDown) pickHue(e);
+    });
+    this.hueRing.addEventListener("pointerup", () => {
+      this._hueDown = false;
+      this._pushRecent(this.brush.color);
+    });
+
+    const pickSV = (e) => {
+      const rect = this.svSquare.getBoundingClientRect();
+      const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+      const y = Math.max(0, Math.min(rect.height, e.clientY - rect.top));
+      const s = x / rect.width;
+      const v = 1 - y / rect.height;
+      this._liveColor(hsvToHex(this.currentHue, s, v));
+    };
+    this.svSquare.addEventListener("pointerdown", (e) => {
+      this._svDown = true;
+      this.svSquare.setPointerCapture(e.pointerId);
+      pickSV(e);
+    });
+    this.svSquare.addEventListener("pointermove", (e) => {
+      if (this._svDown) pickSV(e);
+    });
+    this.svSquare.addEventListener("pointerup", () => {
+      this._svDown = false;
+      this._pushRecent(this.brush.color);
+    });
+  }
+}
+
+
+// ---- storage.js ----
+// IndexedDBへの保存・読み込み。作品はすべて端末内のみに保存し、外部へは送らない。
+
+const DB_NAME = "sketchnote-db";
+const DB_VERSION = 1;
+const STORE = "works";
+const WORK_COUNT_WARNING = 20;
+
+function reqP(req) {
+  return new Promise((resolve, reject) => {
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+let dbPromise = null;
+function openDB() {
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: "id" });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  return dbPromise;
+}
+
+async function saveWork(doc) {
+  const thumbCanvas = doc.flatten({ maxSize: 320 });
+  const thumb = await new Promise((r) => thumbCanvas.toBlob(r, "image/png"));
+  const layers = [];
+  for (const layer of doc.layers) {
+    layer.mergeWetToDry();
+    const blob = await layer.toBlob();
+    layers.push({
+      id: layer.id,
+      name: layer.name,
+      opacityLevel: layer.opacityLevel,
+      visible: layer.visible,
+      excludeFromExport: layer.excludeFromExport,
+      isSketch: layer.isSketch,
+      blob,
+    });
+  }
+  doc.updatedAt = Date.now();
+  const record = {
+    id: doc.id,
+    title: doc.title,
+    paperType: doc.paperType,
+    width: doc.width,
+    height: doc.height,
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+    activeLayerIndex: doc.activeLayerIndex,
+    thumb,
+    layers,
+  };
+  const db = await openDB();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, "readwrite");
+    tx.objectStore(STORE).put(record);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  return record;
+}
+
+async function loadWorkList() {
+  const db = await openDB();
+  const tx = db.transaction(STORE, "readonly");
+  const all = await reqP(tx.objectStore(STORE).getAll());
+  return all
+    .map((r) => ({ id: r.id, title: r.title, updatedAt: r.updatedAt, thumb: r.thumb, width: r.width, height: r.height }))
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+async function loadWorkRecord(id) {
+  const db = await openDB();
+  const tx = db.transaction(STORE, "readonly");
+  return reqP(tx.objectStore(STORE).get(id));
+}
+
+async function deleteWork(id) {
+  const db = await openDB();
+  const tx = db.transaction(STORE, "readwrite");
+  tx.objectStore(STORE).delete(id);
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function renameWork(id, title) {
+  const record = await loadWorkRecord(id);
+  if (!record) return;
+  record.title = title;
+  const db = await openDB();
+  const tx = db.transaction(STORE, "readwrite");
+  tx.objectStore(STORE).put(record);
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function duplicateWork(id) {
+  const record = await loadWorkRecord(id);
+  if (!record) return null;
+  const copy = { ...record, id: `${record.id}_copy_${Date.now().toString(36)}`, title: `${record.title}のコピー`, updatedAt: Date.now(), createdAt: Date.now() };
+  const db = await openDB();
+  const tx = db.transaction(STORE, "readwrite");
+  tx.objectStore(STORE).put(copy);
+  await new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  return copy.id;
+}
+
+async function hydrateDocument(record) {
+  const doc = new SketchDocument({
+    id: record.id,
+    title: record.title,
+    width: record.width,
+    height: record.height,
+    paperType: record.paperType,
+  });
+  doc.createdAt = record.createdAt;
+  doc.updatedAt = record.updatedAt;
+  doc.layers = [];
+  for (const ld of record.layers) {
+    const layer = new Layer(record.width, record.height, ld.name, {
+      id: ld.id,
+      opacityLevel: ld.opacityLevel,
+      isSketch: ld.isSketch,
+      excludeFromExport: ld.excludeFromExport,
+    });
+    layer.visible = ld.visible;
+    if (ld.blob) {
+      const bitmap = await createImageBitmap(ld.blob);
+      layer.ctx.drawImage(bitmap, 0, 0);
+    }
+    doc.layers.push(layer);
+  }
+  doc.activeLayerIndex = Math.min(record.activeLayerIndex ?? doc.layers.length - 1, doc.layers.length - 1);
+  return doc;
+}
+
+async function estimateStorage() {
+  if (navigator.storage?.estimate) {
+    try {
+      return await navigator.storage.estimate();
+    } catch (e) {
+      return null;
+    }
+  }
+  return null;
+}
+
+
+// ---- input.js ----
+// ペン・タッチ・マウスの入力をまとめて扱う。
+// - ペン優先（手のひら誤描画防止）: ペンが押されている間はタッチを無視する
+// - 2本指=パン/ピンチ/タップでもどす、3本指タップ=すすむ
+// - スペース+ドラッグ / ホイールでのパン・ズーム（トラックパッド・マウス機用）
+
+function centroid(list) {
+  let x = 0;
+  let y = 0;
+  for (const p of list) {
+    x += p.x;
+    y += p.y;
+  }
+  return { x: x / list.length, y: y / list.length };
+}
+
+function dist(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+class InputController {
+  constructor({ viewportEl, getViewport, getDoc, getActiveLayer, brush, history, onStrokeStart, onStrokeCommit, onRequestUndo, onRequestRedo }) {
+    this.viewportEl = viewportEl;
+    this.getViewport = getViewport;
+    this.getDoc = getDoc;
+    this.getActiveLayer = getActiveLayer;
+    this.brush = brush;
+    this.history = history;
+    this.onStrokeStart = onStrokeStart;
+    this.onStrokeCommit = onStrokeCommit;
+    this.onRequestUndo = onRequestUndo;
+    this.onRequestRedo = onRequestRedo;
+
+    this.touches = new Map();
+    this.penActive = false;
+    this.drawing = false;
+    this.drawingPointerId = null;
+    this.gestureMode = false;
+    this.spaceHeld = false;
+    this.mousePanning = false;
+    this.enabled = true;
+
+    this._onPointerDown = this._onPointerDown.bind(this);
+    this._onPointerMove = this._onPointerMove.bind(this);
+    this._onPointerUp = this._onPointerUp.bind(this);
+    this._onWheel = this._onWheel.bind(this);
+    this._onKeyDown = this._onKeyDown.bind(this);
+    this._onKeyUp = this._onKeyUp.bind(this);
+
+    viewportEl.addEventListener("pointerdown", this._onPointerDown);
+    viewportEl.addEventListener("pointermove", this._onPointerMove);
+    window.addEventListener("pointerup", this._onPointerUp);
+    window.addEventListener("pointercancel", this._onPointerUp);
+    viewportEl.addEventListener("wheel", this._onWheel, { passive: false });
+    window.addEventListener("keydown", this._onKeyDown);
+    window.addEventListener("keyup", this._onKeyUp);
+  }
+
+  dispose() {
+    this.viewportEl.removeEventListener("pointerdown", this._onPointerDown);
+    this.viewportEl.removeEventListener("pointermove", this._onPointerMove);
+    window.removeEventListener("pointerup", this._onPointerUp);
+    window.removeEventListener("pointercancel", this._onPointerUp);
+    this.viewportEl.removeEventListener("wheel", this._onWheel);
+    window.removeEventListener("keydown", this._onKeyDown);
+    window.removeEventListener("keyup", this._onKeyUp);
+  }
+
+  _onPointerDown(e) {
+    if (!this.enabled) return;
+    this.viewportEl.setPointerCapture?.(e.pointerId);
+
+    if (e.pointerType === "touch") {
+      if (this.penActive) {
+        e.preventDefault();
+        return;
+      }
+      this.touches.set(e.pointerId, { x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY });
+
+      if (this.touches.size === 1 && !this.gestureMode) {
+        this._beginDraw(e);
+        return;
+      }
+      if (this.touches.size >= 2) {
+        if (this.drawing) this._endDraw();
+        if (!this.gestureMode) {
+          this.gestureMode = true;
+          this._gestureStartTime = performance.now();
+          this._gestureMoved = false;
+          this._gestureMaxTouches = 0;
+        }
+        this._gestureMaxTouches = Math.max(this._gestureMaxTouches, this.touches.size);
+        this._captureGestureBase();
+      }
+      return;
+    }
+
+    if (e.pointerType === "pen") {
+      this.penActive = true;
+      e.preventDefault();
+      this._beginDraw(e);
+      return;
+    }
+
+    if (e.button === 1 || this.spaceHeld) {
+      this.mousePanning = true;
+      this._panLast = { x: e.clientX, y: e.clientY };
+      e.preventDefault();
+      return;
+    }
+    if (e.button === 0) this._beginDraw(e);
+  }
+
+  _onPointerMove(e) {
+    if (!this.enabled) return;
+
+    if (e.pointerType === "touch" && this.touches.has(e.pointerId)) {
+      const info = this.touches.get(e.pointerId);
+      info.x = e.clientX;
+      info.y = e.clientY;
+      if (this.gestureMode) {
+        this._applyGesture();
+        return;
+      }
+    }
+
+    if (this.mousePanning) {
+      const dx = e.clientX - this._panLast.x;
+      const dy = e.clientY - this._panLast.y;
+      this._panLast = { x: e.clientX, y: e.clientY };
+      this.getViewport().panBy(dx, dy);
+      return;
+    }
+
+    if (!this.drawing) return;
+    if (e.pointerType === "touch" && e.pointerId !== this.drawingPointerId) return;
+
+    const events = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    const vp = this.getViewport();
+    const pts = events.map((ev) => {
+      const d = vp.screenToDoc(ev.clientX, ev.clientY);
+      return { x: d.x, y: d.y, pressure: ev.pressure, t: ev.timeStamp };
+    });
+    this.brush.extendStroke(this.getDoc(), this.getActiveLayer(), pts, performance.now());
+  }
+
+  _onPointerUp(e) {
+    if (e.pointerType === "touch") {
+      const wasTracked = this.touches.has(e.pointerId);
+      this.touches.delete(e.pointerId);
+
+      if (this.gestureMode) {
+        if (this.touches.size === 0) {
+          const dt = performance.now() - this._gestureStartTime;
+          if (!this._gestureMoved && dt < 350) {
+            if (this._gestureMaxTouches === 2) this.onRequestUndo?.();
+            else if (this._gestureMaxTouches >= 3) this.onRequestRedo?.();
+          }
+          this.gestureMode = false;
+          this._gestureMaxTouches = 0;
+        }
+        return;
+      }
+      if (wasTracked && e.pointerId === this.drawingPointerId) this._endDraw();
+      return;
+    }
+
+    if (e.pointerType === "pen") this.penActive = false;
+    if (this.mousePanning) {
+      this.mousePanning = false;
+      return;
+    }
+    if (this.drawing) this._endDraw();
+  }
+
+  _captureGestureBase() {
+    const arr = [...this.touches.values()];
+    if (arr.length >= 2) {
+      this._gestureCentroid = centroid(arr);
+      this._gestureDist = dist(arr[0], arr[1]);
+    }
+  }
+
+  _applyGesture() {
+    const arr = [...this.touches.values()];
+    for (const t of arr) {
+      if (Math.hypot(t.x - t.startX, t.y - t.startY) > 14) this._gestureMoved = true;
+    }
+    if (arr.length === 2) {
+      const c = centroid(arr);
+      const d = dist(arr[0], arr[1]);
+      const vp = this.getViewport();
+      vp.panBy(c.x - this._gestureCentroid.x, c.y - this._gestureCentroid.y);
+      const factor = d / (this._gestureDist || d);
+      if (Math.abs(factor - 1) > 0.001) vp.zoomAt(c.x, c.y, factor);
+      this._gestureCentroid = c;
+      this._gestureDist = d;
+    }
+  }
+
+  _beginDraw(e) {
+    this.drawing = true;
+    if (e.pointerType === "touch") this.drawingPointerId = e.pointerId;
+    const vp = this.getViewport();
+    const d = vp.screenToDoc(e.clientX, e.clientY);
+    const layer = this.getActiveLayer();
+    this.history.beginAction(layer);
+    this.onStrokeStart?.();
+    this.brush.beginStroke(this.getDoc(), layer, { x: d.x, y: d.y, pressure: e.pressure }, performance.now());
+  }
+
+  _endDraw() {
+    this.drawing = false;
+    this.drawingPointerId = null;
+    const layer = this.getActiveLayer();
+    this.brush.endStroke(this.getDoc(), layer, performance.now());
+    this.history.commitAction(layer);
+    this.onStrokeCommit?.();
+  }
+
+  _onWheel(e) {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.08 : 0.93;
+    this.getViewport().zoomAt(e.clientX, e.clientY, factor);
+  }
+
+  _onKeyDown(e) {
+    if (e.code === "Space") {
+      this.spaceHeld = true;
+    }
+    const meta = e.ctrlKey || e.metaKey;
+    if (meta && e.key.toLowerCase() === "z" && !e.shiftKey) {
+      e.preventDefault();
+      this.onRequestUndo?.();
+    } else if ((meta && e.key.toLowerCase() === "z" && e.shiftKey) || (meta && e.key.toLowerCase() === "y")) {
+      e.preventDefault();
+      this.onRequestRedo?.();
+    }
+  }
+
+  _onKeyUp(e) {
+    if (e.code === "Space") this.spaceHeld = false;
+  }
+}
+
+
+// ---- gallery.js ----
+
+let onOpenWork = null;
+let onCreateWork = null;
+let objectUrls = [];
+
+const grid = document.getElementById("gallery-grid");
+const emptyMsg = document.getElementById("gallery-empty");
+const storageHint = document.getElementById("storage-hint");
+const btnNewWork = document.getElementById("btn-new-work");
+
+const modal = document.getElementById("modal-new-work");
+const presetList = document.getElementById("paper-preset-list");
+const paperTypeList = document.getElementById("paper-type-list");
+const chkCustom = document.getElementById("chk-custom-size");
+const customInputs = document.getElementById("custom-size-inputs");
+const inputWmm = document.getElementById("input-w-mm");
+const inputHmm = document.getElementById("input-h-mm");
+const inputTitle = document.getElementById("input-new-title");
+const btnCancelNew = document.getElementById("btn-cancel-new");
+const btnConfirmNew = document.getElementById("btn-confirm-new");
+
+let selectedPresetId = "a4-h";
+let selectedPaperType = "gayoshi";
+
+function initGallery({ onOpenWork: openCb, onCreateWork: createCb }) {
+  onOpenWork = openCb;
+  onCreateWork = createCb;
+
+  buildPresetList();
+  buildPaperTypeList();
+
+  btnNewWork.addEventListener("click", () => {
+    inputTitle.value = "";
+    show(modal);
+  });
+  btnCancelNew.addEventListener("click", () => hide(modal));
+  chkCustom.addEventListener("change", () => {
+    customInputs.hidden = !chkCustom.checked;
+  });
+  btnConfirmNew.addEventListener("click", onConfirmNew);
+
+  refreshGallery();
+}
+
+async function showGallery() {
+  showGalleryScreen();
+  await refreshGallery();
+}
+
+function buildPresetList() {
+  presetList.innerHTML = "";
+  for (const preset of PAPER_PRESETS) {
+    const btn = document.createElement("button");
+    btn.className = "preset-card";
+    btn.type = "button";
+    btn.setAttribute("aria-pressed", String(preset.id === selectedPresetId));
+    const shape = document.createElement("div");
+    shape.className = "preset-shape";
+    const scale = 60 / Math.max(preset.w, preset.h);
+    shape.style.width = `${Math.round(preset.w * scale)}px`;
+    shape.style.height = `${Math.round(preset.h * scale)}px`;
+    btn.appendChild(shape);
+    btn.appendChild(document.createTextNode(preset.label));
+    btn.addEventListener("click", () => {
+      selectedPresetId = preset.id;
+      chkCustom.checked = false;
+      customInputs.hidden = true;
+      [...presetList.children].forEach((c) => c.setAttribute("aria-pressed", String(c === btn)));
+    });
+    presetList.appendChild(btn);
+  }
+}
+
+function buildPaperTypeList() {
+  paperTypeList.innerHTML = "";
+  for (const type of PAPER_TYPES) {
+    const btn = document.createElement("button");
+    btn.className = "preset-card";
+    btn.type = "button";
+    btn.setAttribute("aria-pressed", String(type.id === selectedPaperType));
+    btn.textContent = type.label;
+    btn.addEventListener("click", () => {
+      selectedPaperType = type.id;
+      [...paperTypeList.children].forEach((c) => c.setAttribute("aria-pressed", String(c === btn)));
+    });
+    paperTypeList.appendChild(btn);
+  }
+}
+
+function onConfirmNew() {
+  let width;
+  let height;
+  if (chkCustom.checked) {
+    width = mmToPx(Math.max(50, Math.min(600, Number(inputWmm.value) || 297)));
+    height = mmToPx(Math.max(50, Math.min(600, Number(inputHmm.value) || 210)));
+  } else {
+    const preset = PAPER_PRESETS.find((p) => p.id === selectedPresetId) || PAPER_PRESETS[3];
+    width = mmToPx(preset.w);
+    height = mmToPx(preset.h);
+  }
+  const title = inputTitle.value.trim() || "むだい";
+  hide(modal);
+  onCreateWork?.({ width, height, paperType: selectedPaperType, title });
+}
+
+async function refreshGallery() {
+  objectUrls.forEach((u) => URL.revokeObjectURL(u));
+  objectUrls = [];
+
+  const list = await loadWorkList();
+  grid.innerHTML = "";
+  emptyMsg.hidden = list.length > 0;
+
+  for (const work of list) {
+    grid.appendChild(buildCard(work));
+  }
+
+  const est = await estimateStorage();
+  let hint = "";
+  if (list.length >= WORK_COUNT_WARNING) {
+    hint = `さくひんが ${list.length}こ あります。いらないものを けしましょう。`;
+  } else if (est && est.quota) {
+    const pct = Math.round((est.usage / est.quota) * 100);
+    hint = `たんまつの ようりょう を ${pct}% つかっています`;
+  }
+  storageHint.textContent = hint;
+}
+
+function buildCard(work) {
+  const card = document.createElement("div");
+  card.className = "work-card";
+  card.setAttribute("role", "listitem");
+
+  const img = document.createElement("img");
+  if (work.thumb) {
+    const url = URL.createObjectURL(work.thumb);
+    objectUrls.push(url);
+    img.src = url;
+  }
+  img.alt = `${work.title} のプレビュー`;
+  img.addEventListener("click", () => onOpenWork?.(work.id));
+  card.appendChild(img);
+
+  const name = document.createElement("div");
+  name.className = "work-name";
+  name.textContent = work.title;
+  name.addEventListener("click", () => onOpenWork?.(work.id));
+  card.appendChild(name);
+
+  const menuRow = document.createElement("div");
+  menuRow.className = "work-menu-row";
+
+  const renameBtn = document.createElement("button");
+  renameBtn.textContent = "✎";
+  renameBtn.setAttribute("aria-label", "名前をかえる");
+  renameBtn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    const next = prompt("あたらしい 名前", work.title);
+    if (next && next.trim()) {
+      await renameWork(work.id, next.trim().slice(0, 40));
+      refreshGallery();
+    }
+  });
+
+  const dupBtn = document.createElement("button");
+  dupBtn.textContent = "⧉";
+  dupBtn.setAttribute("aria-label", "コピーする");
+  dupBtn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    await duplicateWork(work.id);
+    refreshGallery();
+  });
+
+  const delBtn = document.createElement("button");
+  delBtn.textContent = "🗑";
+  delBtn.setAttribute("aria-label", "けす");
+  delBtn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    const ok = await confirmDialog(`「${work.title}」を けしますか？\nもとに もどせません。`);
+    if (ok) {
+      await deleteWork(work.id);
+      refreshGallery();
+    }
+  });
+
+  menuRow.appendChild(renameBtn);
+  menuRow.appendChild(dupBtn);
+  menuRow.appendChild(delBtn);
+  card.appendChild(menuRow);
+  return card;
+}
+
+
+// ---- editor.js ----
+
+const stageEl = document.getElementById("canvas-stage");
+const viewportEl = document.getElementById("canvas-viewport");
+const titleInput = document.getElementById("input-title");
+const btnBack = document.getElementById("btn-back-gallery");
+const btnUndo = document.getElementById("btn-undo");
+const btnRedo = document.getElementById("btn-redo");
+const btnSettings = document.getElementById("btn-settings");
+const btnFit = document.getElementById("btn-fit");
+
+const btnLayersToggle = document.getElementById("btn-layers-toggle");
+const layerPanel = document.getElementById("layer-panel");
+const layerList = document.getElementById("layer-list");
+const btnLayerAdd = document.getElementById("btn-layer-add");
+
+const toolListEl = document.getElementById("tool-list");
+const btnDry = document.getElementById("btn-dry");
+const btnSizePopover = document.getElementById("btn-size-popover");
+const sizePreviewDot = document.getElementById("size-preview-dot");
+
+const popoverSize = document.getElementById("popover-size");
+const rangeSize = document.getElementById("range-size");
+const rangeStrength = document.getElementById("range-strength");
+const strengthLabel = document.getElementById("strength-label");
+const rowStrength = document.getElementById("row-strength");
+const brushPreviewCanvas = document.getElementById("brush-preview");
+
+const modalSettings = document.getElementById("modal-settings");
+const chkLowQuality = document.getElementById("chk-low-quality");
+const chkLeftHanded = document.getElementById("chk-left-handed");
+const rangeStabilize = document.getElementById("range-stabilize");
+const btnExportPng = document.getElementById("btn-export-png");
+const btnPrint = document.getElementById("btn-print");
+const btnCloseSettings = document.getElementById("btn-close-settings");
+
+const SETTINGS_KEY = "sketchnote_settings";
+
+function loadSettings() {
+  try {
+    return { lowQuality: false, leftHanded: false, stabilize: 1, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}") };
+  } catch (e) {
+    return { lowQuality: false, leftHanded: false, stabilize: 1 };
+  }
+}
+function saveSettings(s) {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+  } catch (e) {
+    /* 保存できなくても動作は続ける */
+  }
+}
+
+let doc = null;
+let viewport = null;
+let inputController = null;
+const brush = new BrushEngine();
+const history = new History();
+let colorPicker = null;
+let settings = loadSettings();
+let autosaveTimer = null;
+let dryIntervalStarted = false;
+let layerRowRefs = new Map();
+
+function initEditor() {
+  brush.stabilizeLevel = settings.stabilize;
+  document.body.classList.toggle("left-handed", settings.leftHanded);
+
+  colorPicker = new ColorPicker(brush, () => {});
+
+  history.onChange = (canUndo, canRedo) => {
+    btnUndo.disabled = !canUndo;
+    btnRedo.disabled = !canRedo;
+  };
+
+  buildToolList();
+  selectTool("pencil");
+
+  btnBack.addEventListener("click", async () => {
+    await saveNow();
+    showGallery();
+  });
+  titleInput.addEventListener("change", () => {
+    if (!doc) return;
+    doc.title = titleInput.value.trim() || "むだい";
+    scheduleAutosave();
+  });
+
+  btnUndo.addEventListener("click", () => {
+    if (!doc) return;
+    history.undo(doc);
+    renderLayerPanel();
+    scheduleAutosave();
+  });
+  btnRedo.addEventListener("click", () => {
+    if (!doc) return;
+    history.redo(doc);
+    renderLayerPanel();
+    scheduleAutosave();
+  });
+
+  btnFit.addEventListener("click", () => viewport?.fit());
+
+  btnLayersToggle.addEventListener("click", () => {
+    layerPanel.hidden = !layerPanel.hidden;
+  });
+  btnLayerAdd.addEventListener("click", () => {
+    if (!doc || doc.layers.length >= 4) return;
+    const layer = doc.addLayer(`かみ${doc.layers.length + 1}`);
+    doc.activeLayerIndex = doc.layers.length - 1;
+    syncStageDom(doc, stageEl);
+    renderLayerPanel();
+    scheduleAutosave();
+  });
+
+  btnDry.addEventListener("click", () => {
+    if (!doc) return;
+    const layer = doc.getActiveLayer();
+    history.beginAction(layer);
+    brush.forceDry(layer, performance.now());
+    history.commitAction();
+    scheduleAutosave();
+  });
+
+  btnSizePopover.addEventListener("click", () => {
+    if (!popoverSize.hidden) {
+      hide(popoverSize);
+      return;
+    }
+    show(popoverSize);
+    positionPopover(popoverSize, btnSizePopover);
+    updateSizePopoverValues();
+  });
+  document.addEventListener("pointerdown", (e) => {
+    if (popoverSize.hidden) return;
+    if (popoverSize.contains(e.target) || btnSizePopover.contains(e.target)) return;
+    hide(popoverSize);
+  });
+  rangeSize.addEventListener("input", () => {
+    brush.setSize(Number(rangeSize.value));
+    updateSizePreviewDot();
+    brushPreview(brushPreviewCanvas, brush);
+  });
+  rangeStrength.addEventListener("input", () => {
+    brush.setStrength(Number(rangeStrength.value));
+    brushPreview(brushPreviewCanvas, brush);
+  });
+
+  btnSettings.addEventListener("click", () => {
+    chkLowQuality.checked = settings.lowQuality;
+    chkLeftHanded.checked = settings.leftHanded;
+    rangeStabilize.value = String(settings.stabilize);
+    show(modalSettings);
+  });
+  chkLowQuality.addEventListener("change", () => {
+    settings.lowQuality = chkLowQuality.checked;
+    saveSettings(settings);
+  });
+  chkLeftHanded.addEventListener("change", () => {
+    settings.leftHanded = chkLeftHanded.checked;
+    document.body.classList.toggle("left-handed", settings.leftHanded);
+    saveSettings(settings);
+  });
+  rangeStabilize.addEventListener("input", () => {
+    settings.stabilize = Number(rangeStabilize.value);
+    brush.stabilizeLevel = settings.stabilize;
+    saveSettings(settings);
+  });
+  btnCloseSettings.addEventListener("click", () => hide(modalSettings));
+  btnExportPng.addEventListener("click", exportPng);
+  btnPrint.addEventListener("click", printWork);
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) saveNow();
+  });
+
+  setInterval(() => {
+    if (doc) brush.checkDrying(doc, performance.now());
+  }, 500);
+}
+
+function isLowQuality() {
+  return settings.lowQuality;
+}
+
+function buildToolList() {
+  toolListEl.innerHTML = "";
+  for (const t of TOOLS) {
+    const btn = document.createElement("button");
+    btn.className = "tool-btn";
+    btn.setAttribute("role", "tab");
+    btn.setAttribute("aria-selected", "false");
+    btn.dataset.tool = t.id;
+    btn.innerHTML = `<span class="tool-icon" aria-hidden="true">${t.icon}</span><span>${t.label}</span>`;
+    btn.addEventListener("click", () => selectTool(t.id));
+    toolListEl.appendChild(btn);
+  }
+}
+
+function selectTool(id) {
+  brush.setTool(id);
+  [...toolListEl.children].forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tool === id)));
+  btnDry.hidden = id !== "watercolor" && id !== "waterbrush";
+  colorPicker.swatchBtn.parentElement.style.visibility = id === "eraser" ? "hidden" : "visible";
+  const def = TOOLS.find((t) => t.id === id);
+  strengthLabel.textContent = def.strengthLabel;
+  rowStrength.hidden = false;
+  updateSizePreviewDot();
+}
+
+function updateSizePopoverValues() {
+  rangeSize.value = String(brush.getSize());
+  rangeStrength.value = String(brush.getStrength());
+  brushPreview(brushPreviewCanvas, brush);
+}
+
+function updateSizePreviewDot() {
+  const px = Math.max(6, Math.min(32, brush.sizePx() * 0.5));
+  sizePreviewDot.style.width = `${px}px`;
+  sizePreviewDot.style.height = `${px}px`;
+  sizePreviewDot.style.background = brush.tool === "eraser" ? "#c9c4b6" : brush.color;
+}
+
+async function openNewWork({ width, height, paperType, title }) {
+  let w = width;
+  let h = height;
+  if (settings.lowQuality) {
+    w = Math.round(w * 0.8);
+    h = Math.round(h * 0.8);
+  }
+  const newDoc = SketchDocument.createDefault({ width: w, height: h, paperType, title });
+  await setupDocument(newDoc);
+  await saveNow();
+}
+
+async function openWork(id) {
+  const record = await loadWorkRecord(id);
+  if (!record) return;
+  const hydrated = await hydrateDocument(record);
+  await setupDocument(hydrated);
+}
+
+async function setupDocument(newDoc) {
+  doc = newDoc;
+  history.reset();
+  titleInput.value = doc.title;
+  syncStageDom(doc, stageEl);
+
+  if (inputController) inputController.dispose();
+  viewport = new Viewport(viewportEl, stageEl, doc.width, doc.height);
+  inputController = new InputController({
+    viewportEl,
+    getViewport: () => viewport,
+    getDoc: () => doc,
+    getActiveLayer: () => doc.getActiveLayer(),
+    brush,
+    history,
+    onStrokeStart: () => {},
+    onStrokeCommit: () => {
+      updateLayerThumbnails();
+      scheduleAutosave();
+    },
+    onRequestUndo: () => {
+      history.undo(doc);
+      renderLayerPanel();
+      scheduleAutosave();
+    },
+    onRequestRedo: () => {
+      history.redo(doc);
+      renderLayerPanel();
+      scheduleAutosave();
+    },
+  });
+
+  renderLayerPanel();
+  showEditorScreen();
+  requestAnimationFrame(() => viewport.fit());
+}
+
+function renderLayerPanel() {
+  layerList.innerHTML = "";
+  layerRowRefs = new Map();
+  if (!doc) return;
+  const orderTopFirst = [...doc.layers].reverse();
+  btnLayerAdd.disabled = doc.layers.length >= 4;
+
+  for (const layer of orderTopFirst) {
+    const idx = doc.layers.indexOf(layer);
+    const li = document.createElement("li");
+    li.className = "layer-item" + (idx === doc.activeLayerIndex ? " active" : "");
+
+    const thumb = document.createElement("canvas");
+    thumb.className = "layer-thumb";
+    thumb.width = 72;
+    thumb.height = 56;
+    drawThumb(thumb, layer);
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "layer-name";
+    nameSpan.textContent = layer.name + (layer.isSketch ? "(したがき)" : "");
+
+    const clickArea = document.createElement("div");
+    clickArea.style.display = "flex";
+    clickArea.style.alignItems = "center";
+    clickArea.style.gap = "6px";
+    clickArea.style.flex = "1";
+    clickArea.style.cursor = "pointer";
+    clickArea.appendChild(thumb);
+    clickArea.appendChild(nameSpan);
+    clickArea.addEventListener("click", () => {
+      doc.activeLayerIndex = idx;
+      renderLayerPanel();
+    });
+
+    const visBtn = document.createElement("button");
+    visBtn.textContent = layer.visible ? "👁" : "🚫";
+    visBtn.setAttribute("aria-label", "見える/見えない");
+    visBtn.addEventListener("click", () => {
+      layer.visible = !layer.visible;
+      layer.applyOpacityToDom();
+      visBtn.textContent = layer.visible ? "👁" : "🚫";
+      scheduleAutosave();
+    });
+
+    const opacityBtn = document.createElement("button");
+    opacityBtn.className = "opacity-toggle";
+    const opacityLabels = ["うすい", "ふつう", "こい"];
+    opacityBtn.textContent = opacityLabels[layer.opacityLevel];
+    opacityBtn.addEventListener("click", () => {
+      layer.opacityLevel = (layer.opacityLevel + 1) % 3;
+      layer.applyOpacityToDom();
+      opacityBtn.textContent = opacityLabels[layer.opacityLevel];
+      scheduleAutosave();
+    });
+
+    const upBtn = document.createElement("button");
+    upBtn.textContent = "▲";
+    upBtn.setAttribute("aria-label", "上へ");
+    upBtn.disabled = idx === doc.layers.length - 1;
+    upBtn.addEventListener("click", () => {
+      doc.moveLayer(layer.id, 1);
+      syncStageDom(doc, stageEl);
+      renderLayerPanel();
+      scheduleAutosave();
+    });
+
+    const downBtn = document.createElement("button");
+    downBtn.textContent = "▼";
+    downBtn.setAttribute("aria-label", "下へ");
+    downBtn.disabled = idx === 0;
+    downBtn.addEventListener("click", () => {
+      doc.moveLayer(layer.id, -1);
+      syncStageDom(doc, stageEl);
+      renderLayerPanel();
+      scheduleAutosave();
+    });
+
+    const dupBtn = document.createElement("button");
+    dupBtn.textContent = "⧉";
+    dupBtn.setAttribute("aria-label", "コピー");
+    dupBtn.disabled = doc.layers.length >= 4;
+    dupBtn.addEventListener("click", () => {
+      doc.duplicateLayer(layer.id);
+      syncStageDom(doc, stageEl);
+      renderLayerPanel();
+      scheduleAutosave();
+    });
+
+    const delBtn = document.createElement("button");
+    delBtn.textContent = "🗑";
+    delBtn.setAttribute("aria-label", "けす");
+    delBtn.disabled = doc.layers.length <= 1;
+    delBtn.addEventListener("click", async () => {
+      const ok = await confirmDialog(`「${layer.name}」を けしますか？`);
+      if (!ok) return;
+      doc.removeLayer(layer.id);
+      syncStageDom(doc, stageEl);
+      renderLayerPanel();
+      scheduleAutosave();
+    });
+
+    const excludeLabel = document.createElement("label");
+    excludeLabel.className = "exclude-chk";
+    const excludeChk = document.createElement("input");
+    excludeChk.type = "checkbox";
+    excludeChk.checked = layer.excludeFromExport;
+    excludeChk.addEventListener("change", () => {
+      layer.excludeFromExport = excludeChk.checked;
+      scheduleAutosave();
+    });
+    excludeLabel.appendChild(excludeChk);
+    excludeLabel.appendChild(document.createTextNode("除外"));
+
+    const row2 = document.createElement("div");
+    row2.style.display = "flex";
+    row2.style.flexWrap = "wrap";
+    row2.style.gap = "3px";
+    row2.style.alignItems = "center";
+    row2.appendChild(visBtn);
+    row2.appendChild(opacityBtn);
+    row2.appendChild(upBtn);
+    row2.appendChild(downBtn);
+    row2.appendChild(dupBtn);
+    row2.appendChild(delBtn);
+    row2.appendChild(excludeLabel);
+
+    const wrap = document.createElement("div");
+    wrap.style.display = "flex";
+    wrap.style.flexDirection = "column";
+    wrap.style.flex = "1";
+    wrap.appendChild(clickArea);
+    wrap.appendChild(row2);
+
+    li.appendChild(wrap);
+    layerList.appendChild(li);
+    layerRowRefs.set(layer.id, thumb);
+  }
+}
+
+function drawThumb(canvas, layer) {
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(layer.canvas, 0, 0, canvas.width, canvas.height);
+  if (layer.isWet()) ctx.drawImage(layer.wetCanvas, 0, 0, canvas.width, canvas.height);
+}
+
+function updateLayerThumbnails() {
+  if (!doc) return;
+  for (const layer of doc.layers) {
+    const thumb = layerRowRefs.get(layer.id);
+    if (thumb) drawThumb(thumb, layer);
+  }
+}
+
+function scheduleAutosave() {
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(saveNow, 3000);
+}
+
+async function saveNow() {
+  if (!doc) return;
+  try {
+    await saveWork(doc);
+  } catch (e) {
+    console.warn("保存に失敗しました", e);
+  }
+}
+
+function exportPng() {
+  if (!doc) return;
+  const canvas = doc.flatten({ forExport: true });
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const date = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `${doc.title}_${date}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }, "image/png");
+}
+
+function printWork() {
+  if (!doc) return;
+  let printArea = document.getElementById("print-area");
+  if (!printArea) {
+    printArea = document.createElement("div");
+    printArea.id = "print-area";
+    document.body.appendChild(printArea);
+  }
+  printArea.innerHTML = "";
+  const canvas = doc.flatten({ forExport: true });
+  printArea.appendChild(canvas);
+  window.print();
+}
+
+
+// ---- main.js ----
+
+// file://配布版ではService Workerは使わない(そもそも動作しない)
+
+document.addEventListener("DOMContentLoaded", () => {
+  initFurigana(document.getElementById("btn-furigana"));
+  initEditor();
+  initGallery({ onOpenWork: openWork, onCreateWork: openNewWork });
+  showGallery();
+});
+
+
+
+</script>
+</body>
+</html>
